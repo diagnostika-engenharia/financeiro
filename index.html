@@ -1,0 +1,2602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Financeiro · Diagnóstika</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --teal:#155B67;--turq:#00B4AC;--lima:#8DB72A;
+  --white:#fff;--gray:#F5F6F8;--gray2:#E8EAED;--gray3:#C9CDD4;--gray4:#8B8F96;
+  --text:#1A2E31;--text2:#4A6469;
+  --red:#C0392B;--red-lt:#FDF1F0;--green:#27AE60;--green-lt:#F0FAF4;
+  --warn:#E67E22;--warn-lt:#FEF9F0;
+  --r:10px;--shadow:0 2px 8px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
+body{background:var(--gray);color:var(--text);min-height:100vh}
+
+/* ── LOGIN ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--teal),var(--turq))}
+.login-box{background:var(--white);border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo svg{width:52px;height:52px}
+.login-logo h1{font-size:20px;font-weight:800;color:var(--teal);margin-top:10px}
+.login-logo p{font-size:12px;color:var(--text2);margin-top:2px}
+.login-box label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;margin-top:14px}
+.login-box input{width:100%;border:1.5px solid var(--gray2);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;transition:border .15s}
+.login-box input:focus{border-color:var(--turq)}
+.btn-login{width:100%;margin-top:20px;padding:12px;background:var(--teal);color:var(--white);border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+.btn-login:hover{background:var(--turq)}
+#login-err{color:var(--red);font-size:12px;text-align:center;margin-top:10px;display:none}
+
+/* ── LAYOUT ── */
+#app{display:none;height:100vh;overflow:hidden}
+.app-shell{display:flex;height:100vh}
+
+/* ── SIDEBAR ── */
+nav.sn{width:220px;flex-shrink:0;background:var(--teal);display:flex;flex-direction:column;height:100vh;overflow-y:auto}
+.sn-brand{padding:20px 18px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sn-brand h2{color:var(--white);font-size:14px;font-weight:800}
+.sn-brand p{color:rgba(255,255,255,.5);font-size:11px;margin-top:2px}
+.sn-section{padding:8px 0 2px;font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.8px;padding-left:18px;padding-top:14px}
+.sn-btn{display:flex;align-items:center;gap:10px;padding:10px 18px;border:none;background:transparent;color:rgba(255,255,255,.65);cursor:pointer;font-size:13px;font-weight:500;text-align:left;width:100%;border-left:3px solid transparent;transition:all .15s}
+.sn-btn svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.sn-btn:hover{background:rgba(255,255,255,.08);color:var(--white)}
+.sn-btn.active{background:rgba(255,255,255,.13);color:var(--white);border-left-color:var(--turq);font-weight:700}
+.sn-btn.disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.soon{font-size:9px;background:rgba(255,255,255,.15);color:rgba(255,255,255,.5);padding:2px 5px;border-radius:4px;margin-left:auto}
+.sn-footer{margin-top:auto;padding:12px 0;border-top:1px solid rgba(255,255,255,.1)}
+.sn-user{padding:10px 18px;font-size:12px;color:rgba(255,255,255,.6)}
+.sn-user strong{display:block;color:rgba(255,255,255,.9);font-size:13px}
+
+/* ── MAIN ── */
+main.main{flex:1;overflow-y:auto;padding:24px}
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.page-header h2{font-size:18px;font-weight:800;color:var(--teal)}
+.page-header p{font-size:13px;color:var(--text2);margin-top:2px}
+
+/* ── KPI CARDS ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--white);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);border-left:4px solid transparent}
+.kpi.green{border-color:var(--green)}
+.kpi.red{border-color:var(--red)}
+.kpi.blue{border-color:var(--turq)}
+.kpi.gray{border-color:var(--gray3)}
+.kpi label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.kpi .val{font-size:22px;font-weight:800;margin-top:4px;color:var(--text)}
+.kpi.red .val{color:var(--red)}
+.kpi.green .val{color:var(--green)}
+
+/* ── CARDS / TABLES ── */
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+.card-hd{padding:14px 16px;border-bottom:1px solid var(--gray2);display:flex;align-items:center;justify-content:space-between}
+.card-hd h3{font-size:14px;font-weight:700;color:var(--teal)}
+.card-bd{padding:0}
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;padding:10px 14px;background:var(--gray);border-bottom:1px solid var(--gray2);text-align:left}
+.tbl td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--gray2);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f9fbfc}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.pend{background:#FEF3E2;color:#B7600A}
+.badge.ok{background:var(--green-lt);color:#1E8449}
+.badge.venc{background:var(--red-lt);color:var(--red)}
+.empty{text-align:center;padding:40px;color:var(--text2);font-size:13px}
+
+/* ── BOTÕES ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--teal);color:var(--white)}
+.btn-primary:hover{background:var(--turq)}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+.btn-outline{background:var(--white);border:1.5px solid var(--gray2);color:var(--text)}
+.btn-outline:hover{border-color:var(--turq);color:var(--turq)}
+.btn-danger{background:var(--white);border:1.5px solid var(--red);color:var(--red)}
+.btn-danger:hover{background:var(--red-lt)}
+.btn-green{background:var(--green);color:var(--white)}
+.btn-green:hover{opacity:.9}
+
+/* ── FILTROS ── */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters select,.filters input{border:1.5px solid var(--gray2);border-radius:7px;padding:7px 10px;font-size:13px;background:var(--white);outline:none;color:var(--text)}
+.filters select:focus,.filters input:focus{border-color:var(--turq)}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+body.capturing .rel-acao{display:none!important}
+.modal{background:var(--white);border-radius:14px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.22)}
+.modal-hd{padding:18px 20px 14px;border-bottom:1px solid var(--gray2);display:flex;align-items:center;justify-content:space-between}
+.modal-hd h3{font-size:15px;font-weight:800;color:var(--teal)}
+.modal-hd button{background:none;border:none;cursor:pointer;font-size:20px;color:var(--gray4);line-height:1}
+.modal-bd{padding:18px 20px}
+.modal-ft{padding:14px 20px;border-top:1px solid var(--gray2);display:flex;justify-content:flex-end;gap:8px}
+.form-row{margin-bottom:14px}
+.form-row label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px}
+.form-row input,.form-row select,.form-row textarea{width:100%;border:1.5px solid var(--gray2);border-radius:7px;padding:9px 11px;font-size:13px;outline:none;transition:border .15s;background:var(--white)}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--turq)}
+.form-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row .hint{font-size:11px;color:var(--text2);margin-top:3px}
+.chk-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.chk-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal);cursor:pointer}
+.chk-row label{font-size:13px;color:var(--text);cursor:pointer}
+
+/* ── REEMBOLSOS ── */
+.gcal-card{background:linear-gradient(135deg,#F0F8FF,#E8F5E9);border:1.5px solid #C8E6C9;border-radius:var(--r);padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+.gcal-card.connected{background:linear-gradient(135deg,#F0FAF4,#E8F5E9);border-color:var(--green)}
+.gcal-icon{width:30px;height:30px;flex-shrink:0}
+.gcal-info{flex:1}
+.gcal-info h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:1px}
+.gcal-info p{font-size:12px;color:var(--text2)}
+.visit-row-pendente td{background:#FEF9F0}
+.badge-cidade{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.badge-cidade.auto{background:#E3F2FD;color:#1565C0}
+.badge-cidade.aprendido{background:#F3E5F5;color:#6A1B9A}
+.badge-cidade.pendente{background:#FFF3E0;color:#E65100}
+.badge-cidade.manual{background:#E8F5E9;color:#1B5E20}
+.relatorio-box{background:var(--gray);border-radius:var(--r);padding:16px;margin-top:12px}
+.relatorio-linha{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray2);font-size:13px}
+.relatorio-linha:last-child{border-bottom:none;font-weight:700;font-size:14px;color:var(--teal)}
+.mes-sel{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;background:var(--white);padding:12px 16px;border-radius:var(--r);box-shadow:var(--shadow)}
+/* tabs reembolsos */
+.rem-tabs{display:flex;gap:6px;margin-bottom:16px}
+.rem-tab-btn{padding:8px 18px;border-radius:20px;border:1.5px solid var(--gray2);background:var(--white);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.rem-tab-btn.active{background:var(--teal);color:var(--white);border-color:var(--teal)}
+.rem-tab-btn:not(.active):hover{border-color:var(--turq);color:var(--teal)}
+/* gerador automático */
+.rel-gerador{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 18px;margin-bottom:12px;border-left:4px solid var(--lima)}
+.rel-gerador h3{font-size:14px;font-weight:700;color:var(--teal);margin-bottom:2px;display:flex;align-items:center;gap:8px}
+.rel-gerador p{font-size:12px;color:var(--text2);margin-bottom:10px}
+.rel-gerador-body{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.func-col{display:flex;flex-direction:column;gap:6px;min-width:160px}
+.func-col label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px}
+.func-col select{border:1.5px solid var(--gray2);border-radius:7px;padding:8px 10px;font-size:13px;background:var(--white);outline:none;color:var(--text);cursor:pointer}
+.func-col select:focus{border-color:var(--turq)}
+.mes-grid-col{flex:1;display:flex;flex-direction:column;gap:8px}
+.mes-grid-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px}
+.mes-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.mes-btn{padding:7px 4px;border-radius:7px;border:1.5px solid var(--gray2);background:var(--white);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;text-align:center;transition:all .15s}
+.mes-btn:hover{border-color:var(--turq);color:var(--teal)}
+.mes-btn.sel{background:var(--teal);color:var(--white);border-color:var(--teal)}
+.ano-select{border:1.5px solid var(--gray2);border-radius:7px;padding:7px 10px;font-size:13px;background:var(--white);outline:none;color:var(--text);width:90px}
+.ano-select:focus{border-color:var(--turq)}
+.btn-gerar-rel2{background:var(--lima);color:var(--white);border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;margin-top:auto}
+.btn-gerar-rel2:hover{opacity:.9}
+/* relatórios gerados */
+.badge-gerado{background:#E8F5E9;color:#1B5E20;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.badge-visitas{background:#E3F2FD;color:#1565C0;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.rel-num{font-weight:700;color:var(--teal);font-size:13px;font-family:monospace}
+.val-green{color:var(--green);font-weight:700}
+.btn-icon{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;font-size:15px;transition:background .15s}
+.btn-icon:hover{background:var(--gray2)}
+.btn-icon.del:hover{background:var(--red-lt);color:var(--red)}
+/* upload digital */
+.upload-area{border:2px dashed var(--gray3);border-radius:var(--r);padding:40px;text-align:center;color:var(--text2);cursor:pointer;transition:all .15s;background:var(--white)}
+.upload-area:hover{border-color:var(--turq);background:#F0FAFA}
+.upload-area svg{width:40px;height:40px;margin:0 auto 12px;display:block;opacity:.4}
+.upload-area p{font-size:13px;margin-bottom:8px}
+.upload-area small{font-size:11px;color:var(--gray4)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--teal);color:var(--white);padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);display:none;z-index:9999}
+#toast.err{background:var(--red)}
+
+/* ── COFRE — lista expansível (sem rolagem lateral) ── */
+.cf-list{display:flex;flex-direction:column}
+.cf-empty{padding:28px;text-align:center;color:var(--text2)}
+.cf-item{border-bottom:1px solid var(--gray2)}
+.cf-item:last-child{border-bottom:none}
+.cf-row{display:flex;align-items:center;gap:12px;padding:13px 18px;cursor:pointer;transition:background .12s}
+.cf-row:hover{background:var(--gray)}
+.cf-icon{flex-shrink:0;width:30px;height:30px;border-radius:50%;color:#fff;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
+.cf-main{flex:1;min-width:0}
+.cf-desc{font-weight:600;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cf-sub{font-size:11.5px;color:var(--text2);margin-top:2px}
+.cf-val{flex-shrink:0;font-weight:800;font-size:14px;white-space:nowrap}
+.cf-chev{flex-shrink:0;color:var(--text2);transition:transform .2s}
+.cf-item.open .cf-chev{transform:rotate(180deg)}
+.cf-detail{display:none;padding:4px 18px 16px 60px;background:var(--gray)}
+.cf-item.open .cf-detail{display:block}
+.cf-dgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 18px}
+.cf-dgrid>div{display:flex;flex-direction:column;gap:2px}
+.cf-dgrid span,.cf-obs span{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);font-weight:600}
+.cf-dgrid b{font-size:14px;font-weight:700}
+.cf-obs{margin-top:10px}
+.cf-obs div{font-size:13px;color:var(--text);margin-top:2px}
+@media(max-width:820px){
+  .cf-detail{padding-left:18px}
+  .cf-dgrid{grid-template-columns:1fr 1fr}
+}
+
+/* ── MOBILE (drawer + adaptação) ── */
+.mobile-bar{display:none}
+.mobile-backdrop{display:none}
+@media(max-width:820px){
+  body{overflow-x:hidden}
+  #app{height:auto;overflow:visible}
+  .app-shell{display:block;height:auto}
+  /* barra superior fixa com hambúrguer */
+  .mobile-bar{display:flex;align-items:center;gap:12px;position:fixed;top:0;left:0;right:0;height:54px;background:var(--teal);z-index:800;padding:0 14px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .mb-burger{background:none;border:none;color:#fff;font-size:25px;line-height:1;cursor:pointer;padding:4px 8px}
+  .mb-title{color:#fff;font-size:16px;font-weight:800}
+  /* sidebar vira drawer deslizante */
+  nav.sn{position:fixed;top:0;left:0;height:100vh;width:268px;max-width:84vw;z-index:1000;transform:translateX(-100%);transition:transform .25s ease;box-shadow:2px 0 18px rgba(0,0,0,.3)}
+  nav.sn.open{transform:translateX(0)}
+  .mobile-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:950;opacity:0;pointer-events:none;transition:opacity .25s}
+  .mobile-backdrop.open{opacity:1;pointer-events:auto}
+  /* conteúdo ocupa a largura toda, abaixo da barra */
+  main.main{height:auto;overflow:visible;padding:68px 14px 32px}
+  .page-header{flex-direction:column;align-items:flex-start;gap:10px}
+  .page-header h2{font-size:17px}
+  /* KPIs em 2 colunas estilo app */
+  .kpi-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .kpi{padding:13px}
+  .kpi .val{font-size:19px}
+  /* tabelas com rolagem horizontal dentro do card (não estoura a tela) */
+  .card-bd{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.tbl{min-width:560px}
+  .tbl th,.tbl td{padding:9px 10px;font-size:12px}
+  /* formulários em coluna única */
+  .form-2col{grid-template-columns:1fr}
+  /* gerador de reembolsos empilha */
+  .rel-gerador-body{flex-direction:column;align-items:stretch}
+  .func-col{min-width:0}
+  .btn-gerar-rel2{width:100%;justify-content:center}
+  .rem-tabs{flex-wrap:wrap}
+  .mes-grid{grid-template-columns:repeat(6,1fr)}
+  /* login responsivo */
+  .login-box{width:88vw;max-width:360px;padding:32px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="52" height="52" rx="12" fill="#155B67"/>
+        <path d="M12 28l8-8 8 8 12-12" stroke="#00B4AC" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="38" cy="38" r="8" fill="#8DB72A"/>
+        <path d="M35 38h6M38 35v6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <h1>Financeiro</h1>
+      <p>Diagnóstika Engenharia</p>
+    </div>
+    <label>E-mail</label>
+    <input id="l-email" type="email" placeholder="rogerio@diagnostika-pmp.app" autocomplete="username">
+    <label>Senha</label>
+    <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button class="btn-login" onclick="doLogin()">Entrar</button>
+    <div id="login-err">E-mail ou senha incorretos.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="mobile-bar">
+    <button class="mb-burger" onclick="toggleNav()" aria-label="Menu">☰</button>
+    <span class="mb-title">💰 Financeiro</span>
+  </header>
+  <div class="mobile-backdrop" id="navBackdrop" onclick="toggleNav(false)"></div>
+  <div class="app-shell">
+    <!-- SIDEBAR -->
+    <nav class="sn" id="sidebar">
+      <div class="sn-brand" onclick="window.open('https://diagnostika-engenharia.github.io/','_blank')" title="Voltar ao portal Diagnóstika" style="cursor:pointer;transition:opacity .15s" onmouseenter="this.style.opacity='.8'" onmouseleave="this.style.opacity='1'">
+        <h2>💰 Financeiro</h2>
+        <p style="display:flex;align-items:center;gap:4px">Diagnóstika Engenharia <span style="font-size:10px;opacity:.6">↗</span></p>
+      </div>
+
+      <div class="sn-section">VISÃO GERAL</div>
+      <button class="sn-btn active" id="sn-dash" onclick="nav('dash')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard
+      </button>
+
+      <div class="sn-section">CONTAS</div>
+      <button class="sn-btn" id="sn-receber" onclick="nav('receber')">
+        <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>A Receber
+      </button>
+      <button class="sn-btn" id="sn-pagar" onclick="nav('pagar')">
+        <svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>A Pagar
+      </button>
+
+      <div class="sn-section">EM BREVE</div>
+      <button class="sn-btn" id="sn-reembolsos" onclick="nav('reembolsos')"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Reembolsos</button>
+      <button class="sn-btn disabled"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Conciliação<span class="soon">em breve</span></button>
+      <button class="sn-btn disabled"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>DRE<span class="soon">em breve</span></button>
+      <button class="sn-btn disabled"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Fluxo de Caixa<span class="soon">em breve</span></button>
+      <button class="sn-btn" id="sn-cofre" onclick="nav('cofre')"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Cofre</button>
+
+      <div class="sn-footer">
+        <div class="sn-user">
+          <strong id="sn-nome">—</strong>
+          <span id="sn-email-disp">—</span>
+        </div>
+        <button class="sn-btn" onclick="doLogout()" style="color:#FFB4B4">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sair
+        </button>
+      </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dash">
+        <div class="page-header">
+          <div><h2>Dashboard</h2><p id="dash-subtitle">Visão geral financeira</p></div>
+          <button class="btn btn-outline btn-sm" onclick="loadDash()">↺ Atualizar</button>
+        </div>
+        <div class="kpi-row" id="kpi-row">
+          <div class="kpi green"><label>Entradas Previstas</label><div class="val" id="kpi-entrada">—</div></div>
+          <div class="kpi red"><label>Saídas Previstas</label><div class="val" id="kpi-saida">—</div></div>
+          <div class="kpi blue"><label>Saldo Projetado</label><div class="val" id="kpi-saldo">—</div></div>
+          <div class="kpi gray"><label>Contas Bancárias</label><div class="val" id="kpi-banco">—</div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><h3>Contas a Receber — Pendentes</h3><a onclick="nav('receber')" style="font-size:12px;color:var(--turq);cursor:pointer">Ver todas →</a></div>
+          <div class="card-bd"><table class="tbl"><thead><tr><th>Cliente</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="dash-receber"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><h3>Contas a Pagar — Pendentes</h3><a onclick="nav('pagar')" style="font-size:12px;color:var(--turq);cursor:pointer">Ver todas →</a></div>
+          <div class="card-bd"><table class="tbl"><thead><tr><th>Fornecedor</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="dash-pagar"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- CONTAS A RECEBER -->
+      <div class="page" id="page-receber">
+        <div class="page-header">
+          <div><h2>Contas a Receber</h2><p>Receitas e cobranças</p></div>
+          <button class="btn btn-primary" onclick="openModalReceber()">+ Nova Conta</button>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi green"><label>Total a Receber</label><div class="val" id="kr-total">—</div></div>
+          <div class="kpi gray"><label>Recebido no Mês</label><div class="val" id="kr-mes">—</div></div>
+        </div>
+        <div class="filters">
+          <select id="fr-status" onchange="loadReceber()"><option value="">Todos</option><option value="Pendente">Pendente</option><option value="Recebido">Recebido</option></select>
+          <select id="fr-cat" onchange="loadReceber()">
+            <option value="">Todas as categorias</option>
+            <option>ART</option><option>Vistoria</option><option>Projetos</option>
+            <option>Assessoria Condomínio</option><option>Laudos</option><option>Outros</option>
+          </select>
+        </div>
+        <div class="card">
+          <div class="card-bd"><table class="tbl"><thead><tr>
+            <th>Cliente</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>NF</th><th></th>
+          </tr></thead><tbody id="tbl-receber"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- CONTAS A PAGAR -->
+      <div class="page" id="page-pagar">
+        <div class="page-header">
+          <div><h2>Contas a Pagar</h2><p>Despesas e obrigações</p></div>
+          <button class="btn btn-primary" onclick="openModalPagar()">+ Nova Conta</button>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi red"><label>Total Vencido</label><div class="val" id="kp-venc">—</div></div>
+          <div class="kpi" style="border-color:var(--warn)"><label>A Vencer</label><div class="val" id="kp-avenc">—</div></div>
+          <div class="kpi gray"><label>Pago no Mês</label><div class="val" id="kp-mes">—</div></div>
+        </div>
+        <div class="filters">
+          <select id="fp-status" onchange="loadPagar()"><option value="">Todos</option><option value="Pendente">Pendente</option><option value="Pago">Pago</option></select>
+          <select id="fp-cat" onchange="loadPagar()">
+            <option value="">Todas as categorias</option>
+            <option>Aluguel</option><option>Energia</option><option>Internet</option>
+            <option>Telefone</option><option>Água</option><option>Fornecedor</option>
+            <option>Serviços</option><option>Impostos</option><option>Reembolsos</option><option>Outros</option>
+          </select>
+        </div>
+        <div class="card">
+          <div class="card-bd"><table class="tbl"><thead><tr>
+            <th>Fornecedor</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th><th></th>
+          </tr></thead><tbody id="tbl-pagar"><tr><td colspan="6" class="empty">Carregando…</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- REEMBOLSOS -->
+      <div class="page" id="page-reembolsos">
+        <div class="page-header">
+          <div><h2>Meus Reembolsos</h2><p id="rem-subtitulo">Histórico completo de solicitações</p></div>
+          <button class="btn btn-outline btn-sm" onclick="loadReembolsos()">↺ Atualizar</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="rem-tabs">
+          <button class="rem-tab-btn active" id="tab-btn-visita" onclick="remTab('visita')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Reembolsos de Visita
+          </button>
+          <button class="rem-tab-btn" id="tab-btn-digital" onclick="remTab('digital')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Reembolsos Digitais
+          </button>
+        </div>
+
+        <!-- ═══ ABA: REEMBOLSOS DE VISITA ═══ -->
+        <div id="rem-tab-visita">
+
+          <!-- Botões de ação -->
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn btn-green" onclick="openModalVisitaManual()">+ Novo Reembolso</button>
+            <button class="btn btn-primary" onclick="acaoGcalBtn()" id="gcal-btn">
+              <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="16" height="14" rx="2"/><line x1="2" y1="8" x2="18" y2="8"/><line x1="6" y1="2" x2="6" y2="5"/><line x1="14" y1="2" x2="14" y2="5"/></svg>
+              Importar Visitas do Google Calendar
+            </button>
+            <button class="btn" style="background:var(--teal);color:#fff" onclick="exportarExcelRem()">
+              <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16l4-4m0 0l4 4m-4-4V4"/><rect x="2" y="14" width="16" height="4" rx="1" fill="none"/></svg>
+              Exportar Excel
+            </button>
+          </div>
+
+          <!-- Google Calendar status -->
+          <div class="gcal-card" id="gcal-auth-card">
+            <svg class="gcal-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <rect width="48" height="48" rx="8" fill="#fff" stroke="#ddd" stroke-width="1"/>
+              <path d="M33 15H15a2 2 0 00-2 2v14a2 2 0 002 2h18a2 2 0 002-2V17a2 2 0 00-2-2z" fill="#4285F4"/>
+              <rect x="13" y="21" width="22" height="2" fill="#fff"/>
+              <rect x="13" y="26" width="22" height="2" fill="#fff"/>
+              <rect x="18" y="12" width="3" height="6" rx="1.5" fill="#EA4335"/>
+              <rect x="27" y="12" width="3" height="6" rx="1.5" fill="#EA4335"/>
+            </svg>
+            <div class="gcal-info">
+              <h3 id="gcal-status-title">Conectar Google Calendar</h3>
+              <p id="gcal-status-desc">Autorize o acesso para importar visitas automaticamente do calendário.</p>
+            </div>
+            <span id="rem-loading" style="font-size:12px;color:var(--text2);display:none;margin-right:8px">Importando…</span>
+          </div>
+
+          <!-- Gerador Automático -->
+          <div class="rel-gerador">
+            <h3>
+              <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h0a2 2 0 002-2M9 5a2 2 0 012-2h0a2 2 0 012 2"/></svg>
+              Gerar Relatório de Reembolso Automático
+            </h3>
+            <p>Identifica automaticamente deslocamentos do Google Calendar e calcula valores por cidade</p>
+            <div class="rel-gerador-body">
+              <div class="func-col">
+                <label>Funcionário</label>
+                <select id="rem-funcionario">
+                  <option value="">— carregando —</option>
+                </select>
+              </div>
+              <div class="mes-grid-col">
+                <div class="mes-grid-label">Mês</div>
+                <div class="mes-grid" id="mes-grid">
+                  <button class="mes-btn" onclick="selMes(1)">Jan</button>
+                  <button class="mes-btn" onclick="selMes(2)">Fev</button>
+                  <button class="mes-btn" onclick="selMes(3)">Mar</button>
+                  <button class="mes-btn" onclick="selMes(4)">Abr</button>
+                  <button class="mes-btn" onclick="selMes(5)">Mai</button>
+                  <button class="mes-btn" onclick="selMes(6)">Jun</button>
+                  <button class="mes-btn" onclick="selMes(7)">Jul</button>
+                  <button class="mes-btn" onclick="selMes(8)">Ago</button>
+                  <button class="mes-btn" onclick="selMes(9)">Set</button>
+                  <button class="mes-btn" onclick="selMes(10)">Out</button>
+                  <button class="mes-btn" onclick="selMes(11)">Nov</button>
+                  <button class="mes-btn" onclick="selMes(12)">Dez</button>
+                </div>
+              </div>
+              <div class="func-col" style="min-width:90px">
+                <label>Ano</label>
+                <select id="rem-ano" class="ano-select" onchange="atualizarMesGrid()"></select>
+              </div>
+              <button class="btn-gerar-rel2" onclick="gerarRelatorio()">
+                <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2" x2="7" y2="5"/><line x1="13" y1="2" x2="13" y2="5"/></svg>
+                Gerar Relatório
+              </button>
+            </div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="importarCalendario()">📅 Importar do Calendário</button>
+              <span id="rem-pendente-aviso" style="font-size:12px;color:var(--warn);display:none">⚠ Confirme as cidades pendentes antes de gerar o relatório</span>
+            </div>
+          </div>
+
+          <!-- KPIs -->
+          <div class="kpi-row">
+            <div class="kpi green"><label>Visitas Importadas</label><div class="val" id="kr-visitas">—</div></div>
+            <div class="kpi blue"><label>Total Calculado</label><div class="val" id="kr-total-rem">—</div></div>
+            <div class="kpi" style="border-color:var(--warn)"><label>Pendentes Confirmar</label><div class="val" id="kr-pend-cid">—</div></div>
+            <div class="kpi gray"><label>Já Reembolsado</label><div class="val" id="kr-reemb">—</div></div>
+          </div>
+
+          <!-- Tabela de Visitas -->
+          <div class="card">
+            <div class="card-hd">
+              <h3>Visitas do Mês</h3>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button class="btn btn-green btn-sm" id="btn-gerar-rel" onclick="gerarRelatorio()" style="display:none">📄 Gerar Relatório</button>
+              </div>
+            </div>
+            <div class="card-bd">
+              <table class="tbl">
+                <thead><tr>
+                  <th>Data</th><th>Descrição</th><th>Cidade</th><th>Fonte</th><th>Valor Base</th><th>Valor Final</th><th></th>
+                </tr></thead>
+                <tbody id="tbl-visitas"><tr><td colspan="7" class="empty">Selecione um mês e importe do calendário.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Relatório Gerado (preview) -->
+          <div class="card" id="card-relatorio-gerado" style="display:none">
+            <div class="card-hd">
+              <h3>📄 Relatório Gerado</h3>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" onclick="downloadPDF()">⬇ Baixar PDF</button>
+                <button class="btn btn-primary btn-sm" onclick="criarContaPagar()">💳 Criar Conta a Pagar</button>
+              </div>
+            </div>
+            <div class="card-bd" style="padding:16px">
+              <div id="relatorio-resumo" class="relatorio-box"></div>
+            </div>
+          </div>
+
+          <!-- Relatórios Gerados -->
+          <div class="card" style="margin-top:8px">
+            <div class="card-hd"><h3>Relatórios Gerados</h3></div>
+            <div class="card-bd">
+              <table class="tbl">
+                <thead><tr>
+                  <th>Número de Controle</th>
+                  <th>Mês Referência</th>
+                  <th>Quantidade</th>
+                  <th>Valor Total</th>
+                  <th>Status</th>
+                  <th style="text-align:right">Ações</th>
+                </tr></thead>
+                <tbody id="tbl-hist-rem"><tr><td colspan="6" class="empty">Nenhum relatório gerado.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /rem-tab-visita -->
+
+        <!-- ═══ ABA: REEMBOLSOS DIGITAIS ═══ -->
+        <div id="rem-tab-digital" style="display:none">
+
+          <!-- Upload fatura -->
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-hd"><h3>Importar Fatura do Cartão</h3></div>
+            <div class="card-bd" style="padding:16px">
+              <div class="upload-area" onclick="document.getElementById('rem-fatura-input').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <p>Arraste e solte sua fatura aqui<br>ou</p>
+                <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();document.getElementById('rem-fatura-input').click()">Enviar Fatura</button>
+                <small style="display:block;margin-top:8px">Formatos aceitos: PDF, CSV, XLSX</small>
+              </div>
+              <input type="file" id="rem-fatura-input" accept=".pdf,.csv,.xlsx" style="display:none" onchange="processarFatura(this)">
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-bottom:16px">
+            <button class="btn btn-green" onclick="openModalReembolsoDigital()">+ Novo Reembolso Digital</button>
+            <button class="btn btn-primary" onclick="toast('Em breve: geração de PDF de despesas digitais')">⬇ Gerar PDF</button>
+          </div>
+
+          <!-- Relatórios digitais -->
+          <div class="card">
+            <div class="card-hd"><h3>Relatórios Gerados</h3></div>
+            <div class="card-bd">
+              <table class="tbl">
+                <thead><tr>
+                  <th>Número de Controle</th><th>Mês Referência</th><th>Quantidade</th><th>Valor Total</th><th>Status</th><th style="text-align:right">Ações</th>
+                </tr></thead>
+                <tbody id="tbl-digital-rem"><tr><td colspan="6" class="empty">Nenhum reembolso digital registrado.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /rem-tab-digital -->
+
+      </div>
+
+      <!-- COFRE -->
+      <div class="page" id="page-cofre">
+        <div class="page-header">
+          <div><h2>Livro Caixa do Cofre</h2><p>Controle de movimentações de dinheiro em espécie</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-green" onclick="openModalCofre('Entrada')">+ Registrar Entrada</button>
+            <button class="btn" style="background:var(--red);color:#fff" onclick="openModalCofre('Saída')">+ Registrar Saída</button>
+          </div>
+        </div>
+
+        <!-- Saldo Atual -->
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--green)">
+          <div style="padding:20px 24px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">Saldo Atual do Cofre</div>
+              <div id="cofre-saldo" style="font-size:32px;font-weight:800;color:var(--teal);margin-top:6px">—</div>
+              <div id="cofre-data" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
+            </div>
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+        </div>
+
+        <!-- Lista de Movimentações (expansível) -->
+        <div class="card">
+          <div class="card-hd"><h3>Histórico de Movimentações</h3></div>
+          <div class="card-bd" style="padding:0">
+            <div id="tbl-cofre" class="cf-list"><div class="cf-empty">Carregando…</div></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODAL: NOVA/EDITAR CONTA A RECEBER -->
+<div class="modal-bg" id="modal-receber">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="mr-title">Nova Conta a Receber</h3><button onclick="closeModal('modal-receber')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mr-id">
+      <div class="form-row"><label>Cliente *</label><input id="mr-cliente" placeholder="Nome do cliente"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>Categoria *</label>
+          <select id="mr-cat">
+            <option>ART</option><option>Vistoria</option><option>Projetos</option>
+            <option>Assessoria Condomínio</option><option>Laudos</option><option selected>Outros</option>
+          </select>
+        </div>
+        <div class="form-row"><label>Valor (R$) *</label><input id="mr-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      </div>
+      <div class="form-row"><label>Descrição</label><input id="mr-desc" placeholder="Opcional"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>Data de Vencimento *</label><input id="mr-venc" type="date"></div>
+        <div class="form-row"><label>Dia do Vencimento</label><input id="mr-dia" type="number" min="1" max="31" value="15"></div>
+      </div>
+      <div class="chk-row"><input type="checkbox" id="mr-rec" onchange="toggleRecorrente('mr')"><label for="mr-rec">Recorrente mensal</label></div>
+      <div class="form-row" id="mr-fim-row" style="display:none"><label>Fim da recorrência (mês/ano)</label><input id="mr-fim" placeholder="dez/26"></div>
+      <div class="chk-row"><input type="checkbox" id="mr-nf"><label for="mr-nf">Lembrete de Nota Fiscal</label></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-receber')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveReceber()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MARCAR RECEBIDO -->
+<div class="modal-bg" id="modal-recebido">
+  <div class="modal">
+    <div class="modal-hd"><h3>Marcar como Recebido</h3><button onclick="closeModal('modal-recebido')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mrec-id">
+      <div class="form-row"><label>Forma de Pagamento *</label>
+        <select id="mrec-forma"><option>Dinheiro</option><option>PIX</option><option>Transferência</option><option>Boleto</option><option>Cartão</option></select>
+      </div>
+      <div class="form-row"><label>Data de Recebimento *</label><input id="mrec-data" type="date"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-recebido')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmarRecebido()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ESTORNAR RECEBIMENTO -->
+<div class="modal-bg" id="modal-estorno-r">
+  <div class="modal">
+    <div class="modal-hd"><h3>Estornar Recebimento</h3><button onclick="closeModal('modal-estorno-r')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mer-id">
+      <div class="form-row"><label>Motivo do estorno *</label><textarea id="mer-motivo" rows="3" placeholder="Descreva o motivo do estorno…"></textarea></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-estorno-r')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarEstornoR()">Estornar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVA/EDITAR CONTA A PAGAR -->
+<div class="modal-bg" id="modal-pagar">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="mp-title">Nova Conta a Pagar</h3><button onclick="closeModal('modal-pagar')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mp-id">
+      <div class="form-2col">
+        <div class="form-row"><label>Categoria *</label>
+          <select id="mp-cat">
+            <option>Aluguel</option><option>Energia</option><option>Internet</option>
+            <option>Telefone</option><option>Água</option><option>Fornecedor</option>
+            <option>Serviços</option><option>Impostos</option><option>Reembolsos</option><option selected>Outros</option>
+          </select>
+        </div>
+        <div class="form-row"><label>Valor (R$) *</label><input id="mp-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      </div>
+      <div class="form-row"><label>Fornecedor/Credor *</label><input id="mp-forn" placeholder="Nome do fornecedor"></div>
+      <div class="form-row"><label>Descrição</label><input id="mp-desc" placeholder="Opcional"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>Data de Vencimento *</label><input id="mp-venc" type="date"></div>
+        <div class="form-row"><label>Dia do Vencimento</label><input id="mp-dia" type="number" min="1" max="31" value="10"></div>
+      </div>
+      <div class="chk-row"><input type="checkbox" id="mp-rec" onchange="toggleRecorrente('mp')"><label for="mp-rec">Recorrente mensal</label></div>
+      <div class="form-row" id="mp-fim-row" style="display:none"><label>Fim da recorrência (mês/ano)</label><input id="mp-fim" placeholder="dez/26"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-pagar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePagar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MARCAR PAGO -->
+<div class="modal-bg" id="modal-pago">
+  <div class="modal">
+    <div class="modal-hd"><h3>Marcar como Pago</h3><button onclick="closeModal('modal-pago')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mpag-id">
+      <div class="form-row"><label>Data do Pagamento *</label><input id="mpag-data" type="date"></div>
+      <div class="form-row"><label>Conta Bancária (opcional)</label>
+        <select id="mpag-conta"><option value="">Sem vínculo</option></select>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-pago')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmarPago()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ESTORNAR PAGAMENTO -->
+<div class="modal-bg" id="modal-estorno-p">
+  <div class="modal">
+    <div class="modal-hd"><h3>Estornar Pagamento</h3><button onclick="closeModal('modal-estorno-p')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mep-id">
+      <div class="form-row"><label>Motivo do estorno *</label><textarea id="mep-motivo" rows="3" placeholder="Descreva o motivo…"></textarea></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-estorno-p')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarEstornoP()">Estornar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: COFRE ENTRADA/SAÍDA -->
+<div class="modal-bg" id="modal-cofre">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="mcf-title">Registrar Entrada</h3><button onclick="closeModal('modal-cofre')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mcf-tipo">
+      <div class="form-row"><label>Data *</label><input id="mcf-data" type="date"></div>
+      <div class="form-row"><label>Descrição *</label><input id="mcf-desc" placeholder="Ex: Recebimento de cliente, Pagamento fornecedor…"></div>
+      <div class="form-row"><label>Valor (R$) *</label><input id="mcf-valor" type="number" min="0.01" step="0.01" placeholder="0,00"></div>
+      <div class="form-row"><label>Observação</label><textarea id="mcf-obs" rows="2" placeholder="Opcional"></textarea></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-cofre')">Cancelar</button>
+      <button class="btn btn-primary" id="mcf-save" onclick="salvarMovCofre()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR CIDADE -->
+<div class="modal-bg" id="modal-cidade">
+  <div class="modal">
+    <div class="modal-hd"><h3>Confirmar Cidade da Visita</h3><button onclick="closeModal('modal-cidade')">×</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mc-idx">
+      <div class="form-row">
+        <label>Descrição do evento</label>
+        <div id="mc-desc" style="padding:9px 11px;background:var(--gray);border-radius:7px;font-size:13px;color:var(--text2)"></div>
+      </div>
+      <div class="form-row">
+        <label>Cidade *</label>
+        <select id="mc-cidade">
+          <option value="Campinas">Campinas — R$ 20</option>
+          <option value="Hortolândia">Hortolândia — R$ 50</option>
+          <option value="Paulínia">Paulínia — R$ 70</option>
+          <option value="Monte Mor">Monte Mor — R$ 50</option>
+          <option value="Sumaré">Sumaré — R$ 50</option>
+          <option value="Valinhos">Valinhos — R$ 50</option>
+          <option value="Indaiatuba">Indaiatuba — R$ 50</option>
+          <option value="Outra">Outra cidade — R$ 30</option>
+        </select>
+      </div>
+      <div class="chk-row">
+        <input type="checkbox" id="mc-aprender" checked>
+        <label for="mc-aprender">Lembrar esta associação para o futuro</label>
+      </div>
+      <div class="form-row" id="mc-palavra-row">
+        <label>Palavra-chave para aprendizado</label>
+        <input id="mc-palavra" placeholder="Ex: Santa Clara">
+        <div class="hint">Qual palavra do texto identifica esta cidade?</div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-cidade')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarCidade()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VISITA MANUAL -->
+<div class="modal-bg" id="modal-visita-manual">
+  <div class="modal">
+    <div class="modal-hd"><h3>Adicionar Visita Manualmente</h3><button onclick="closeModal('modal-visita-manual')">×</button></div>
+    <div class="modal-bd">
+      <div class="form-row"><label>Data *</label><input id="vm-data" type="date"></div>
+      <div class="form-row"><label>Descrição *</label><input id="vm-desc" placeholder="Ex: Visita Cond. Santa Clara"></div>
+      <div class="form-row">
+        <label>Cidade *</label>
+        <select id="vm-cidade">
+          <option value="Campinas">Campinas — R$ 20</option>
+          <option value="Hortolândia">Hortolândia — R$ 50</option>
+          <option value="Paulínia">Paulínia — R$ 70</option>
+          <option value="Monte Mor">Monte Mor — R$ 50</option>
+          <option value="Sumaré">Sumaré — R$ 50</option>
+          <option value="Valinhos">Valinhos — R$ 50</option>
+          <option value="Indaiatuba">Indaiatuba — R$ 50</option>
+          <option value="Outra">Outra cidade — R$ 30</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-visita-manual')">Cancelar</button>
+      <button class="btn btn-primary" onclick="adicionarVisitaManual()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REEMBOLSO DIGITAL -->
+<div class="modal-bg" id="modal-rem-digital">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hd">
+      <h3>Novo Reembolso Digital</h3>
+      <button class="modal-close" onclick="closeModal('modal-rem-digital')">×</button>
+    </div>
+    <div class="modal-bd">
+      <label class="lbl">Data *</label>
+      <input type="date" id="rd-data" class="inp" style="margin-bottom:12px">
+      <label class="lbl">Descrição *</label>
+      <input type="text" id="rd-desc" class="inp" placeholder="Ex: Almoço com cliente, Estacionamento..." style="margin-bottom:12px">
+      <label class="lbl">Categoria *</label>
+      <select id="rd-categoria" class="inp" style="margin-bottom:12px">
+        <option>Alimentação</option>
+        <option>Transporte</option>
+        <option>Estacionamento</option>
+        <option>Pedágio</option>
+        <option>Hospedagem</option>
+        <option>Material</option>
+        <option>Outros</option>
+      </select>
+      <label class="lbl">Valor (R$) *</label>
+      <input type="number" id="rd-valor" class="inp" placeholder="0,00" min="0" step="0.01" style="margin-bottom:16px">
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-rem-digital')">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarReembolsoDigital()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW RELATÓRIO -->
+<div class="modal-bg" id="modal-preview-rel">
+  <div style="background:var(--white);border-radius:14px;width:900px;max-width:97vw;max-height:93vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.28);display:flex;flex-direction:column">
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--gray2);position:sticky;top:0;background:var(--white);z-index:10">
+      <div id="prev-rel-title" style="font-size:14px;font-weight:700;color:var(--teal)">Preview do Relatório de Reembolsos</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="prev-btn-addvis" class="btn btn-outline btn-sm" onclick="adicionarVisitaNoPreview()">+ Adicionar Visita</button>
+        <button class="btn btn-outline btn-sm" onclick="imprimirPreviewRel()">🖨 Imprimir</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadPDFPreview()">⬇ PDF</button>
+        <button class="btn btn-sm" style="background:#25D366;color:#fff;border:none" onclick="compartilharRelatorio()">📲 Compartilhar</button>
+        <button id="prev-btn-cpagar" class="btn btn-green btn-sm" onclick="criarContaPagarPreview()">💳 Criar Conta a Pagar</button>
+        <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray4);line-height:1;padding:0 4px" onclick="closeModal('modal-preview-rel')">×</button>
+      </div>
+    </div>
+    <!-- Corpo do relatório -->
+    <div id="preview-rel-body" style="padding:28px 32px">
+      <!-- preenchido via JS -->
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COMPARTILHAR -->
+<div class="modal-bg" id="modal-share">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hd">
+      <h3>Compartilhar Relatório</h3>
+      <button class="modal-close" onclick="closeModal('modal-share')">×</button>
+    </div>
+    <div class="modal-bd" style="display:flex;flex-direction:column;gap:10px">
+      <p style="font-size:13px;color:var(--text2);margin:0 0 4px">Gera uma imagem do relatório para enviar.</p>
+      <button class="btn btn-sm" style="background:#25D366;color:#fff;border:none;justify-content:center;padding:11px" onclick="shareWhatsAppImagem()">📲 Imagem no WhatsApp</button>
+      <button class="btn btn-outline btn-sm" style="justify-content:center;padding:11px" onclick="baixarImagemRel()">🖼 Baixar imagem (PNG)</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://fimmjgdwhifsrrbreche.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpbW1qZ2R3aGlmc3JyYnJlY2hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzU2NDIsImV4cCI6MjA5NTE1MTY0Mn0.eAmMS95M8BkfX3NCcOtHnhKWXy0jkvXwSGEoqv_Q21Q';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+
+// ─── Responsáveis pelos reembolsos (por tipo, não por quem está logado) ───
+const RESP_REEMBOLSO={
+  visita :{user_id:'a71d23f8-0b1f-4dc5-ae44-829a5c1073a3',nome:'Claudemir Scaranello'}, // trabalho de campo
+  digital:{user_id:'bc85944b-5b89-4710-886c-1717e8309e24',nome:'Rogério Conceição'},     // trabalho remoto
+};
+const ST_AGUARDANDO='Aguardando aprovação';
+
+// ── Helpers ──────────────────────────────────────────────────
+const fmt=v=>'R$ '+(v/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const hoje=()=>new Date().toISOString().slice(0,10);
+function parseData(s){if(!s)return null;const[d,m,a]=s.split('/');return`${a}-${m}-${d}`;}
+function formatData(iso){if(!iso)return'—';const[a,m,d]=iso.split('-');return`${d}/${m}/${a}`;}
+function isVencido(dStr){if(!dStr)return false;return dStr<hoje();}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function toast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=err?'err':'';t.style.display='block';
+  setTimeout(()=>t.style.display='none',3000);
+}
+
+// ── Auth ─────────────────────────────────────────────────────
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  const err=document.getElementById('login-err');
+  err.style.display='none';
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.style.display='block';return;}
+  initApp();
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ── Init ─────────────────────────────────────────────────────
+async function initApp(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session){return;}
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const u=session.user;
+  document.getElementById('sn-nome').textContent=u.user_metadata?.name||u.email.split('@')[0];
+  document.getElementById('sn-email-disp').textContent=u.email;
+  loadDash();
+  loadContasBancarias();
+}
+
+window.addEventListener('DOMContentLoaded',async()=>{
+  const{data:{session}}=await sb.auth.getSession();
+  if(session)initApp();
+});
+
+// ── Navegação ─────────────────────────────────────────────────
+function toggleNav(force){
+  const sb=document.getElementById('sidebar'), bd=document.getElementById('navBackdrop');
+  if(!sb)return;
+  const open = force===undefined ? !sb.classList.contains('open') : force;
+  sb.classList.toggle('open', open);
+  if(bd) bd.classList.toggle('open', open);
+}
+function nav(page){
+  toggleNav(false);
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sn-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('sn-'+page).classList.add('active');
+  if(page==='dash')loadDash();
+  if(page==='receber')loadReceber();
+  if(page==='pagar')loadPagar();
+  if(page==='reembolsos')loadReembolsos();
+  if(page==='cofre')loadCofre();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function loadDash(){
+  const[{data:receber},{data:pagar},{data:bancos}]=await Promise.all([
+    sb.from('fin_contas_receber').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),
+    sb.from('fin_contas_pagar').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),
+    sb.from('fin_contas_bancarias').select('saldo,nome').eq('ativa',true),
+  ]);
+  const sumR=(receber||[]).reduce((s,r)=>s+r.valor,0);
+  const sumP=(pagar||[]).reduce((s,r)=>s+r.valor,0);
+  const sumB=(bancos||[]).reduce((s,r)=>s+r.saldo,0);
+  document.getElementById('kpi-entrada').textContent=fmt(sumR);
+  document.getElementById('kpi-saida').textContent=fmt(sumP);
+  document.getElementById('kpi-saldo').textContent=fmt(sumR-sumP);
+  document.getElementById('kpi-banco').textContent=fmt(sumB);
+
+  // mini tabelas
+  const r5=(receber||[]).sort((a,b)=>a.data_vencimento>b.data_vencimento?1:-1).slice(0,5);
+  document.getElementById('dash-receber').innerHTML=r5.length?r5.map(r=>`<tr>
+    <td>—</td><td>—</td><td>${formatData(r.data_vencimento)}</td>
+    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
+    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+
+  const p5=(pagar||[]).sort((a,b)=>a.data_vencimento>b.data_vencimento?1:-1).slice(0,5);
+  document.getElementById('dash-pagar').innerHTML=p5.length?p5.map(r=>`<tr>
+    <td>—</td><td>—</td><td>${formatData(r.data_vencimento)}</td>
+    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
+    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+
+  // dashboard completo precisa de cliente/fornecedor - recarrega com mais dados
+  loadDashFull();
+}
+
+async function loadDashFull(){
+  const[{data:receber},{data:pagar}]=await Promise.all([
+    sb.from('fin_contas_receber').select('cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5),
+    sb.from('fin_contas_pagar').select('fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5),
+  ]);
+  document.getElementById('dash-receber').innerHTML=(receber||[]).length?(receber).map(r=>`<tr>
+    <td>${esc(r.cliente)}</td><td>${esc(r.categoria)}</td><td>${formatData(r.data_vencimento)}</td>
+    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
+    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+  document.getElementById('dash-pagar').innerHTML=(pagar||[]).length?(pagar).map(r=>`<tr>
+    <td>${esc(r.fornecedor)}</td><td>${esc(r.categoria)}</td><td>${formatData(r.data_vencimento)}</td>
+    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
+    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+}
+
+function badgeSt(status,venc){
+  if(status==='Recebido'||status==='Pago')return`<span class="badge ok">✓ ${status}</span>`;
+  if(status===ST_AGUARDANDO)return`<span class="badge pend" style="background:#fff3cd;color:#8a6d3b">📋 Aguardando aprovação</span>`;
+  if(isVencido(venc))return`<span class="badge venc">⚠ Vencido</span>`;
+  return`<span class="badge pend">⏳ Pendente</span>`;
+}
+
+// ── Contas Bancárias ──────────────────────────────────────────
+let _bancos=[];
+async function loadContasBancarias(){
+  const{data}=await sb.from('fin_contas_bancarias').select('*').eq('ativa',true);
+  _bancos=data||[];
+  const sel=document.getElementById('mpag-conta');
+  sel.innerHTML='<option value="">Sem vínculo</option>'+_bancos.map(b=>`<option value="${b.id}">${esc(b.nome)} (${fmt(b.saldo)})</option>`).join('');
+}
+
+// ── Contas a Receber ──────────────────────────────────────────
+async function loadReceber(){
+  let q=sb.from('fin_contas_receber').select('*').order('data_vencimento');
+  const st=document.getElementById('fr-status').value;
+  const cat=document.getElementById('fr-cat').value;
+  if(st)q=q.eq('status',st);
+  if(cat)q=q.eq('categoria',cat);
+  const{data,error}=await q;
+  if(error){toast('Erro ao carregar',true);return;}
+  const rows=data||[];
+  // KPIs
+  const mesAtual=new Date().toISOString().slice(0,7);
+  const pend=rows.filter(r=>r.status==='Pendente'&&!r.estornado).reduce((s,r)=>s+r.valor,0);
+  const mes=rows.filter(r=>r.status==='Recebido'&&r.data_recebimento&&r.data_recebimento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
+  document.getElementById('kr-total').textContent=fmt(pend);
+  document.getElementById('kr-mes').textContent=fmt(mes);
+  document.getElementById('tbl-receber').innerHTML=rows.length?rows.map(r=>`
+    <tr>
+      <td>${esc(r.cliente)}</td>
+      <td>${esc(r.categoria)}</td>
+      <td>${formatData(r.data_vencimento)}</td>
+      <td>${fmt(r.valor)}</td>
+      <td>${badgeSt(r.status,r.data_vencimento)}</td>
+      <td>${r.nota_fiscal_emitida?'<span style="color:var(--green);font-size:12px">✓ Emitida</span>':r.lembrete_nota_fiscal?'<span style="color:var(--warn);font-size:12px">⚠ Pendente</span>':'—'}</td>
+      <td style="white-space:nowrap">
+        ${r.status==='Pendente'&&!r.estornado?`<button class="btn btn-green btn-sm" onclick="openMarcarRecebido(${r.id})">Receber</button> `:''}
+        ${r.status==='Recebido'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="openEstornoR(${r.id})">Estornar</button> `:''}
+        <button class="btn btn-outline btn-sm" onclick="editReceber(${r.id})">✎</button>
+        <button class="btn btn-danger btn-sm" onclick="delReceber(${r.id})">✕</button>
+      </td>
+    </tr>`).join(''):'<tr><td colspan="7" class="empty">Nenhum registro encontrado</td></tr>';
+}
+
+function openModalReceber(item=null){
+  document.getElementById('mr-title').textContent=item?'Editar Conta a Receber':'Nova Conta a Receber';
+  document.getElementById('mr-id').value=item?.id||'';
+  document.getElementById('mr-cliente').value=item?.cliente||'';
+  document.getElementById('mr-cat').value=item?.categoria||'Outros';
+  document.getElementById('mr-valor').value=item?item.valor/100:'';
+  document.getElementById('mr-desc').value=item?.descricao||'';
+  document.getElementById('mr-venc').value=item?.data_vencimento||hoje();
+  document.getElementById('mr-dia').value=item?.dia_vencimento||15;
+  document.getElementById('mr-rec').checked=item?.recorrente||false;
+  document.getElementById('mr-fim').value=item?.data_fim_recorrencia||'';
+  document.getElementById('mr-fim-row').style.display=(item?.recorrente)?'block':'none';
+  document.getElementById('mr-nf').checked=item?.lembrete_nota_fiscal||false;
+  document.getElementById('modal-receber').classList.add('open');
+}
+
+async function editReceber(id){
+  const{data}=await sb.from('fin_contas_receber').select('*').eq('id',id).single();
+  openModalReceber(data);
+}
+
+async function saveReceber(){
+  const id=document.getElementById('mr-id').value;
+  const payload={
+    cliente:document.getElementById('mr-cliente').value.trim(),
+    categoria:document.getElementById('mr-cat').value,
+    valor:Math.round(parseFloat(document.getElementById('mr-valor').value)*100),
+    descricao:document.getElementById('mr-desc').value.trim()||null,
+    data_vencimento:document.getElementById('mr-venc').value,
+    dia_vencimento:parseInt(document.getElementById('mr-dia').value)||15,
+    recorrente:document.getElementById('mr-rec').checked,
+    data_fim_recorrencia:document.getElementById('mr-fim').value||null,
+    lembrete_nota_fiscal:document.getElementById('mr-nf').checked,
+  };
+  if(!payload.cliente||!payload.valor||!payload.data_vencimento){toast('Preencha os campos obrigatórios',true);return;}
+  let error;
+  if(id){({error}=await sb.from('fin_contas_receber').update(payload).eq('id',id));}
+  else{({error}=await sb.from('fin_contas_receber').insert(payload));}
+  if(error){toast('Erro ao salvar: '+error.message,true);return;}
+  closeModal('modal-receber');toast(id?'Conta atualizada!':'Conta criada!');
+  loadReceber();loadDash();
+}
+
+async function delReceber(id){
+  if(!confirm('Excluir esta conta?'))return;
+  const{error}=await sb.from('fin_contas_receber').delete().eq('id',id);
+  if(error){toast('Erro ao excluir',true);return;}
+  toast('Conta excluída');loadReceber();loadDash();
+}
+
+function openMarcarRecebido(id){
+  document.getElementById('mrec-id').value=id;
+  document.getElementById('mrec-data').value=hoje();
+  document.getElementById('modal-recebido').classList.add('open');
+}
+
+async function confirmarRecebido(){
+  const id=document.getElementById('mrec-id').value;
+  const forma=document.getElementById('mrec-forma').value;
+  const data=document.getElementById('mrec-data').value;
+  if(!data){toast('Informe a data',true);return;}
+  const{data:contaAtual}=await sb.from('fin_contas_receber').select('*').eq('id',id).single();
+  const{error}=await sb.from('fin_contas_receber').update({status:'Recebido',forma_pagamento:forma,data_recebimento:data}).eq('id',id);
+  if(error){toast('Erro',true);return;}
+  // Entrada automática no Cofre se pago em Dinheiro
+  if(forma==='Dinheiro'&&contaAtual) await registrarEntradaAutomaticaCofre(contaAtual,data);
+  closeModal('modal-recebido');toast('Marcado como recebido!');loadReceber();loadDash();
+}
+
+function openEstornoR(id){
+  document.getElementById('mer-id').value=id;
+  document.getElementById('mer-motivo').value='';
+  document.getElementById('modal-estorno-r').classList.add('open');
+}
+
+async function confirmarEstornoR(){
+  const id=document.getElementById('mer-id').value;
+  const motivo=document.getElementById('mer-motivo').value.trim();
+  if(!motivo){toast('Informe o motivo',true);return;}
+  const{error}=await sb.from('fin_contas_receber').update({status:'Pendente',estornado:true,data_estorno:hoje(),motivo_estorno:motivo,data_recebimento:null,forma_pagamento:null}).eq('id',id);
+  if(error){toast('Erro',true);return;}
+  closeModal('modal-estorno-r');toast('Estornado');loadReceber();loadDash();
+}
+
+// ── Contas a Pagar ────────────────────────────────────────────
+async function loadPagar(){
+  let q=sb.from('fin_contas_pagar').select('*').order('data_vencimento');
+  const st=document.getElementById('fp-status').value;
+  const cat=document.getElementById('fp-cat').value;
+  if(st)q=q.eq('status',st);
+  if(cat)q=q.eq('categoria',cat);
+  const{data,error}=await q;
+  if(error){toast('Erro ao carregar',true);return;}
+  const rows=data||[];
+  // KPIs
+  const mesAtual=new Date().toISOString().slice(0,7);
+  const hj=hoje();
+  const venc=rows.filter(r=>r.status==='Pendente'&&!r.estornado&&r.data_vencimento<hj).reduce((s,r)=>s+r.valor,0);
+  const avenc=rows.filter(r=>r.status==='Pendente'&&!r.estornado&&r.data_vencimento>=hj).reduce((s,r)=>s+r.valor,0);
+  const mes=rows.filter(r=>r.status==='Pago'&&r.data_pagamento&&r.data_pagamento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
+  document.getElementById('kp-venc').textContent=fmt(venc);
+  document.getElementById('kp-avenc').textContent=fmt(avenc);
+  document.getElementById('kp-mes').textContent=fmt(mes);
+  document.getElementById('tbl-pagar').innerHTML=rows.length?rows.map(r=>`
+    <tr>
+      <td>${esc(r.fornecedor)}</td>
+      <td>${esc(r.categoria)}</td>
+      <td>${formatData(r.data_vencimento)}</td>
+      <td>${fmt(r.valor)}</td>
+      <td>${badgeSt(r.status,r.data_vencimento)}</td>
+      <td style="white-space:nowrap">
+        ${r.status===ST_AGUARDANDO?`<button class="btn btn-primary btn-sm" onclick="aprovarConta(${r.id})">✓ Aprovar e lançar</button> `:''}
+        ${r.status==='Pendente'&&!r.estornado?`<button class="btn btn-green btn-sm" onclick="openMarcarPago(${r.id})">Pagar</button> `:''}
+        ${r.status==='Pago'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="openEstornoP(${r.id})">Estornar</button> `:''}
+        <button class="btn btn-outline btn-sm" onclick="editPagar(${r.id})">✎</button>
+        <button class="btn btn-danger btn-sm" onclick="delPagar(${r.id})">✕</button>
+      </td>
+    </tr>`).join(''):'<tr><td colspan="6" class="empty">Nenhum registro encontrado</td></tr>';
+}
+
+function openModalPagar(item=null){
+  document.getElementById('mp-title').textContent=item?'Editar Conta a Pagar':'Nova Conta a Pagar';
+  document.getElementById('mp-id').value=item?.id||'';
+  document.getElementById('mp-cat').value=item?.categoria||'Outros';
+  document.getElementById('mp-forn').value=item?.fornecedor||'';
+  document.getElementById('mp-valor').value=item?item.valor/100:'';
+  document.getElementById('mp-desc').value=item?.descricao||'';
+  document.getElementById('mp-venc').value=item?.data_vencimento||hoje();
+  document.getElementById('mp-dia').value=item?.dia_vencimento||10;
+  document.getElementById('mp-rec').checked=item?.recorrente||false;
+  document.getElementById('mp-fim').value=item?.data_fim_recorrencia||'';
+  document.getElementById('mp-fim-row').style.display=(item?.recorrente)?'block':'none';
+  document.getElementById('modal-pagar').classList.add('open');
+}
+
+async function editPagar(id){
+  const{data}=await sb.from('fin_contas_pagar').select('*').eq('id',id).single();
+  openModalPagar(data);
+}
+
+async function savePagar(){
+  const id=document.getElementById('mp-id').value;
+  const payload={
+    categoria:document.getElementById('mp-cat').value,
+    fornecedor:document.getElementById('mp-forn').value.trim(),
+    valor:Math.round(parseFloat(document.getElementById('mp-valor').value)*100),
+    descricao:document.getElementById('mp-desc').value.trim()||null,
+    data_vencimento:document.getElementById('mp-venc').value,
+    dia_vencimento:parseInt(document.getElementById('mp-dia').value)||10,
+    recorrente:document.getElementById('mp-rec').checked,
+    data_fim_recorrencia:document.getElementById('mp-fim').value||null,
+  };
+  if(!payload.fornecedor||!payload.valor||!payload.data_vencimento){toast('Preencha os campos obrigatórios',true);return;}
+  let error;
+  if(id){({error}=await sb.from('fin_contas_pagar').update(payload).eq('id',id));}
+  else{({error}=await sb.from('fin_contas_pagar').insert(payload));}
+  if(error){toast('Erro ao salvar: '+error.message,true);return;}
+  closeModal('modal-pagar');toast(id?'Conta atualizada!':'Conta criada!');
+  loadPagar();loadDash();
+}
+
+async function delPagar(id){
+  if(!confirm('Excluir esta conta?'))return;
+  const{error}=await sb.from('fin_contas_pagar').delete().eq('id',id);
+  if(error){toast('Erro ao excluir',true);return;}
+  toast('Conta excluída');loadPagar();loadDash();
+}
+
+function openMarcarPago(id){
+  document.getElementById('mpag-id').value=id;
+  document.getElementById('mpag-data').value=hoje();
+  document.getElementById('modal-pago').classList.add('open');
+}
+
+async function confirmarPago(){
+  const id=document.getElementById('mpag-id').value;
+  const data=document.getElementById('mpag-data').value;
+  const contaId=document.getElementById('mpag-conta').value||null;
+  if(!data){toast('Informe a data',true);return;}
+  const upd={status:'Pago',data_pagamento:data};
+  if(contaId)upd.conta_bancaria_id=parseInt(contaId);
+  // Busca o vínculo de reembolso antes de atualizar (para cascatear o status)
+  const{data:conta}=await sb.from('fin_contas_pagar').select('competencia,tipo_reembolso').eq('id',id).single();
+  const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
+  if(error){toast('Erro',true);return;}
+  // Cascata: marca os reembolsos do mês como Pagos
+  if(conta&&conta.competencia&&conta.tipo_reembolso){
+    const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
+    await sb.from(tabela).update({status:'Pago'}).eq('mes',conta.competencia);
+  }
+  closeModal('modal-pago');toast('Marcado como pago!');loadPagar();loadDash();
+}
+
+function openEstornoP(id){
+  document.getElementById('mep-id').value=id;
+  document.getElementById('mep-motivo').value='';
+  document.getElementById('modal-estorno-p').classList.add('open');
+}
+
+async function confirmarEstornoP(){
+  const id=document.getElementById('mep-id').value;
+  const motivo=document.getElementById('mep-motivo').value.trim();
+  if(!motivo){toast('Informe o motivo',true);return;}
+  const{data:conta}=await sb.from('fin_contas_pagar').select('competencia,tipo_reembolso').eq('id',id).single();
+  const{error}=await sb.from('fin_contas_pagar').update({status:'Pendente',estornado:true,data_estorno:hoje(),motivo_estorno:motivo,data_pagamento:null,conta_bancaria_id:null}).eq('id',id);
+  if(error){toast('Erro',true);return;}
+  // Cascata: reembolsos do mês voltam a Pendente
+  if(conta&&conta.competencia&&conta.tipo_reembolso){
+    const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
+    await sb.from(tabela).update({status:'Pendente'}).eq('mes',conta.competencia);
+  }
+  closeModal('modal-estorno-p');toast('Estornado');loadPagar();loadDash();
+}
+
+// ── Utilitários ───────────────────────────────────────────────
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function toggleRecorrente(pfx){
+  const checked=document.getElementById(pfx+'-rec').checked;
+  document.getElementById(pfx+'-fim-row').style.display=checked?'block':'none';
+}
+document.querySelectorAll('.modal-bg').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
+});
+
+// ═══════════════════════════════════════════════════════════════
+// REEMBOLSOS
+// ═══════════════════════════════════════════════════════════════
+
+const GCAL_CLIENT_ID='199565310671-gire6ckfm03uifa0r4k2b86jpp5kqilo.apps.googleusercontent.com';
+const GCAL_SCOPE='https://www.googleapis.com/auth/calendar.readonly';
+
+// Tabela de valores por cidade (centavos)
+const CIDADE_VALOR={
+  'Campinas':2000,'Hortolândia':5000,'Paulínia':7000,
+  'Monte Mor':5000,'Sumaré':5000,'Valinhos':5000,
+  'Indaiatuba':5000,'Outra':3000
+};
+
+// Padrões regex de detecção
+const CIDADE_PATTERNS=[
+  {cidade:'Paulínia',   re:/santa\s*clara|sta\.?\s*clara|paulin[ií]a/i},
+  {cidade:'Hortolândia',re:/primavera|malta|doni|lu[ií]s|hortoland/i},
+  {cidade:'Monte Mor',  re:/mont[e\s]*ville|monte\s*mor/i},
+  {cidade:'Campinas',   re:/menotti|campinas/i},
+  {cidade:'Sumaré',     re:/sumar[eé]/i},
+  {cidade:'Valinhos',   re:/valinhos/i},
+  {cidade:'Indaiatuba', re:/indaiatuba/i},
+];
+
+// Palavras que identificam visita
+const INCLUDE_RE=/visita|deslocamento|ir\s+(em|para|até)|pegar|buscar|retirar/i;
+const EXCLUDE_RE=/reuni[aã]o|enviar|liberar|ligar|e-?mail|whatsapp|mensagem|lembrete/i;
+
+let _remVisitas=[];       // visitas do mês atual
+let _remGoogleToken=null; // access token Google
+let _remAprendizado=[];   // cache fin_cidade_aprendizado
+let _relatorio=null;      // relatório gerado
+let _relatorioDig=null;   // relatório digital gerado
+let _previewModo='visita';// modo do modal de preview: 'visita' | 'digital'
+
+// ─── Google OAuth (implicit flow) ────────────────────────────
+function iniciarGoogleAuth(){
+  const redirect=encodeURIComponent(window.location.origin+window.location.pathname);
+  const scope=encodeURIComponent(GCAL_SCOPE);
+  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GCAL_CLIENT_ID}&redirect_uri=${redirect}&response_type=token&scope=${scope}&prompt=consent`;
+  window.location.href=url;
+}
+
+function handleGoogleCallback(){
+  const hash=window.location.hash;
+  if(!hash.includes('access_token='))return;
+  const params=new URLSearchParams(hash.slice(1));
+  const token=params.get('access_token');
+  const expiresIn=parseInt(params.get('expires_in')||'3600');
+  if(!token)return;
+  _remGoogleToken=token;
+  const expiresAt=Date.now()+expiresIn*1000;
+  localStorage.setItem('gcal_token',JSON.stringify({token,expiresAt}));
+  history.replaceState(null,'',window.location.pathname);
+  atualizarStatusGcal(true);
+  toast('Google Calendar conectado!');
+}
+
+function carregarTokenGoogle(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('gcal_token')||'null');
+    if(saved&&saved.expiresAt>Date.now()+60000){
+      _remGoogleToken=saved.token;
+      return true;
+    }
+  }catch{}
+  return false;
+}
+
+function atualizarStatusGcal(conectado){
+  const card=document.getElementById('gcal-auth-card');
+  const title=document.getElementById('gcal-status-title');
+  const desc=document.getElementById('gcal-status-desc');
+  const btn=document.getElementById('gcal-btn');
+  if(conectado){
+    card.classList.add('connected');
+    title.textContent='✓ Google Calendar conectado';
+    desc.textContent='Calendário autorizado. Selecione o mês e importe as visitas.';
+    // Atualiza botão de ação para "Importar do Calendar"
+    if(btn){
+      const svg=btn.querySelector('svg');
+      btn.innerHTML='';
+      if(svg)btn.appendChild(svg);
+      btn.appendChild(document.createTextNode(' Importar do Calendar'));
+      btn.className='btn btn-primary';
+    }
+  }else{
+    card.classList.remove('connected');
+    title.textContent='Conectar Google Calendar';
+    desc.textContent='Autorize o acesso para importar visitas automaticamente do calendário.';
+    if(btn){
+      const svg=btn.querySelector('svg');
+      btn.innerHTML='';
+      if(svg)btn.appendChild(svg);
+      btn.appendChild(document.createTextNode(' Conectar'));
+      btn.className='btn btn-primary';
+    }
+  }
+}
+
+// ─── Detecção de cidade ───────────────────────────────────────
+function detectarCidade(texto){
+  // Layer 1: regex fixo
+  for(const{cidade,re}of CIDADE_PATTERNS){
+    if(re.test(texto))return{cidade,fonte:'auto'};
+  }
+  // Layer 2: aprendizado salvo
+  const tl=texto.toLowerCase();
+  for(const a of _remAprendizado){
+    if(tl.includes(a.palavra_chave.toLowerCase()))
+      return{cidade:a.cidade_correta,fonte:'aprendido'};
+  }
+  // Layer 3: pendente
+  return{cidade:'PENDENTE_CIDADE',fonte:'pendente'};
+}
+
+function ehVisita(titulo,desc=''){
+  const texto=(titulo+' '+(desc||'')).toLowerCase();
+  if(EXCLUDE_RE.test(texto))return false;
+  return INCLUDE_RE.test(texto);
+}
+
+// ─── Agrupamento (mesmo dia + mesma cidade) ───────────────────
+function aplicarAgrupamento(visitas){
+  const grupos={};
+  for(const v of visitas){
+    const key=v.data+'|'+v.cidade;
+    if(!grupos[key])grupos[key]=[];
+    grupos[key].push(v);
+  }
+  for(const key of Object.keys(grupos)){
+    const g=grupos[key];
+    const n=g.length;
+    const base=CIDADE_VALOR[g[0].cidade]||3000;
+    if(n===1){
+      g[0].valorFinal=base;
+    }else if(n<=3){
+      g[0].valorFinal=base;
+      for(let i=1;i<n;i++)g[i].valorFinal=0;
+    }else if(n<=5){
+      g[0].valorFinal=Math.round(base*1.5);
+      for(let i=1;i<n;i++)g[i].valorFinal=0;
+    }else{
+      for(const v of g)v.valorFinal=base;
+    }
+  }
+}
+
+// ─── Importar do Google Calendar ─────────────────────────────
+async function importarCalendario(){
+  if(!_remGoogleToken){
+    toast('Conecte o Google Calendar primeiro.',true);return;
+  }
+  const mes=getMesISO();
+  if(!mes){toast('Selecione um mês.',true);return;}
+  document.getElementById('rem-loading').style.display='inline';
+  document.getElementById('btn-gerar-rel').style.display='none';
+  document.getElementById('card-relatorio-gerado').style.display='none';
+
+  const[ano,mm]=mes.split('-');
+  const tMin=`${mes}-01T00:00:00Z`;
+  const ultimoDia=new Date(parseInt(ano),parseInt(mm),0).getDate();
+  const tMax=`${mes}-${String(ultimoDia).padStart(2,'0')}T23:59:59Z`;
+
+  // Carregar aprendizado do Supabase
+  const{data:aprendizado}=await sb.from('fin_cidade_aprendizado').select('*').eq('user_id',(await sb.auth.getUser()).data.user.id);
+  _remAprendizado=aprendizado||[];
+
+  const url=`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&singleEvents=true&orderBy=startTime&maxResults=500`;
+  let resp;
+  try{
+    const r=await fetch(url,{headers:{Authorization:'Bearer '+_remGoogleToken}});
+    if(r.status===401){
+      localStorage.removeItem('gcal_token');_remGoogleToken=null;
+      atualizarStatusGcal(false);toast('Token expirado. Reconecte o Google Calendar.',true);
+      document.getElementById('rem-loading').style.display='none';return;
+    }
+    resp=await r.json();
+  }catch(e){
+    toast('Erro ao buscar calendário.',true);
+    document.getElementById('rem-loading').style.display='none';return;
+  }
+
+  const events=(resp.items||[]);
+  _remVisitas=[];
+  for(const ev of events){
+    const titulo=ev.summary||'';
+    const descEv=ev.description||'';
+    if(!ehVisita(titulo,descEv))continue;
+    const dateStr=ev.start?.date||ev.start?.dateTime?.slice(0,10);
+    if(!dateStr)continue;
+    const det=detectarCidade(titulo+' '+descEv);
+    _remVisitas.push({
+      id:'gcal_'+ev.id,
+      data:dateStr,
+      descricao:titulo,
+      cidade:det.cidade,
+      fonte:det.fonte,
+      valorBase:CIDADE_VALOR[det.cidade]||3000,
+      valorFinal:0,
+      google_event_id:ev.id,
+      source:'google',
+    });
+  }
+
+  // Ordena por data
+  _remVisitas.sort((a,b)=>a.data>b.data?1:-1);
+
+  // Aplica agrupamento (só cidades definidas)
+  const definitivas=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE');
+  aplicarAgrupamento(definitivas);
+  // Pendentes ficam com valorFinal=0 até confirmação
+
+  document.getElementById('rem-loading').style.display='none';
+  renderTabelaVisitas();
+  atualizarKPIsRem();
+  await carregarHistoricoRem();
+}
+
+// ─── Render tabela de visitas ─────────────────────────────────
+function renderTabelaVisitas(){
+  const tbody=document.getElementById('tbl-visitas');
+  if(!_remVisitas.length){
+    tbody.innerHTML='<tr><td colspan="7" class="empty">Nenhuma visita encontrada para este mês.</td></tr>';
+    document.getElementById('btn-gerar-rel').style.display='none';
+    document.getElementById('rem-pendente-aviso').style.display='none';
+    return;
+  }
+
+  const pendentes=_remVisitas.filter(v=>v.cidade==='PENDENTE_CIDADE');
+  document.getElementById('rem-pendente-aviso').style.display=pendentes.length?'inline':'none';
+  document.getElementById('btn-gerar-rel').style.display=pendentes.length?'none':'inline-flex';
+
+  tbody.innerHTML=_remVisitas.map((v,i)=>{
+    const cls=v.cidade==='PENDENTE_CIDADE'?'visit-row-pendente':'';
+    const cidadeBadge=v.cidade==='PENDENTE_CIDADE'
+      ?`<span class="badge-cidade pendente">⚠ Pendente</span>`
+      :`<span class="badge-cidade ${v.fonte}">${esc(v.cidade)}</span>`;
+    const vBase=v.valorBase?fmt(v.valorBase):'—';
+    const vFinal=v.valorFinal!=null?(v.valorFinal===0?'<span style="color:var(--text2);font-size:12px">Agrupado</span>':fmt(v.valorFinal)):'—';
+    const btns=v.cidade==='PENDENTE_CIDADE'
+      ?`<button class="btn btn-primary btn-sm" onclick="openConfirmarCidade(${i})">Confirmar Cidade</button>`
+      :`<button class="btn btn-outline btn-sm" onclick="openConfirmarCidade(${i})">✎ Cidade</button> <button class="btn btn-danger btn-sm" onclick="removerVisita(${i})">✕</button>`;
+    return`<tr class="${cls}">
+      <td>${formatData(v.data)}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.descricao)}">${esc(v.descricao)}</td>
+      <td>${cidadeBadge}</td>
+      <td><span style="font-size:11px;color:var(--text2)">${v.fonte==='auto'?'Auto':v.fonte==='aprendido'?'Aprendido':v.fonte==='manual'?'Manual':'Pendente'}</span></td>
+      <td>${vBase}</td>
+      <td><strong>${vFinal}</strong></td>
+      <td style="white-space:nowrap">${btns}</td>
+    </tr>`;
+  }).join('');
+}
+
+function atualizarKPIsRem(){
+  const total=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE').reduce((s,v)=>s+(v.valorFinal||0),0);
+  const pend=_remVisitas.filter(v=>v.cidade==='PENDENTE_CIDADE').length;
+  document.getElementById('kr-visitas').textContent=_remVisitas.length;
+  document.getElementById('kr-total-rem').textContent=fmt(total);
+  document.getElementById('kr-pend-cid').textContent=pend;
+}
+
+function removerVisita(idx){
+  _remVisitas.splice(idx,1);
+  // Reagrupa
+  const def=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE');
+  def.forEach(v=>v.valorFinal=0);
+  aplicarAgrupamento(def);
+  renderTabelaVisitas();
+  atualizarKPIsRem();
+}
+
+// ─── Confirmar cidade ─────────────────────────────────────────
+function openConfirmarCidade(idx){
+  const v=_remVisitas[idx];
+  document.getElementById('mc-idx').value=idx;
+  document.getElementById('mc-desc').textContent=v.descricao;
+  document.getElementById('mc-cidade').value=v.cidade==='PENDENTE_CIDADE'?'Hortolândia':v.cidade;
+  // Sugere palavra-chave: primeira palavra de conteúdo relevante
+  const palavraSug=v.descricao.split(/\s+/).find(p=>p.length>4)||'';
+  document.getElementById('mc-palavra').value=palavraSug;
+  document.getElementById('modal-cidade').classList.add('open');
+}
+
+async function confirmarCidade(){
+  const idx=parseInt(document.getElementById('mc-idx').value);
+  const cidade=document.getElementById('mc-cidade').value;
+  const aprender=document.getElementById('mc-aprender').checked;
+  const palavra=document.getElementById('mc-palavra').value.trim();
+  const v=_remVisitas[idx];
+
+  v.cidade=cidade;
+  v.fonte='manual';
+  v.valorBase=CIDADE_VALOR[cidade]||3000;
+  v.valorFinal=v.valorBase;
+
+  // Salvar aprendizado
+  if(aprender&&palavra){
+    const{data:{user}}=await sb.auth.getUser();
+    await sb.from('fin_cidade_aprendizado').upsert({
+      user_id:user.id,
+      texto_original:v.descricao,
+      palavra_chave:palavra,
+      cidade_correta:cidade,
+      valor_reembolso:CIDADE_VALOR[cidade]||3000,
+      confianca:100,
+    },{onConflict:'user_id,palavra_chave'});
+    _remAprendizado=_remAprendizado.filter(a=>a.palavra_chave!==palavra);
+    _remAprendizado.push({palavra_chave:palavra,cidade_correta:cidade});
+  }
+
+  // Reagrupa tudo
+  const def=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE');
+  def.forEach(v=>v.valorFinal=0);
+  aplicarAgrupamento(def);
+
+  closeModal('modal-cidade');
+  renderTabelaVisitas();
+  atualizarKPIsRem();
+  toast('Cidade confirmada!');
+}
+
+// ─── Visita manual ────────────────────────────────────────────
+function openModalVisitaManual(){
+  document.getElementById('vm-data').value=hoje();
+  document.getElementById('vm-desc').value='';
+  document.getElementById('vm-cidade').value='Hortolândia';
+  document.getElementById('modal-visita-manual').classList.add('open');
+}
+
+function adicionarVisitaManual(){
+  const data=document.getElementById('vm-data').value;
+  const desc=document.getElementById('vm-desc').value.trim();
+  const cidade=document.getElementById('vm-cidade').value;
+  if(!data||!desc){toast('Preencha todos os campos',true);return;}
+  const nova={
+    id:'manual_'+Date.now(),
+    data,descricao:desc,cidade,fonte:'manual',
+    valorBase:CIDADE_VALOR[cidade]||3000,valorFinal:0,source:'manual'
+  };
+  _remVisitas.push(nova);
+  _remVisitas.sort((a,b)=>a.data>b.data?1:-1);
+  const def=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE');
+  def.forEach(v=>v.valorFinal=0);
+  aplicarAgrupamento(def);
+  closeModal('modal-visita-manual');
+  renderTabelaVisitas();
+  atualizarKPIsRem();
+  toast('Visita adicionada!');
+}
+
+// ─── Gerar Relatório ──────────────────────────────────────────
+async function gerarRelatorio(){
+  const mes=getMesISO();
+  if(!mes){toast('Selecione o mês',true);return;}
+  const visitasFin=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE');
+  const total=visitasFin.reduce((s,v)=>s+(v.valorFinal||0),0);
+
+  // Resumo por cidade
+  const porCidade={};
+  for(const v of visitasFin){
+    if(!porCidade[v.cidade])porCidade[v.cidade]={qtd:0,valor:0};
+    porCidade[v.cidade].qtd++;
+    porCidade[v.cidade].valor+=v.valorFinal||0;
+  }
+
+  _relatorio={mes,visitas:visitasFin,total,porCidade};
+
+  // Exibir resumo
+  const linhas=Object.entries(porCidade).map(([c,d])=>
+    `<div class="relatorio-linha"><span>${c} (${d.qtd} visita${d.qtd>1?'s':''})</span><span>${fmt(d.valor)}</span></div>`
+  ).join('');
+  document.getElementById('relatorio-resumo').innerHTML=`
+    ${linhas}
+    <div class="relatorio-linha"><span>TOTAL DO MÊS (${mes.slice(5,7)}/${mes.slice(0,4)})</span><span>${fmt(total)}</span></div>
+  `;
+  document.getElementById('card-relatorio-gerado').style.display='block';
+
+  // Salvar no Supabase
+  const{data:{user}}=await sb.auth.getUser();
+  const[ano,mm]=mes.split('-');
+  const nomeMes=new Date(parseInt(ano),parseInt(mm)-1,1).toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace('. ','/');
+
+  // Upsert em fin_reembolsos (uma linha por visita que tem valor > 0)
+  const remRows=visitasFin.filter(v=>(v.valorFinal||0)>0).map(v=>({
+    user_id:user.id,
+    data:v.data,
+    descricao:v.descricao,
+    cidade:v.cidade,
+    valor:v.valorFinal,
+    status:'Pendente',
+    mes:nomeMes,
+    google_event_id:v.google_event_id||null,
+  }));
+  if(remRows.length){
+    await sb.from('fin_reembolsos').upsert(remRows,{onConflict:'user_id,google_event_id',ignoreDuplicates:false});
+  }
+
+  // Reflete automaticamente em Contas a Pagar (rascunho "Aguardando aprovação",
+  // responsável = Claudemir). Idempotente: regerar o mês só reconcilia o valor.
+  if(total>0){
+    try{ await upsertContaReembolso('visita',nomeMes,total,remRows.length); }
+    catch(e){ console.warn('Falha ao lançar conta a pagar do reembolso:',e.message); }
+  }
+
+  toast('Relatório gerado!');
+  await carregarHistoricoRem();
+  // Abre preview automaticamente (igual ao Manus)
+  await visualizarRelatorio(nomeMes);
+}
+
+// ─── Download PDF ─────────────────────────────────────────────
+function downloadPDF(){
+  if(!_relatorio){toast('Gere o relatório primeiro.',true);return;}
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const mes=_relatorio.mes;
+  const[ano,mm]=mes.split('-');
+  const nomeMes=new Date(parseInt(ano),parseInt(mm)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+  doc.setFillColor(21,91,103);
+  doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('Relatório de Reembolsos — Diagnóstika Engenharia',14,12);
+  doc.setFontSize(11);doc.setFont('helvetica','normal');
+  doc.text(`Período: ${nomeMes}`,14,20);
+
+  doc.setTextColor(30,30,30);
+  doc.setFontSize(11);doc.setFont('helvetica','bold');
+  doc.text('Detalhamento de Visitas',14,38);
+
+  // Tabela
+  let y=44;
+  doc.setFillColor(240,242,245);doc.rect(14,y-4,182,7,'F');
+  doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('Data',16,y);doc.text('Descrição',40,y);doc.text('Cidade',140,y);doc.text('Valor',185,y,'right');
+  y+=6;doc.setFont('helvetica','normal');
+
+  for(const v of _relatorio.visitas){
+    if(y>270){doc.addPage();y=20;}
+    const vStr=(v.valorFinal||0)===0?'(agrupado)':fmt(v.valorFinal);
+    doc.text(formatData(v.data),16,y);
+    doc.text(String(v.descricao||'').slice(0,40),40,y);
+    doc.text(v.cidade,140,y);
+    doc.text(vStr,185,y,'right');
+    y+=6;
+    doc.setDrawColor(220,220,220);doc.line(14,y-2,196,y-2);
+  }
+
+  y+=4;
+  // Resumo por cidade
+  doc.setFont('helvetica','bold');doc.text('Resumo por Cidade',14,y);y+=6;
+  doc.setFont('helvetica','normal');
+  for(const[c,d]of Object.entries(_relatorio.porCidade)){
+    doc.text(`${c}: ${d.qtd} visita(s)`,20,y);
+    doc.text(fmt(d.valor),185,y,'right');
+    y+=6;
+  }
+  y+=2;
+  doc.setDrawColor(21,91,103);doc.line(14,y,196,y);y+=6;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.text('TOTAL DO MÊS',14,y);
+  doc.text(fmt(_relatorio.total),185,y,'right');
+
+  doc.save(`reembolso_${mes}.pdf`);
+}
+
+// ─── Lançar reembolso em Contas a Pagar (idempotente, responsável por tipo) ──
+// tipo: 'visita' (Claudemir) | 'digital' (Rogério). status inicial = Aguardando aprovação.
+// Reaproveita 1 conta por (competência, tipo) → nunca duplica; só reconcilia o valor.
+async function upsertContaReembolso(tipo,mes,totalCent,qtd){
+  const MESES={'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
+  const partes=mes.toLowerCase().split('/');
+  const mmIdx=MESES[partes[0]]??0;
+  const anoNum=2000+parseInt(partes[1]);
+  const nomeMes=new Date(anoNum,mmIdx,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const mmStr=String(mmIdx+1).padStart(2,'0');
+  const diasMes=new Date(anoNum,mmIdx+1,0).getDate();
+  const venc=`${anoNum}-${mmStr}-${String(diasMes).padStart(2,'0')}`;
+  const resp=RESP_REEMBOLSO[tipo];
+  const rotuloTipo=tipo==='visita'?'Visitas':'Digitais';
+
+  // Se já existe conta para este mês/tipo e ela já foi paga, não rebaixa o status.
+  const{data:existente}=await sb.from('fin_contas_pagar')
+    .select('id,status,estornado').eq('competencia',mes).eq('tipo_reembolso',tipo).maybeSingle();
+  if(existente&&existente.status==='Pago'&&!existente.estornado){
+    return{skipped:true,motivo:'já pago'};
+  }
+
+  const payload={
+    categoria:'Reembolsos',
+    fornecedor:`Reembolso ${resp.nome} (${rotuloTipo}) — ${nomeMes}`,
+    descricao:`${qtd} ${tipo==='visita'?'visitas técnicas':'serviços digitais'} — ${mes}`,
+    valor:totalCent,
+    dia_vencimento:diasMes,
+    data_vencimento:venc,
+    recorrente:false,
+    competencia:mes,
+    tipo_reembolso:tipo,
+    responsavel_user_id:resp.user_id,
+    status:existente?existente.status:ST_AGUARDANDO,
+  };
+  const{error}=await sb.from('fin_contas_pagar')
+    .upsert(payload,{onConflict:'competencia,tipo_reembolso'});
+  if(error)throw error;
+  return{ok:true,novo:!existente};
+}
+
+// Botão "Criar Conta a Pagar" do relatório de visitas (tipo = visita → Claudemir)
+async function criarContaPagar(){
+  if(!_relatorio){toast('Gere o relatório primeiro.',true);return;}
+  try{
+    const r=await upsertContaReembolso('visita',_relatorio.mes,_relatorio.total,_relatorio.visitas.length);
+    if(r.skipped){toast('Este mês já foi pago — conta mantida.');return;}
+    toast(r.novo?'Lançado em Contas a Pagar (aguardando aprovação)!':'Conta a pagar atualizada!');
+    loadPagar();loadDash();
+  }catch(e){toast('Erro ao lançar: '+e.message,true);}
+}
+
+// Aprovar e lançar: draft → Pendente (passa a contar no fluxo de caixa)
+async function aprovarConta(id){
+  const{error}=await sb.from('fin_contas_pagar').update({status:'Pendente'}).eq('id',id);
+  if(error){toast('Erro ao aprovar: '+error.message,true);return;}
+  toast('Aprovado e lançado no fluxo de caixa!');
+  loadPagar();loadDash();
+}
+
+// ─── Variáveis seletor de mês ─────────────────────────────────
+let _remMesN=new Date().getMonth()+1;   // 1–12
+let _remAnoN=new Date().getFullYear();
+
+function selMes(n){
+  _remMesN=n;
+  atualizarMesGrid();
+}
+function atualizarMesGrid(){
+  _remAnoN=parseInt(document.getElementById('rem-ano').value)||_remAnoN;
+  document.querySelectorAll('.mes-btn').forEach((btn,i)=>{
+    btn.classList.toggle('sel',i+1===_remMesN);
+  });
+  // Atualiza o hidden input legado
+  const mm=String(_remMesN).padStart(2,'0');
+  const legacy=document.getElementById('rem-mes');
+  if(legacy)legacy.value=`${_remAnoN}-${mm}`;
+}
+function getMesISO(){
+  return `${_remAnoN}-${String(_remMesN).padStart(2,'0')}`;
+}
+
+// ─── Histórico de Reembolsos → Relatórios Gerados ─────────────
+async function carregarHistoricoRem(){
+  const{data:{user}}=await sb.auth.getUser();
+  // Reembolsos de Visita são da empresa (campo = Claudemir) — visão consolidada, sem filtro por usuário
+  const{data}=await sb.from('fin_reembolsos').select('mes,status,valor,created_at').order('mes',{ascending:true});
+  if(!data||!data.length){
+    document.getElementById('tbl-hist-rem').innerHTML='<tr><td colspan="6" class="empty">Nenhum relatório gerado.</td></tr>';
+    document.getElementById('kr-reemb').textContent=fmt(0);
+    return;
+  }
+  // Agrupar por mês → objeto ordenado cronologicamente
+  const porMes={};
+  for(const r of data){
+    if(!porMes[r.mes])porMes[r.mes]={qtd:0,total:0,status:'Pendente'};
+    porMes[r.mes].qtd++;
+    porMes[r.mes].total+=r.valor;
+    if(r.status==='Reembolsado')porMes[r.mes].status='Reembolsado';
+  }
+  const totalReemb=data.filter(r=>r.status==='Reembolsado').reduce((s,r)=>s+r.valor,0);
+  document.getElementById('kr-reemb').textContent=fmt(totalReemb);
+
+  // Ordenar cronologicamente (mês mais antigo primeiro) e gerar REL-YYYY-NNN
+  const mesesOrdenados=Object.keys(porMes).sort((a,b)=>{
+    const toDate=m=>{const[mm,yy]=m.split('/');return parseInt(yy)*100+(parseInt(mm)||0);};
+    return toDate(a)-toDate(b);
+  });
+  // Contador por ano
+  const cntAno={};
+  const rows=mesesOrdenados.reverse().map(mes=>{
+    // Extrair ano do mes (formato "mmm/yy" ex: "jan/26")
+    const partes=mes.split('/');
+    const ano=partes.length>1?'20'+partes[1]:'2026';
+    if(!cntAno[ano])cntAno[ano]=0;
+    cntAno[ano]++;
+    const idx=cntAno[ano];
+    const numCtrl=`REL-${ano}-${String(idx).padStart(3,'0')}`;
+    const d=porMes[mes];
+    const isReemb=d.status==='Reembolsado';
+    return `<tr>
+      <td><span class="rel-num">${numCtrl}</span></td>
+      <td>${mes}</td>
+      <td><span class="badge-visitas">${d.qtd} visit${d.qtd===1?'a':'as'}</span></td>
+      <td><span class="val-green">${fmt(d.total)}</span></td>
+      <td><span class="${isReemb?'badge ok':'badge-gerado'}">${isReemb?'✓ Reembolsado':'Gerado'}</span></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorio('${mes}')">👁</button>
+        <button class="btn-icon" title="Baixar PDF" onclick="downloadPDFMes('${mes}')">⬇</button>
+        <button class="btn-icon del" title="Excluir" onclick="excluirRelatorio('${mes}')">🗑</button>
+      </td>
+    </tr>`;
+  });
+  document.getElementById('tbl-hist-rem').innerHTML=rows.join('');
+}
+
+async function visualizarRelatorio(mes){
+try{
+  const{data:{user}}=await sb.auth.getUser();
+  const{data}=await sb.from('fin_reembolsos').select('*').eq('mes',mes).order('data',{ascending:true});
+  if(!data||!data.length){toast('Sem dados para este mês',true);return;}
+  const total=data.reduce((s,r)=>s+r.valor,0);
+  const porCidade={};
+  for(const r of data){
+    if(!porCidade[r.cidade])porCidade[r.cidade]={qtd:0,valor:0};
+    porCidade[r.cidade].qtd++;
+    porCidade[r.cidade].valor+=r.valor;
+  }
+  _relatorio={mes,visitas:data,total,porCidade};
+
+  // Calcular data prevista de pagamento (dia 15 do mês seguinte)
+  const MESES={'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
+  const partes=mes.toLowerCase().split('/');
+  const mmIdx=MESES[partes[0]]??0;
+  const aaNum=parseInt('20'+partes[1]);
+  const dtPag=new Date(aaNum,mmIdx+1,15);
+  const dtPagStr=dtPag.toLocaleDateString('pt-BR');
+  const dtGer=new Date().toLocaleString('pt-BR');
+
+  const FUNC_MAP={'bc85944b-5b89-4710-886c-1717e8309e24':'Rogério Conceição','a71d23f8-0b1f-4dc5-ae44-829a5c1073a3':'Claudemir Scaranello'};
+  const nomeFunc=FUNC_MAP[user.id]||user.email;
+
+  // Cards de cidade (estilo Manus: borda verde sutil, compactos)
+  const cidadeCards=Object.entries(porCidade).map(([c,d])=>`
+    <div style="background:#F3FAF4;border:1px solid #CDE6D2;border-radius:8px;padding:12px 22px;text-align:center;min-width:120px">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px">${c}</div>
+      <div style="font-size:17px;font-weight:800;color:var(--green)">${fmt(d.valor)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px">${d.qtd} visita${d.qtd!==1?'s':''}</div>
+    </div>`).join('');
+
+  // Linhas de visitas (estilo Manus: bordas, padding, coluna Ações)
+  const linhasVisitas=data.map((r,i)=>`
+    <tr style="background:${i%2?'#F8FAFB':'#fff'}">
+      <td style="white-space:nowrap;padding:9px 12px;border:1px solid var(--gray2)">${formatData(r.data)}</td>
+      <td style="padding:9px 12px;border:1px solid var(--gray2)">${esc(r.descricao||'')}</td>
+      <td style="padding:9px 12px;border:1px solid var(--gray2)">${esc(r.cidade||'')}</td>
+      <td style="padding:9px 12px;border:1px solid var(--gray2);text-align:right;font-weight:700;white-space:nowrap;color:${r.valor>0?'var(--green)':'var(--text2)'}">${fmt(r.valor)}</td>
+      <td class="rel-acao" style="padding:9px 8px;border:1px solid var(--gray2);text-align:center"><button title="Remover visita" onclick="excluirVisitaDoRelatorio('${r.id}','${mes}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:#D14343;padding:2px 4px">🗑</button></td>
+    </tr>`).join('');
+
+  const mesLabel=`${partes[0].charAt(0).toUpperCase()+partes[0].slice(1)}/${partes[1]}`;
+
+  document.getElementById('preview-rel-body').innerHTML=`
+   <div id="rel-capture" style="background:#fff">
+    <!-- Cabeçalho -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;border-bottom:2px solid var(--gray2);padding-bottom:14px">
+      <img src="assets/logo.png" alt="Diagnóstika Engenharia" style="height:46px;width:auto" crossorigin="anonymous">
+      <div style="text-align:right">
+        <div style="font-size:19px;font-weight:900;color:var(--teal);letter-spacing:.5px">RELATÓRIO DE REEMBOLSO</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px">Período: ${mesLabel}</div>
+      </div>
+    </div>
+
+    <!-- Info boxes (estilo Manus: fundo azul-claro + borda lateral) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
+      <div style="background:#EFF6F8;border-left:4px solid var(--teal);border-radius:5px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Funcionário</div>
+        <div style="font-size:15px;font-weight:700;color:var(--teal)">${nomeFunc}</div>
+      </div>
+      <div style="background:#EFF6F8;border-left:4px solid var(--teal);border-radius:5px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Data Prevista de Pagamento</div>
+        <div style="font-size:15px;font-weight:700;color:var(--green)">${dtPagStr}</div>
+      </div>
+    </div>
+
+    <!-- Resumo por Cidade -->
+    <div style="margin-bottom:22px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:11px">Resumo por Cidade</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">${cidadeCards}</div>
+    </div>
+
+    <!-- Detalhamento de Visitas -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:11px">Detalhamento de Visitas</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--gray2)">
+        <thead>
+          <tr style="background:var(--teal);color:#fff">
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #2C6E79">Data</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #2C6E79">Descrição</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #2C6E79">Cidade</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:700;border:1px solid #2C6E79">Valor</th>
+            <th class="rel-acao" style="padding:10px 8px;text-align:center;font-weight:700;border:1px solid #2C6E79">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${linhasVisitas}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Total -->
+    <div style="background:var(--teal);color:#fff;display:flex;justify-content:space-between;padding:13px 18px;border-radius:6px;font-size:15px;font-weight:800;margin-bottom:16px">
+      <span>TOTAL A REEMBOLSAR</span>
+      <span>${fmt(total)}</span>
+    </div>
+
+    <!-- Observações -->
+    <div style="background:#FFFBEB;border-left:4px solid #F59E0B;padding:12px 14px;border-radius:4px;font-size:12px;color:#78350F;margin-bottom:16px">
+      <strong>Observações:</strong> Este relatório contém despesas de visitas técnicas e deslocamentos. Os valores incluem combustível e pedágios quando aplicável.
+    </div>
+
+    <!-- Rodapé -->
+    <div style="text-align:center;font-size:11px;color:var(--text2);border-top:1px solid var(--gray2);padding-top:11px">
+      Gerado em ${dtGer} | DIAGNÓSTIKA Engenharia
+    </div>
+   </div>
+  `;
+
+  _previewModo='visita';
+  document.getElementById('prev-rel-title').textContent='Preview do Relatório de Reembolsos';
+  document.getElementById('prev-btn-addvis').style.display='';
+  document.getElementById('prev-btn-cpagar').style.display='';
+  document.getElementById('modal-preview-rel').classList.add('open');
+}catch(e){console.error('[rel]',e);toast('Erro ao abrir preview: '+e.message,true);}
+}
+
+function imprimirPreviewRel(){
+  const corpo=document.getElementById('preview-rel-body').innerHTML;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Relatório de Reembolso</title>
+    <style>body{font-family:'Segoe UI',sans-serif;padding:24px;color:#1A2E31}table{width:100%;border-collapse:collapse}th{background:#155B67;color:#fff;padding:8px 12px;text-align:left}td{padding:8px 12px;border-bottom:1px solid #eee}</style>
+    </head><body>${corpo}</body></html>`);
+  w.document.close();
+  w.print();
+}
+function downloadPDFPreview(){
+  if(_previewModo==='digital'){if(_relatorioDig)downloadPDFDigitalMes(_relatorioDig.mes);else toast('Nenhum relatório carregado',true);return;}
+  if(_relatorio)downloadPDF();else toast('Nenhum relatório carregado',true);
+}
+function criarContaPagarPreview(){if(_relatorio)criarContaPagar();else toast('Nenhum relatório carregado',true);}
+
+// ── Remover visita direto do preview (igual Manus) ──
+async function excluirVisitaDoRelatorio(id,mes){
+  if(!confirm('Remover esta visita do relatório?'))return;
+  const{error}=await sb.from('fin_reembolsos').delete().eq('id',id);
+  if(error){toast('Erro ao remover: '+error.message,true);return;}
+  toast('Visita removida');
+  await visualizarRelatorio(mes);
+  await carregarHistoricoRem();
+}
+
+// ── Compartilhamento por imagem ──
+function compartilharRelatorio(){
+  if(!_relatorio){toast('Nenhum relatório carregado',true);return;}
+  document.getElementById('modal-share').classList.add('open');
+}
+async function _gerarImagemRel(){
+  const el=document.getElementById('rel-capture');
+  if(!el)throw new Error('Relatório não encontrado');
+  document.body.classList.add('capturing'); // esconde coluna Ações
+  try{
+    const canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+    return await new Promise(res=>canvas.toBlob(res,'image/png',0.95));
+  }finally{
+    document.body.classList.remove('capturing');
+  }
+}
+function _nomeArquivoRel(){
+  const m=(_relatorio?.mes||'relatorio').replace('/','-');
+  return `reembolso-${m}.png`;
+}
+async function shareWhatsAppImagem(){
+  try{
+    toast('Gerando imagem…');
+    const blob=await _gerarImagemRel();
+    const file=new File([blob],_nomeArquivoRel(),{type:'image/png'});
+    const txt=`Relatório de Reembolso — ${_relatorio.mes}\nTotal: ${fmt(_relatorio.total)}`;
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Relatório de Reembolso',text:txt});
+      closeModal('modal-share');
+    }else{
+      // Fallback desktop: baixa imagem e abre WhatsApp Web com o texto
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download=_nomeArquivoRel();a.click();
+      URL.revokeObjectURL(url);
+      window.open('https://web.whatsapp.com/send?text='+encodeURIComponent(txt+'\n(anexe a imagem que acabou de ser baixada)'),'_blank');
+      closeModal('modal-share');
+      toast('Imagem baixada — anexe no WhatsApp');
+    }
+  }catch(e){console.error(e);toast('Erro ao gerar imagem: '+e.message,true);}
+}
+async function baixarImagemRel(){
+  try{
+    toast('Gerando imagem…');
+    const blob=await _gerarImagemRel();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=_nomeArquivoRel();a.click();
+    URL.revokeObjectURL(url);
+    closeModal('modal-share');
+    toast('Imagem salva!');
+  }catch(e){console.error(e);toast('Erro ao gerar imagem: '+e.message,true);}
+}
+
+async function downloadPDFMes(mes){
+  const{data}=await sb.from('fin_reembolsos').select('*').eq('mes',mes);
+  if(!data||!data.length){toast('Sem dados para este mês',true);return;}
+  const total=data.reduce((s,r)=>s+r.valor,0);
+  const porCidade={};
+  for(const r of data){
+    if(!porCidade[r.cidade])porCidade[r.cidade]={qtd:0,valor:0};
+    porCidade[r.cidade].qtd++;
+    porCidade[r.cidade].valor+=r.valor;
+  }
+  _relatorio={mes,visitas:data,total,porCidade};
+  downloadPDF();
+}
+
+async function excluirRelatorio(mes){
+  if(!confirm(`Excluir todos os registros de reembolso de ${mes}?`))return;
+  await sb.from('fin_reembolsos').delete().eq('mes',mes);
+  toast('Relatório excluído');
+  await carregarHistoricoRem();
+}
+
+function exportarExcelRem(){toast('Em breve: exportação para Excel');}
+function processarFatura(input){toast('Em breve: importação de fatura de cartão');}
+
+// Botão GCal: conecta se não conectado, importa se conectado
+function acaoGcalBtn(){
+  if(_remGoogleToken) importarCalendario();
+  else iniciarGoogleAuth();
+}
+
+// Adicionar visita direto do preview (igual ao Manus)
+function adicionarVisitaNoPreview(){
+  if(!_relatorio){toast('Abra um relatório primeiro',true);return;}
+  closeModal('modal-preview-rel');
+  openModalVisitaManual();
+  // Reabre preview após salvar — monkey-patch temporário
+  const _orig=adicionarVisitaManual;
+  adicionarVisitaManual=async function(){
+    _orig.call(this);
+    adicionarVisitaManual=_orig; // restaura
+    await visualizarRelatorio(_relatorio.mes);
+  };
+}
+
+// Modal Novo Reembolso Digital
+function openModalReembolsoDigital(){
+  document.getElementById('rd-desc').value='';
+  document.getElementById('rd-valor').value='';
+  document.getElementById('rd-data').value=hoje();
+  document.getElementById('rd-categoria').value='Alimentação';
+  document.getElementById('modal-rem-digital').classList.add('open');
+}
+async function salvarReembolsoDigital(){
+  const desc=document.getElementById('rd-desc').value.trim();
+  const valorStr=document.getElementById('rd-valor').value.replace(',','.');
+  const data=document.getElementById('rd-data').value;
+  const cat=document.getElementById('rd-categoria').value;
+  if(!desc||!valorStr||!data){toast('Preencha todos os campos',true);return;}
+  const valor=Math.round(parseFloat(valorStr)*100);
+  if(isNaN(valor)||valor<=0){toast('Valor inválido',true);return;}
+  const{data:{user}}=await sb.auth.getUser();
+  const mes=data.slice(0,7);
+  const nomeMes=new Date(parseInt(mes.slice(0,4)),parseInt(mes.slice(5,7))-1,1)
+    .toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace('. ','/');
+  const{error}=await sb.from('fin_reembolsos_digitais').insert({
+    user_id:user.id, data, servico:cat, descricao:desc,
+    valor, iof:0, valor_total:valor, status:'Pendente', mes_referencia:nomeMes,
+  });
+  if(error){toast('Erro ao salvar: '+error.message,true);return;}
+  closeModal('modal-rem-digital');
+  toast('Reembolso digital adicionado!');
+  await carregarHistoricoDigital();
+}
+
+// ─── Histórico Digital → Relatórios Gerados ───────────────────
+async function carregarHistoricoDigital(){
+  const tb=document.getElementById('tbl-digital-rem');
+  const{data,error}=await sb.from('fin_reembolsos_digitais')
+    .select('mes_referencia,status,valor_total').order('mes_referencia',{ascending:true});
+  if(error){tb.innerHTML='<tr><td colspan="6" class="empty">Erro ao carregar.</td></tr>';return;}
+  if(!data||!data.length){
+    tb.innerHTML='<tr><td colspan="6" class="empty">Nenhum reembolso digital registrado.</td></tr>';
+    return;
+  }
+  const porMes={};
+  for(const r of data){
+    const m=r.mes_referencia;
+    if(!porMes[m])porMes[m]={qtd:0,total:0,status:'Pendente'};
+    porMes[m].qtd++;
+    porMes[m].total+=r.valor_total;
+    if(r.status==='Reembolsado')porMes[m].status='Reembolsado';
+  }
+  const MES_N={jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
+  const ordem=m=>{const[mm,yy]=m.split('/');return (parseInt(yy)||0)*100+(MES_N[(mm||'').toLowerCase()]||0);};
+  const meses=Object.keys(porMes).sort((a,b)=>ordem(a)-ordem(b)).reverse();
+  const cntAno={};
+  tb.innerHTML=meses.map(mes=>{
+    const partes=mes.split('/');
+    const ano=partes.length>1?'20'+partes[1]:'2026';
+    cntAno[ano]=(cntAno[ano]||0)+1;
+    const numCtrl=`RD-${ano}-${String(cntAno[ano]).padStart(3,'0')}`;
+    const d=porMes[mes];
+    const isReemb=d.status==='Reembolsado';
+    return `<tr>
+      <td><span class="rel-num">${numCtrl}</span></td>
+      <td>${mes}</td>
+      <td><span class="badge-visitas">${d.qtd} ${d.qtd===1?'item':'itens'}</span></td>
+      <td><span class="val-green">${fmt(d.total)}</span></td>
+      <td><span class="${isReemb?'badge ok':'badge-gerado'}">${isReemb?'✓ Reembolsado':'Gerado'}</span></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorioDigital('${mes}')">👁</button>
+        <button class="btn-icon" title="Baixar PDF" onclick="downloadPDFDigitalMes('${mes}')">⬇</button>
+        <button class="btn-icon del" title="Excluir mês" onclick="excluirRelatorioDigital('${mes}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+// ── Preview do relatório digital (espelha visualizarRelatorio, adaptado p/ serviços) ──
+async function visualizarRelatorioDigital(mes){
+try{
+  const{data}=await sb.from('fin_reembolsos_digitais').select('*').eq('mes_referencia',mes).order('data',{ascending:true});
+  if(!data||!data.length){toast('Sem dados para este mês',true);return;}
+  const total=data.reduce((s,r)=>s+r.valor_total,0);
+  const porServico={};
+  for(const r of data){
+    const s=r.servico||'Outros';
+    if(!porServico[s])porServico[s]={qtd:0,valor:0};
+    porServico[s].qtd++;
+    porServico[s].valor+=r.valor_total;
+  }
+  _relatorioDig={mes,itens:data,total,porServico};
+
+  const isReemb=data.some(r=>r.status==='Reembolsado');
+  const dataReemb=(data.find(r=>r.data_reembolso)||{}).data_reembolso;
+  let pagLabel,pagVal;
+  if(isReemb&&dataReemb){
+    pagLabel='Data do Reembolso';
+    pagVal=new Date(dataReemb+'T00:00:00').toLocaleDateString('pt-BR');
+  }else{
+    const MESES={'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
+    const p=mes.toLowerCase().split('/');
+    const dtPag=new Date(parseInt('20'+p[1]),(MESES[p[0]]??0)+1,15);
+    pagLabel='Data Prevista de Pagamento';
+    pagVal=dtPag.toLocaleDateString('pt-BR');
+  }
+  const dtGer=new Date().toLocaleString('pt-BR');
+  const partes=mes.split('/');
+  const mesLabel=`${partes[0].charAt(0).toUpperCase()+partes[0].slice(1)}/${partes[1]}`;
+
+  // Cor (pontinho) por serviço — estilo Manus
+  const DOT={'chatgpt':'#10A37F','manus ai':'#6C5CE7','manus':'#6C5CE7','anthropic':'#D97757','claude ai':'#D97757','claude':'#D97757','docusign':'#E8A33D'};
+  const dotCor=s=>DOT[(s||'').toLowerCase()]||'#3B82C4';
+
+  const servicoCards=Object.entries(porServico).map(([c,d])=>`
+    <div style="background:#F6FAFC;border:1px solid #DCE7EE;border-radius:8px;padding:12px 22px;text-align:center;min-width:120px">
+      <div style="font-size:12px;font-weight:600;color:#2B3A42;margin-bottom:5px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotCor(c)};margin-right:6px;vertical-align:middle"></span>${esc(c)}</div>
+      <div style="font-size:17px;font-weight:800;color:#16A34A">${fmt(d.valor)}</div>
+      <div style="font-size:11px;color:#6B7B83;margin-top:3px">${d.qtd} lançamento${d.qtd!==1?'s':''}</div>
+    </div>`).join('');
+
+  const linhas=data.map((r,i)=>`
+    <tr style="background:${i%2?'#F4F8FA':'#fff'}">
+      <td style="white-space:nowrap;padding:9px 12px;border:1px solid #E2EAEF">${formatData(r.data)}</td>
+      <td style="padding:9px 12px;border:1px solid #E2EAEF"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotCor(r.servico)};margin-right:7px;vertical-align:middle"></span>${esc(r.servico||'')}</td>
+      <td style="padding:9px 12px;border:1px solid #E2EAEF;color:#4A5A62">${esc(r.descricao||'')}</td>
+      <td style="padding:9px 12px;border:1px solid #E2EAEF;text-align:right;font-weight:700;white-space:nowrap;color:#16A34A">${fmt(r.valor_total)}</td>
+    </tr>`).join('');
+
+  document.getElementById('preview-rel-body').innerHTML=`
+   <div id="rel-capture" style="background:#fff">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;border-bottom:2px solid #E2EAEF;padding-bottom:14px">
+      <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" style="height:74px;width:auto" crossorigin="anonymous">
+      <div style="text-align:right">
+        <div style="font-size:21px;font-weight:900;color:#1F4E63;letter-spacing:.5px">RELATÓRIO DE REEMBOLSO</div>
+        <div style="font-size:12px;color:#6B7B83;margin-top:3px">Período: ${mesLabel}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px">
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Funcionário</div>
+        <div style="font-size:15px;font-weight:700;color:#1F3A42">Rogério Conceição</div>
+      </div>
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Tipo de Reembolso</div>
+        <div style="font-size:15px;font-weight:700;color:#1F3A42">Serviços Digitais</div>
+      </div>
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${pagLabel}</div>
+        <div style="font-size:15px;font-weight:700;color:#16A34A">${pagVal}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:22px">
+      <div style="font-size:13px;font-weight:700;color:#2B3A42;margin-bottom:11px">📄 Resumo por Serviço</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">${servicoCards}</div>
+    </div>
+    <div style="margin-bottom:18px">
+      <div style="font-size:13px;font-weight:700;color:#2B3A42;margin-bottom:11px">Detalhamento de Reembolsos Digitais</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #E2EAEF">
+        <thead>
+          <tr style="background:#2D5E72;color:#fff">
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Data</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Serviço</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Descrição</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:700;border:1px solid #244B5B">Valor</th>
+          </tr>
+        </thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+    <div style="background:#2D5E72;color:#fff;display:flex;justify-content:space-between;padding:13px 18px;border-radius:6px;font-size:15px;font-weight:800;margin-bottom:16px">
+      <span>TOTAL A REEMBOLSAR</span>
+      <span>${fmt(total)}</span>
+    </div>
+    <div style="background:#FFFBEB;border-left:4px solid #F59E0B;padding:12px 14px;border-radius:4px;font-size:12px;color:#78350F;margin-bottom:16px">
+      <strong>Observações:</strong> Este relatório contém despesas de serviços digitais e assinaturas. Os valores incluem IOF quando aplicável.
+    </div>
+    <div style="text-align:center;font-size:11px;color:#6B7B83;border-top:1px solid #E2EAEF;padding-top:11px">
+      Gerado em ${dtGer} | DIAGNÓSTIKA Engenharia
+    </div>
+   </div>
+  `;
+  _previewModo='digital';
+  document.getElementById('prev-rel-title').textContent='Preview do Relatório Digital';
+  document.getElementById('prev-btn-addvis').style.display='none';
+  document.getElementById('prev-btn-cpagar').style.display='none';
+  document.getElementById('modal-preview-rel').classList.add('open');
+}catch(e){console.error('[rel-dig]',e);toast('Erro ao abrir preview: '+e.message,true);}
+}
+
+async function downloadPDFDigitalMes(mes){
+  const{data}=await sb.from('fin_reembolsos_digitais').select('*').eq('mes_referencia',mes).order('data',{ascending:true});
+  if(!data||!data.length){toast('Sem dados para este mês',true);return;}
+  const total=data.reduce((s,r)=>s+r.valor_total,0);
+  const porServico={};
+  for(const r of data){
+    const s=r.servico||'Outros';
+    if(!porServico[s])porServico[s]={qtd:0,valor:0};
+    porServico[s].qtd++;porServico[s].valor+=r.valor_total;
+  }
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  doc.setFillColor(45,94,114);doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('Reembolso Digital — Diagnóstika Engenharia',14,12);
+  doc.setFontSize(11);doc.setFont('helvetica','normal');
+  doc.text(`Período: ${mes}`,14,20);
+  doc.setTextColor(30,30,30);doc.setFontSize(11);doc.setFont('helvetica','bold');
+  doc.text('Detalhamento de Serviços Digitais',14,38);
+  let y=44;
+  doc.setFillColor(240,242,245);doc.rect(14,y-4,182,7,'F');
+  doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('Data',16,y);doc.text('Serviço',40,y);doc.text('Descrição',90,y);doc.text('Valor',185,y,'right');
+  y+=6;doc.setFont('helvetica','normal');
+  for(const v of data){
+    if(y>270){doc.addPage();y=20;}
+    doc.text(formatData(v.data),16,y);
+    doc.text(String(v.servico||'').slice(0,22),40,y);
+    doc.text(String(v.descricao||'').slice(0,40),90,y);
+    doc.text(fmt(v.valor_total),185,y,'right');
+    y+=6;doc.setDrawColor(220,220,220);doc.line(14,y-2,196,y-2);
+  }
+  y+=4;
+  doc.setFont('helvetica','bold');doc.text('Resumo por Serviço',14,y);y+=6;
+  doc.setFont('helvetica','normal');
+  for(const[c,d]of Object.entries(porServico)){
+    doc.text(`${c}: ${d.qtd} item(ns)`,20,y);doc.text(fmt(d.valor),185,y,'right');y+=6;
+  }
+  y+=2;doc.setDrawColor(21,91,103);doc.line(14,y,196,y);y+=6;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.text('TOTAL DO MÊS',14,y);doc.text(fmt(total),185,y,'right');
+  doc.save(`reembolso_digital_${mes.replace('/','-')}.pdf`);
+}
+
+async function excluirRelatorioDigital(mes){
+  if(!confirm(`Excluir todos os reembolsos digitais de ${mes}?`))return;
+  const{error}=await sb.from('fin_reembolsos_digitais').delete().eq('mes_referencia',mes);
+  if(error){toast('Erro ao excluir',true);return;}
+  toast('Reembolsos digitais excluídos');
+  carregarHistoricoDigital();
+}
+
+// ─── Tab switcher ─────────────────────────────────────────────
+function remTab(tab){
+  document.getElementById('rem-tab-visita').style.display=tab==='visita'?'block':'none';
+  document.getElementById('rem-tab-digital').style.display=tab==='digital'?'block':'none';
+  document.getElementById('tab-btn-visita').classList.toggle('active',tab==='visita');
+  document.getElementById('tab-btn-digital').classList.toggle('active',tab==='digital');
+  if(tab==='digital')carregarHistoricoDigital();
+}
+
+// ─── loadReembolsos (nav) ─────────────────────────────────────
+async function loadReembolsos(){
+  const tokOk=carregarTokenGoogle();
+  atualizarStatusGcal(tokOk);
+
+  // Popular dropdown de ano
+  const anoSel=document.getElementById('rem-ano');
+  const anoAtual=new Date().getFullYear();
+  anoSel.innerHTML='';
+  for(let a=anoAtual+1;a>=anoAtual-2;a--){
+    const opt=document.createElement('option');
+    opt.value=a;opt.textContent=a;
+    if(a===_remAnoN)opt.selected=true;
+    anoSel.appendChild(opt);
+  }
+
+  // Popular dropdown de funcionário
+  const funcSel=document.getElementById('rem-funcionario');
+  const{data:{user}}=await sb.auth.getUser();
+  const nomeUsuario=user.email.split('@')[0].replace(/\./g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  // Mapeamento conhecido
+  const CLAUDEMIR_ID='a71d23f8-0b1f-4dc5-ae44-829a5c1073a3';
+  const FUNC_MAP={
+    'bc85944b-5b89-4710-886c-1717e8309e24':'Rogério Conceição',
+    'a71d23f8-0b1f-4dc5-ae44-829a5c1073a3':'Claudemir Scaranello',
+  };
+  // Reembolsos de Visita = trabalho de campo do Claudemir. Atribuição padrão = Claudemir;
+  // Rogério disponível como opção secundária (ex.: visitas eventuais dele).
+  funcSel.innerHTML='';
+  [{id:CLAUDEMIR_ID,nome:'Claudemir Scaranello'},{id:'bc85944b-5b89-4710-886c-1717e8309e24',nome:'Rogério Conceição'}].forEach((f,i)=>{
+    const opt=document.createElement('option');
+    opt.value=f.id;opt.textContent=f.nome;if(i===0)opt.selected=true;
+    funcSel.appendChild(opt);
+  });
+
+  // Atualizar subtítulo — visão consolidada das visitas (campo: Claudemir)
+  document.getElementById('rem-subtitulo').textContent='Reembolsos de Visita — visão consolidada (campo: Claudemir Scaranello)';
+
+  // Inicializar grade de meses
+  atualizarMesGrid();
+
+  await carregarHistoricoRem();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COFRE — LIVRO CAIXA
+// ═══════════════════════════════════════════════════════════════
+
+async function loadCofre() {
+  const {data,error} = await sb.from('fin_livro_caixa_cofre')
+    .select('*')
+    .order('data',{ascending:true})
+    .order('id',{ascending:true});
+  if(error){toast('Erro ao carregar cofre',true);return;}
+  const rows = data||[];
+
+  // Saldo atual = última movimentação
+  const saldo = rows.length ? rows[rows.length-1].saldo_atual : 0;
+  document.getElementById('cofre-saldo').textContent = fmt(saldo);
+  document.getElementById('cofre-saldo').style.color = saldo < 0 ? 'var(--red)' : 'var(--teal)';
+  const hoje2 = new Date().toLocaleDateString('pt-BR');
+  document.getElementById('cofre-data').textContent = 'Última atualização: ' + (rows.length ? formatData(rows[rows.length-1].data) : hoje2);
+
+  if(!rows.length) {
+    document.getElementById('tbl-cofre').innerHTML='<div class="cf-empty">Nenhuma movimentação registrada.</div>';
+    return;
+  }
+
+  // Exibe em ordem cronológica invertida (mais recente primeiro)
+  const reversed = [...rows].reverse();
+  document.getElementById('tbl-cofre').innerHTML = reversed.map(r => {
+    const isEnt = r.tipo === 'Entrada';
+    const sinal = isEnt ? '+' : '−';
+    const corVal = isEnt ? 'var(--green)' : 'var(--red)';
+    const origemBadge = r.origem === 'Automático'
+      ? '<span style="font-size:10px;background:#E3F2FD;color:#1565C0;padding:2px 8px;border-radius:10px;font-weight:700">Automático</span>'
+      : '<span style="font-size:10px;background:var(--gray2);color:var(--text2);padding:2px 8px;border-radius:10px;font-weight:700">Manual</span>';
+    return `<div class="cf-item">
+      <div class="cf-row" onclick="toggleCofreItem(this)">
+        <div class="cf-icon" style="background:${corVal}">${sinal}</div>
+        <div class="cf-main">
+          <div class="cf-desc">${esc(r.descricao)}</div>
+          <div class="cf-sub">${formatData(r.data)} · Saldo ${fmt(r.saldo_atual)}</div>
+        </div>
+        <div class="cf-val" style="color:${corVal}">${sinal} ${fmt(r.valor)}</div>
+        <svg class="cf-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="cf-detail">
+        <div class="cf-dgrid">
+          <div><span>Tipo</span><b style="color:${corVal}">${r.tipo}</b></div>
+          <div><span>Valor</span><b>${fmt(r.valor)}</b></div>
+          <div><span>Saldo após</span><b style="color:var(--teal)">${fmt(r.saldo_atual)}</b></div>
+          <div><span>Origem</span><b>${origemBadge}</b></div>
+        </div>
+        ${r.observacao ? `<div class="cf-obs"><span>Observação</span><div>${esc(r.observacao)}</div></div>` : ''}
+        <div style="text-align:right;margin-top:10px">
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deletarMovCofre(${r.id})">✕ Excluir lançamento</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCofreItem(el){
+  const item = el.closest('.cf-item');
+  item.classList.toggle('open');
+}
+
+function openModalCofre(tipo) {
+  document.getElementById('mcf-tipo').value = tipo;
+  document.getElementById('mcf-title').textContent = tipo === 'Entrada' ? 'Registrar Entrada' : 'Registrar Saída';
+  document.getElementById('mcf-save').style.background = tipo === 'Entrada' ? 'var(--green)' : 'var(--red)';
+  document.getElementById('mcf-data').value = hoje();
+  document.getElementById('mcf-desc').value = '';
+  document.getElementById('mcf-valor').value = '';
+  document.getElementById('mcf-obs').value = '';
+  document.getElementById('modal-cofre').classList.add('open');
+}
+
+async function salvarMovCofre() {
+  const tipo = document.getElementById('mcf-tipo').value;
+  const data = document.getElementById('mcf-data').value;
+  const desc = document.getElementById('mcf-desc').value.trim();
+  const valorF = parseFloat(document.getElementById('mcf-valor').value);
+  const obs = document.getElementById('mcf-obs').value.trim() || null;
+  if(!data || !desc || !valorF || valorF <= 0){toast('Preencha os campos obrigatórios',true);return;}
+  const valor = Math.round(valorF * 100);
+  const {data:{user}} = await sb.auth.getUser();
+
+  const {error} = await sb.from('fin_livro_caixa_cofre').insert({
+    user_id: user.id, data, tipo, descricao: desc, valor,
+    saldo_anterior: 0, saldo_atual: 0,
+    origem: 'Manual', observacao: obs
+  });
+  if(error){toast('Erro ao registrar: '+error.message,true);return;}
+
+  await recalcularTodosSaldosCofre();
+  closeModal('modal-cofre');
+  toast(tipo === 'Entrada' ? 'Entrada registrada!' : 'Saída registrada!');
+  loadCofre();
+}
+
+async function recalcularTodosSaldosCofre() {
+  const {data:rows} = await sb.from('fin_livro_caixa_cofre')
+    .select('id,tipo,valor')
+    .order('data',{ascending:true}).order('id',{ascending:true});
+  if(!rows || !rows.length) return;
+  let saldo = 0;
+  for(const r of rows) {
+    const saldoAnterior = saldo;
+    saldo = r.tipo === 'Entrada' ? saldo + r.valor : saldo - r.valor;
+    await sb.from('fin_livro_caixa_cofre').update({saldo_anterior:saldoAnterior,saldo_atual:saldo}).eq('id',r.id);
+  }
+}
+
+async function deletarMovCofre(id) {
+  if(!confirm('Excluir esta movimentação? Os saldos serão recalculados.')) return;
+  const {error} = await sb.from('fin_livro_caixa_cofre').delete().eq('id',id);
+  if(error){toast('Erro ao excluir',true);return;}
+  await recalcularTodosSaldosCofre();
+  toast('Movimentação excluída!');
+  loadCofre();
+}
+
+// Entrada automática no Cofre quando conta a receber é paga em Dinheiro
+async function registrarEntradaAutomaticaCofre(conta, dataRecebimento) {
+  const {data:{user}} = await sb.auth.getUser();
+  const {error} = await sb.from('fin_livro_caixa_cofre').insert({
+    user_id: user.id, data: dataRecebimento, tipo: 'Entrada',
+    descricao: `Recebimento - ${conta.cliente}`,
+    valor: conta.valor, saldo_anterior: 0, saldo_atual: 0,
+    conta_receber_ref: conta.id, origem: 'Automático',
+    observacao: conta.descricao || null
+  });
+  if(!error) await recalcularTodosSaldosCofre();
+}
+
+// Verificar callback Google no carregamento da página
+window.addEventListener('DOMContentLoaded',()=>{
+  handleGoogleCallback();
+});
+</script>
+</body>
+</html>
