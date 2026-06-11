@@ -83,6 +83,10 @@ table.tbl{width:100%;border-collapse:collapse}
 .tbl td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--gray2);vertical-align:middle}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tr:hover td{background:#f9fbfc}
+.tbl th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+.tbl th.sortable:hover{background:var(--gray2);color:var(--teal)}
+.tbl th.sortable .sort-ar{font-size:10px;margin-left:4px;color:#c2cdd0}
+.tbl th.sortable.sorted .sort-ar{color:var(--turq)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
 .badge.pend{background:#FEF3E2;color:#B7600A}
 .badge.ok{background:var(--green-lt);color:#1E8449}
@@ -369,7 +373,7 @@ body.capturing .rel-acao{display:none!important}
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
-            <th>Cliente</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>NF</th><th></th>
+            <th class="sortable" data-rcol="cliente">Cliente</th><th class="sortable" data-rcol="categoria">Categoria</th><th class="sortable" data-rcol="data_vencimento">Vencimento</th><th class="sortable" data-rcol="valor">Valor</th><th class="sortable" data-rcol="status">Status</th><th class="sortable" data-rcol="nf">NF</th><th></th>
           </tr></thead><tbody id="tbl-receber"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div>
         </div>
       </div>
@@ -396,7 +400,7 @@ body.capturing .rel-acao{display:none!important}
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
-            <th>Fornecedor</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th><th></th>
+            <th class="sortable" data-pcol="fornecedor">Fornecedor</th><th class="sortable" data-pcol="categoria">Categoria</th><th class="sortable" data-pcol="data_vencimento">Vencimento</th><th class="sortable" data-pcol="valor">Valor</th><th class="sortable" data-pcol="status">Status</th><th></th>
           </tr></thead><tbody id="tbl-pagar"><tr><td colspan="6" class="empty">Carregando…</td></tr></tbody></table></div>
         </div>
       </div>
@@ -518,7 +522,7 @@ body.capturing .rel-acao{display:none!important}
             <div class="card-bd">
               <table class="tbl">
                 <thead><tr>
-                  <th>Data</th><th>Descrição</th><th>Cidade</th><th>Fonte</th><th>Valor Base</th><th>Valor Final</th><th></th>
+                  <th class="sortable" data-vcol="data">Data</th><th class="sortable" data-vcol="descricao">Descrição</th><th class="sortable" data-vcol="cidade">Cidade</th><th class="sortable" data-vcol="fonte">Fonte</th><th class="sortable" data-vcol="valorBase">Valor Base</th><th class="sortable" data-vcol="valorFinal">Valor Final</th><th></th>
                 </tr></thead>
                 <tbody id="tbl-visitas"><tr><td colspan="7" class="empty">Selecione um mês e importe do calendário.</td></tr></tbody>
               </table>
@@ -545,11 +549,11 @@ body.capturing .rel-acao{display:none!important}
             <div class="card-bd">
               <table class="tbl">
                 <thead><tr>
-                  <th>Número de Controle</th>
-                  <th>Mês Referência</th>
-                  <th>Quantidade</th>
-                  <th>Valor Total</th>
-                  <th>Status</th>
+                  <th class="sortable" data-hcol="num">Número de Controle</th>
+                  <th class="sortable" data-hcol="mes">Mês Referência</th>
+                  <th class="sortable" data-hcol="qtd">Quantidade</th>
+                  <th class="sortable" data-hcol="total">Valor Total</th>
+                  <th class="sortable" data-hcol="status">Status</th>
                   <th style="text-align:right">Ações</th>
                 </tr></thead>
                 <tbody id="tbl-hist-rem"><tr><td colspan="6" class="empty">Nenhum relatório gerado.</td></tr></tbody>
@@ -586,7 +590,7 @@ body.capturing .rel-acao{display:none!important}
             <div class="card-bd">
               <table class="tbl">
                 <thead><tr>
-                  <th>Número de Controle</th><th>Mês Referência</th><th>Quantidade</th><th>Valor Total</th><th>Status</th><th style="text-align:right">Ações</th>
+                  <th class="sortable" data-dcol="num">Número de Controle</th><th class="sortable" data-dcol="mes">Mês Referência</th><th class="sortable" data-dcol="qtd">Quantidade</th><th class="sortable" data-dcol="total">Valor Total</th><th class="sortable" data-dcol="status">Status</th><th style="text-align:right">Ações</th>
                 </tr></thead>
                 <tbody id="tbl-digital-rem"><tr><td colspan="6" class="empty">Nenhum reembolso digital registrado.</td></tr></tbody>
               </table>
@@ -939,6 +943,68 @@ function formatData(iso){if(!iso)return'—';const[a,m,d]=iso.split('-');return`
 function isVencido(dStr){if(!dStr)return false;return dStr<hoje();}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
+// ── Ordenação clicável das tabelas ───────────────────────────
+// Estado de ordenação por tabela
+const _sortReceber={col:'data_vencimento',dir:'desc'};
+const _sortPagar={col:'data_vencimento',dir:'desc'};
+const _sortVisitas={col:'data',dir:'desc'};
+const _sortHistRem={col:'mes',dir:'desc'};
+const _sortDigRem={col:'mes',dir:'desc'};
+const _MES_N_SORT={jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
+// Converte "mmm/yy" (ex: jan/26) em número ordenável
+function _mesToNum(m){if(!m)return 0;const[mm,yy]=String(m).split('/');return (parseInt(yy)||0)*100+(_MES_N_SORT[(mm||'').toLowerCase()]||0);}
+// Comparador genérico por tipo
+function _cmp(a,b,type){
+  if(type==='date'){const va=a||'',vb=b||'';return va<vb?-1:va>vb?1:0;}
+  if(type==='mes'){return _mesToNum(a)-_mesToNum(b);}
+  if(type==='num'){return (parseFloat(a)||0)-(parseFloat(b)||0);}
+  return String(a||'').localeCompare(String(b||''),'pt-BR',{sensitivity:'base'});
+}
+// Ordena uma cópia de `rows` segundo `state` usando `accessors` {col:{get,type}}
+function _sortRows(rows,state,accessors){
+  const acc=accessors[state.col];if(!acc)return rows.slice();
+  const arr=rows.slice();
+  arr.sort((x,y)=>{const r=_cmp(acc.get(x),acc.get(y),acc.type);return state.dir==='asc'?r:-r;});
+  return arr;
+}
+// Markup da seta para um cabeçalho
+function _ar(state,col){
+  if(state.col!==col)return'<span class="sort-ar">⇅</span>';
+  return'<span class="sort-ar">'+(state.dir==='asc'?'▲':'▼')+'</span>';
+}
+// Alterna a ordenação ao clicar e re-renderiza
+function _toggleSort(state,col,render){
+  if(state.col===col)state.dir=state.dir==='asc'?'desc':'asc';
+  else{state.col=col;state.dir='asc';}
+  render();
+}
+// Aplica setas/classes e (re)liga os cliques nos <th data-{attr}> do <tbody id=tbodyId>
+// Registro: tbodyId -> {state, render}
+const _sortRegistry={};
+function _applySortHeaders(tbodyId,attr,state){
+  const tbody=document.getElementById(tbodyId);
+  if(!tbody)return;
+  const table=tbody.closest('table');
+  if(!table)return;
+  const ths=table.querySelectorAll('thead th[data-'+attr+']');
+  ths.forEach(th=>{
+    const col=th.getAttribute('data-'+attr);
+    // texto base sem seta antiga
+    let base=th.getAttribute('data-label');
+    if(base===null){base=th.textContent.replace(/[⇅▲▼]/g,'').trim();th.setAttribute('data-label',base);}
+    const active=state.col===col;
+    th.classList.toggle('sorted',active);
+    th.innerHTML=esc(base)+_ar(state,col);
+    if(!th._sortWired){
+      th._sortWired=true;
+      th.addEventListener('click',()=>{
+        const reg=_sortRegistry[tbodyId];
+        if(reg)_toggleSort(reg.state,th.getAttribute('data-'+attr),reg.render);
+      });
+    }
+  });
+}
+
 function toast(msg,err=false){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className=err?'err':'';t.style.display='block';
@@ -1082,6 +1148,22 @@ async function loadReceber(){
   const mes=rows.filter(r=>r.status==='Recebido'&&r.data_recebimento&&r.data_recebimento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
   document.getElementById('kr-total').textContent=fmt(pend);
   document.getElementById('kr-mes').textContent=fmt(mes);
+  _receberRows=rows;
+  renderReceber();
+}
+let _receberRows=[];
+const _accReceber={
+  cliente:{get:r=>r.cliente,type:'text'},
+  categoria:{get:r=>r.categoria,type:'text'},
+  data_vencimento:{get:r=>r.data_vencimento,type:'date'},
+  valor:{get:r=>r.valor,type:'num'},
+  status:{get:r=>r.status,type:'text'},
+  nf:{get:r=>r.nota_fiscal_emitida?2:r.lembrete_nota_fiscal?1:0,type:'num'},
+};
+_sortRegistry['tbl-receber']={state:_sortReceber,render:()=>renderReceber()};
+function renderReceber(){
+  const rows=_sortRows(_receberRows,_sortReceber,_accReceber);
+  _applySortHeaders('tbl-receber','rcol',_sortReceber);
   document.getElementById('tbl-receber').innerHTML=rows.length?rows.map(r=>`
     <tr>
       <td>${esc(r.cliente)}</td>
@@ -1202,6 +1284,21 @@ async function loadPagar(){
   document.getElementById('kp-venc').textContent=fmt(venc);
   document.getElementById('kp-avenc').textContent=fmt(avenc);
   document.getElementById('kp-mes').textContent=fmt(mes);
+  _pagarRows=rows;
+  renderPagar();
+}
+let _pagarRows=[];
+const _accPagar={
+  fornecedor:{get:r=>r.fornecedor,type:'text'},
+  categoria:{get:r=>r.categoria,type:'text'},
+  data_vencimento:{get:r=>r.data_vencimento,type:'date'},
+  valor:{get:r=>r.valor,type:'num'},
+  status:{get:r=>r.status,type:'text'},
+};
+_sortRegistry['tbl-pagar']={state:_sortPagar,render:()=>renderPagar()};
+function renderPagar(){
+  const rows=_sortRows(_pagarRows,_sortPagar,_accPagar);
+  _applySortHeaders('tbl-pagar','pcol',_sortPagar);
   document.getElementById('tbl-pagar').innerHTML=rows.length?rows.map(r=>`
     <tr>
       <td>${esc(r.fornecedor)}</td>
@@ -1544,6 +1641,15 @@ async function importarCalendario(){
 }
 
 // ─── Render tabela de visitas ─────────────────────────────────
+const _accVisitas={
+  data:{get:o=>o.v.data,type:'date'},
+  descricao:{get:o=>o.v.descricao,type:'text'},
+  cidade:{get:o=>o.v.cidade==='PENDENTE_CIDADE'?'':o.v.cidade,type:'text'},
+  fonte:{get:o=>o.v.fonte,type:'text'},
+  valorBase:{get:o=>o.v.valorBase||0,type:'num'},
+  valorFinal:{get:o=>o.v.valorFinal||0,type:'num'},
+};
+_sortRegistry['tbl-visitas']={state:_sortVisitas,render:()=>renderTabelaVisitas()};
 function renderTabelaVisitas(){
   const tbody=document.getElementById('tbl-visitas');
   if(!_remVisitas.length){
@@ -1557,7 +1663,10 @@ function renderTabelaVisitas(){
   document.getElementById('rem-pendente-aviso').style.display=pendentes.length?'inline':'none';
   document.getElementById('btn-gerar-rel').style.display=pendentes.length?'none':'inline-flex';
 
-  tbody.innerHTML=_remVisitas.map((v,i)=>{
+  _applySortHeaders('tbl-visitas','vcol',_sortVisitas);
+  // Ordena uma cópia preservando o índice original (handlers usam índice de _remVisitas)
+  const ordenadas=_sortRows(_remVisitas.map((v,i)=>({v,i})),_sortVisitas,_accVisitas);
+  tbody.innerHTML=ordenadas.map(({v,i})=>{
     const cls=v.cidade==='PENDENTE_CIDADE'?'visit-row-pendente':'';
     const cidadeBadge=v.cidade==='PENDENTE_CIDADE'
       ?`<span class="badge-cidade pendente">⚠ Pendente</span>`
@@ -1901,9 +2010,9 @@ async function carregarHistoricoRem(){
     const toDate=m=>{const[mm,yy]=m.split('/');return parseInt(yy)*100+(parseInt(mm)||0);};
     return toDate(a)-toDate(b);
   });
-  // Contador por ano
+  // Contador por ano — numeração REL segue a ordem cronológica (mais recente primeiro)
   const cntAno={};
-  const rows=mesesOrdenados.reverse().map(mes=>{
+  _histRemRows=mesesOrdenados.reverse().map(mes=>{
     // Extrair ano do mes (formato "mmm/yy" ex: "jan/26")
     const partes=mes.split('/');
     const ano=partes.length>1?'20'+partes[1]:'2026';
@@ -1912,21 +2021,38 @@ async function carregarHistoricoRem(){
     const idx=cntAno[ano];
     const numCtrl=`REL-${ano}-${String(idx).padStart(3,'0')}`;
     const d=porMes[mes];
-    const isReemb=d.status==='Reembolsado';
+    return {mes,numCtrl,qtd:d.qtd,total:d.total,status:d.status};
+  });
+  renderHistRem();
+}
+let _histRemRows=[];
+const _accHistRem={
+  num:{get:r=>r.numCtrl,type:'text'},
+  mes:{get:r=>r.mes,type:'mes'},
+  qtd:{get:r=>r.qtd,type:'num'},
+  total:{get:r=>r.total,type:'num'},
+  status:{get:r=>r.status,type:'text'},
+};
+_sortRegistry['tbl-hist-rem']={state:_sortHistRem,render:()=>renderHistRem()};
+function renderHistRem(){
+  _applySortHeaders('tbl-hist-rem','hcol',_sortHistRem);
+  const rows=_sortRows(_histRemRows,_sortHistRem,_accHistRem);
+  if(!rows.length){document.getElementById('tbl-hist-rem').innerHTML='<tr><td colspan="6" class="empty">Nenhum relatório gerado.</td></tr>';return;}
+  document.getElementById('tbl-hist-rem').innerHTML=rows.map(r=>{
+    const isReemb=r.status==='Reembolsado';
     return `<tr>
-      <td><span class="rel-num">${numCtrl}</span></td>
-      <td>${mes}</td>
-      <td><span class="badge-visitas">${d.qtd} visit${d.qtd===1?'a':'as'}</span></td>
-      <td><span class="val-green">${fmt(d.total)}</span></td>
+      <td><span class="rel-num">${r.numCtrl}</span></td>
+      <td>${r.mes}</td>
+      <td><span class="badge-visitas">${r.qtd} visit${r.qtd===1?'a':'as'}</span></td>
+      <td><span class="val-green">${fmt(r.total)}</span></td>
       <td><span class="${isReemb?'badge ok':'badge-gerado'}">${isReemb?'✓ Reembolsado':'Gerado'}</span></td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorio('${mes}')">👁</button>
-        <button class="btn-icon" title="Baixar PDF" onclick="downloadPDFMes('${mes}')">⬇</button>
-        <button class="btn-icon del" title="Excluir" onclick="excluirRelatorio('${mes}')">🗑</button>
+        <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorio('${r.mes}')">👁</button>
+        <button class="btn-icon" title="Baixar PDF" onclick="downloadPDFMes('${r.mes}')">⬇</button>
+        <button class="btn-icon del" title="Excluir" onclick="excluirRelatorio('${r.mes}')">🗑</button>
       </td>
     </tr>`;
-  });
-  document.getElementById('tbl-hist-rem').innerHTML=rows.join('');
+  }).join('');
 }
 
 async function visualizarRelatorio(mes){
@@ -2222,23 +2348,42 @@ async function carregarHistoricoDigital(){
   const ordem=m=>{const[mm,yy]=m.split('/');return (parseInt(yy)||0)*100+(MES_N[(mm||'').toLowerCase()]||0);};
   const meses=Object.keys(porMes).sort((a,b)=>ordem(a)-ordem(b)).reverse();
   const cntAno={};
-  tb.innerHTML=meses.map(mes=>{
+  _digRemRows=meses.map(mes=>{
     const partes=mes.split('/');
     const ano=partes.length>1?'20'+partes[1]:'2026';
     cntAno[ano]=(cntAno[ano]||0)+1;
     const numCtrl=`RD-${ano}-${String(cntAno[ano]).padStart(3,'0')}`;
     const d=porMes[mes];
-    const isReemb=d.status==='Reembolsado';
+    return {mes,numCtrl,qtd:d.qtd,total:d.total,status:d.status};
+  });
+  renderDigRem();
+}
+let _digRemRows=[];
+const _accDigRem={
+  num:{get:r=>r.numCtrl,type:'text'},
+  mes:{get:r=>r.mes,type:'mes'},
+  qtd:{get:r=>r.qtd,type:'num'},
+  total:{get:r=>r.total,type:'num'},
+  status:{get:r=>r.status,type:'text'},
+};
+_sortRegistry['tbl-digital-rem']={state:_sortDigRem,render:()=>renderDigRem()};
+function renderDigRem(){
+  const tb=document.getElementById('tbl-digital-rem');
+  _applySortHeaders('tbl-digital-rem','dcol',_sortDigRem);
+  const rows=_sortRows(_digRemRows,_sortDigRem,_accDigRem);
+  if(!rows.length){tb.innerHTML='<tr><td colspan="6" class="empty">Nenhum reembolso digital registrado.</td></tr>';return;}
+  tb.innerHTML=rows.map(r=>{
+    const isReemb=r.status==='Reembolsado';
     return `<tr>
-      <td><span class="rel-num">${numCtrl}</span></td>
-      <td>${mes}</td>
-      <td><span class="badge-visitas">${d.qtd} ${d.qtd===1?'item':'itens'}</span></td>
-      <td><span class="val-green">${fmt(d.total)}</span></td>
+      <td><span class="rel-num">${r.numCtrl}</span></td>
+      <td>${r.mes}</td>
+      <td><span class="badge-visitas">${r.qtd} ${r.qtd===1?'item':'itens'}</span></td>
+      <td><span class="val-green">${fmt(r.total)}</span></td>
       <td><span class="${isReemb?'badge ok':'badge-gerado'}">${isReemb?'✓ Reembolsado':'Gerado'}</span></td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorioDigital('${mes}')">👁</button>
-        <button class="btn-icon" title="Baixar PDF" onclick="downloadPDFDigitalMes('${mes}')">⬇</button>
-        <button class="btn-icon del" title="Excluir mês" onclick="excluirRelatorioDigital('${mes}')">🗑</button>
+        <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorioDigital('${r.mes}')">👁</button>
+        <button class="btn-icon" title="Baixar PDF" onclick="downloadPDFDigitalMes('${r.mes}')">⬇</button>
+        <button class="btn-icon del" title="Excluir mês" onclick="excluirRelatorioDigital('${r.mes}')">🗑</button>
       </td>
     </tr>`;
   }).join('');
