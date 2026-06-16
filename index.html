@@ -442,8 +442,8 @@ body.capturing .rel-acao{display:none!important}
 
       <div class="sn-section">EM BREVE</div>
       <button class="sn-btn" id="sn-reembolsos" onclick="nav('reembolsos')"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Reembolsos</button>
-      <button class="sn-btn" id="sn-extrato" onclick="nav('extrato')"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Extratos & DRE</button>
-      <button class="sn-btn" id="sn-conciliacao" onclick="nav('conciliacao')"><svg viewBox="0 0 24 24"><path d="M21 7H7a2 2 0 0 0-2 2v10"/><path d="m18 4 3 3-3 3"/><path d="M3 17h14a2 2 0 0 0 2-2V5"/><path d="m6 20-3-3 3-3"/></svg>Conciliação</button>
+      <button class="sn-btn" id="sn-extrato" onclick="nav('extrato')"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Extratos &amp; Conciliação</button>
+      <button class="sn-btn" id="sn-dre" onclick="nav('dre')"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 4 4-7"/></svg>DRE</button>
       <button class="sn-btn" id="sn-cofre" onclick="nav('cofre')"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Cofre</button>
 
       <div class="sn-footer">
@@ -791,11 +791,10 @@ body.capturing .rel-acao{display:none!important}
 
       </div>
 
-      <!-- EXTRATOS & DRE -->
+      <!-- EXTRATOS & CONCILIAÇÃO -->
       <div class="page" id="page-extrato">
         <div class="page-header">
-          <div><h2>Extratos &amp; DRE</h2><p>Importe o extrato bancário (PDF) — cada lançamento alimenta a DRE e o fluxo de caixa</p></div>
-          <select id="ex-comp-filtro" class="ano-select" onchange="renderExtratoDRE()" style="max-width:200px"><option value="">Todas as competências</option></select>
+          <div><h2>Extratos &amp; Conciliação</h2><p>Importe o extrato bancário (PDF) e concilie cada lançamento com as contas a receber/pagar</p></div>
         </div>
 
         <!-- Upload (compacto) -->
@@ -824,35 +823,20 @@ body.capturing .rel-acao{display:none!important}
           </div>
         </div>
 
-        <!-- DRE / resumo -->
-        <div class="ex-dre-grid">
-          <div class="card ex-kpi"><span>Receitas</span><b class="val-green" id="ex-kpi-rec">R$ 0,00</b></div>
-          <div class="card ex-kpi"><span>Despesas</span><b style="color:var(--red)" id="ex-kpi-desp">R$ 0,00</b></div>
-          <div class="card ex-kpi"><span>Resultado</span><b id="ex-kpi-res">R$ 0,00</b></div>
-          <div class="card ex-kpi"><span>Lançamentos</span><b id="ex-kpi-n">0</b></div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
-          <div class="card-hd"><h3>DRE — Demonstração do Resultado</h3>
-            <span style="font-size:11.5px;color:var(--text2)">AV% = análise vertical (% da receita) · AH% = análise horizontal (último mês vs anterior)</span>
-          </div>
-          <div class="card-bd"><div id="ex-dre-cats" style="overflow-x:auto"><p class="empty">Sem dados ainda. Importe um extrato.</p></div></div>
-        </div>
-
+        <!-- Lançamentos importados do extrato -->
         <div class="card" style="margin-top:16px">
           <div class="card-hd"><h3>Lançamentos importados</h3>
             <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE()">↺ Atualizar</button>
           </div>
-          <div class="card-bd"><div id="ex-txns" style="max-height:520px;overflow:auto"></div></div>
+          <div class="card-bd"><div id="ex-txns" style="max-height:420px;overflow:auto"></div></div>
         </div>
-      </div>
 
-      <!-- CONCILIAÇÃO -->
-      <div class="page" id="page-conciliacao">
-        <div class="page-header">
-          <div><h2>Conciliação bancária</h2><p>Cruza os lançamentos do extrato com as contas a receber e a pagar — confirme cada baixa</p></div>
+        <!-- Conciliação bancária (junto com os extratos) -->
+        <div style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
+          <h3 style="font-size:16px;color:var(--teal)">Conciliação bancária</h3>
           <button class="btn btn-outline btn-sm" onclick="loadConciliacao()">↺ Atualizar</button>
         </div>
+        <p style="font-size:12.5px;color:var(--text2);margin:4px 2px 12px">Cruza os lançamentos do extrato com as contas a receber e a pagar — confirme cada baixa</p>
 
         <div class="ex-dre-grid">
           <div class="card ex-kpi"><span>A conciliar</span><b id="cc-kpi-pend">0</b></div>
@@ -871,6 +855,28 @@ body.capturing .rel-acao{display:none!important}
         <div class="card" style="margin-top:16px">
           <div class="card-hd"><h3>Já conciliados</h3></div>
           <div class="card-bd"><div id="cc-feitos" style="max-height:420px;overflow:auto"><p class="empty">—</p></div></div>
+        </div>
+      </div>
+
+      <!-- DRE (página própria) -->
+      <div class="page" id="page-dre">
+        <div class="page-header">
+          <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
+          <select id="ex-comp-filtro" class="ano-select" onchange="renderExtratoDRE()" style="max-width:200px"><option value="">Todas as competências</option></select>
+        </div>
+
+        <div class="ex-dre-grid">
+          <div class="card ex-kpi"><span>Receitas</span><b class="val-green" id="ex-kpi-rec">R$ 0,00</b></div>
+          <div class="card ex-kpi"><span>Despesas</span><b style="color:var(--red)" id="ex-kpi-desp">R$ 0,00</b></div>
+          <div class="card ex-kpi"><span>Resultado</span><b id="ex-kpi-res">R$ 0,00</b></div>
+          <div class="card ex-kpi"><span>Lançamentos</span><b id="ex-kpi-n">0</b></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-hd"><h3>DRE — Demonstração do Resultado</h3>
+            <span style="font-size:11.5px;color:var(--text2)">AV% = análise vertical (% da receita) · AH% = análise horizontal (último mês vs anterior)</span>
+          </div>
+          <div class="card-bd"><div id="ex-dre-cats" style="overflow-x:auto"><p class="empty">Sem dados ainda. Importe um extrato.</p></div></div>
         </div>
       </div>
 
@@ -1431,8 +1437,8 @@ function nav(page){
   if(page==='reembolsos')loadReembolsos();
   if(page==='cofre')loadCofre();
   if(page==='nfse')initNfse();
-  if(page==='extrato')initExtrato();
-  if(page==='conciliacao')loadConciliacao();
+  if(page==='extrato'){ initExtrato(); loadConciliacao(); }
+  if(page==='dre')renderExtratoDRE();
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
@@ -3764,7 +3770,12 @@ function _dreRender(txns){
   const avPct=tot=>recTotal?tot/recTotal*100:0;
   const fmtAV=p=>`<span class="dre-av">${(p||0).toFixed(1).replace('.',',')}%</span>`;
   const fmtAH=p=>p===null?'<span class="dre-av">—</span>':`<span class="${p>=0?'dre-pos':'dre-neg'}" style="font-size:11px">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1).replace('.',',')}%</span>`;
-  const cellMes=arr=>arr.map(v=>`<td>${v?_dreR(v):'<span class="dre-av">—</span>'}</td>`).join('');
+  // cada célula de mês: valor + AV% daquele mês (% da receita do próprio mês)
+  const cellMes=arr=>arr.map((v,i)=>{
+    const base=recPorMes[i];
+    const pct=(v&&base)?`<div class="dre-av">${(v/base*100).toFixed(1).replace('.',',')}%</div>`:'';
+    return `<td>${v?_dreR(v):'<span class="dre-av">—</span>'}${pct}</td>`;
+  }).join('');
 
   const head=`<thead><tr><th>Conta</th>${meses.map(m=>`<th>${_compLabel(m)}</th>`).join('')}<th>Total</th><th>AV%</th><th>AH%</th></tr></thead>`;
   let body='<tbody>';
