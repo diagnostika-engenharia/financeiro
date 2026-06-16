@@ -251,6 +251,26 @@ body.capturing .rel-acao{display:none!important}
 .nfse-amb-pill.teste{background:#FFF3E0;color:#E65100}
 /* Extratos & DRE */
 .upload-area.drag{border-color:var(--turq,#00B4AC);background:var(--green-lt,#E8F5E9)}
+.ex-upload-bar{display:flex;align-items:center;gap:14px;padding:12px 16px;border:1.5px dashed var(--gray3);border-radius:var(--r);background:var(--white);cursor:pointer;transition:all .15s;margin-bottom:16px}
+.ex-upload-bar:hover,.ex-upload-bar.drag{border-color:var(--turq);background:#F0FAFA}
+.ex-upload-bar>svg{width:26px;height:26px;flex:none;opacity:.45;stroke:var(--teal)}
+.ex-upload-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ex-upload-txt b{font-size:13.5px;color:var(--text)}
+.ex-upload-txt small{font-size:11.5px;color:var(--gray4)}
+/* DRE contábil */
+.dre-tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px}
+.dre-tbl th,.dre-tbl td{padding:6px 10px;text-align:right;white-space:nowrap}
+.dre-tbl th:first-child,.dre-tbl td:first-child{text-align:left;position:sticky;left:0;background:var(--white);z-index:1}
+.dre-tbl thead th{border-bottom:2px solid var(--gray3);color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.dre-tbl tbody .dre-sec td{background:var(--gray);font-weight:700;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;color:var(--text2)}
+.dre-tbl tbody .dre-sec td:first-child{background:var(--gray)}
+.dre-tbl .dre-cat td:first-child{padding-left:22px;color:var(--text)}
+.dre-tbl .dre-cat td{color:var(--text2)}
+.dre-tbl .dre-tot td{border-top:1px solid var(--gray3);font-weight:700;color:var(--text)}
+.dre-tbl .dre-res td{border-top:2px solid var(--teal);border-bottom:2px solid var(--teal);font-weight:800}
+.dre-tbl .dre-mg td{font-size:11px;color:var(--text2)}
+.dre-av{font-size:10.5px;color:var(--gray4)}
+.dre-pos{color:var(--green)}.dre-neg{color:var(--red)}
 .ex-recon{margin-bottom:12px}
 .ex-recon-line{padding:8px 12px;border-radius:8px;font-size:12.5px;margin-bottom:6px}
 .ex-recon-line.ok{background:var(--green-lt,#E8F5E9);color:#1B5E20;border:1px solid #C8E6C9}
@@ -778,19 +798,17 @@ body.capturing .rel-acao{display:none!important}
           <select id="ex-comp-filtro" class="ano-select" onchange="renderExtratoDRE()" style="max-width:200px"><option value="">Todas as competências</option></select>
         </div>
 
-        <!-- Upload -->
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-bd">
-            <div class="upload-area" id="ex-drop" onclick="document.getElementById('ex-input').click()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-              <p>Arraste o extrato do banco aqui (PDF)<br>ou</p>
-              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();document.getElementById('ex-input').click()">Selecionar PDF</button>
-              <small style="display:block;margin-top:8px">Sicoob (conta corrente). Os valores são conferidos pelo saldo do extrato antes de importar.</small>
-            </div>
-            <input type="file" id="ex-input" accept=".pdf" multiple style="display:none" onchange="extratoArquivos(this.files)">
-            <div id="ex-status" style="font-size:13px;margin-top:10px"></div>
+        <!-- Upload (compacto) -->
+        <div class="ex-upload-bar" id="ex-drop" onclick="document.getElementById('ex-input').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <div class="ex-upload-txt">
+            <b>Importar extrato (PDF)</b>
+            <small>Arraste aqui ou clique — Sicoob, conferido pelo saldo antes de importar</small>
           </div>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();document.getElementById('ex-input').click()">Selecionar PDF</button>
+          <input type="file" id="ex-input" accept=".pdf" multiple style="display:none" onchange="extratoArquivos(this.files)">
         </div>
+        <div id="ex-status" style="font-size:13px;margin:8px 2px 0"></div>
 
         <!-- Pré-visualização da importação -->
         <div class="card" id="ex-preview-card" style="display:none;margin-bottom:16px">
@@ -815,8 +833,10 @@ body.capturing .rel-acao{display:none!important}
         </div>
 
         <div class="card" style="margin-top:16px">
-          <div class="card-hd"><h3>DRE por categoria</h3></div>
-          <div class="card-bd"><div id="ex-dre-cats"><p class="empty">Sem dados ainda. Importe um extrato.</p></div></div>
+          <div class="card-hd"><h3>DRE — Demonstração do Resultado</h3>
+            <span style="font-size:11.5px;color:var(--text2)">AV% = análise vertical (% da receita) · AH% = análise horizontal (último mês vs anterior)</span>
+          </div>
+          <div class="card-bd"><div id="ex-dre-cats" style="overflow-x:auto"><p class="empty">Sem dados ainda. Importe um extrato.</p></div></div>
         </div>
 
         <div class="card" style="margin-top:16px">
@@ -3706,14 +3726,72 @@ async function renderExtratoDRE(){
   resEl.textContent=(res<0?'− R$ ':'R$ ')+Math.abs(res).toLocaleString('pt-BR',{minimumFractionDigits:2});
   resEl.style.color=res<0?'var(--red)':'var(--green)';
   document.getElementById('ex-kpi-n').textContent=txns.length;
-  // DRE por categoria
-  const grupos={};
-  txns.forEach(t=>{ const k=(t.tipo_categoria||'?')+'|'+(t.categoria||'?'); (grupos[k]=grupos[k]||{tipo:t.tipo_categoria,cat:t.categoria,total:0,n:0}); grupos[k].total+=(+t.valor); grupos[k].n++; });
-  const arr=Object.values(grupos).sort((a,b)=>(a.tipo<b.tipo?-1:1)||b.total-a.total);
-  if(!arr.length){ cats.innerHTML='<p class="empty">Sem dados ainda. Importe um extrato.</p>'; }
-  else cats.innerHTML='<table class="nfse-hist-tbl"><thead><tr><th>Natureza</th><th>Categoria</th><th>Lanç.</th><th style="text-align:right">Total</th></tr></thead><tbody>'+
-    arr.map(g=>`<tr><td><span class="ex-tag ${g.tipo==='Receita'?'cred':'deb'}">${esc(g.tipo||'?')}</span></td><td>${esc(g.cat||'?')}</td><td>${g.n}</td><td style="text-align:right;color:${g.tipo==='Receita'?'var(--green)':'var(--red)'}">R$ ${g.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('')+'</tbody></table>';
+  // ── DRE contábil: plano de contas × meses + AV%/AH% ──
+  cats.innerHTML = _dreRender(txns);
   txnsBox.innerHTML = txns.length? _exTabela(txns.map(t=>({...t,tipo:t.tipo==='credito'?'C':'D'})),false) : '<p class="empty">Nenhum lançamento importado.</p>';
+}
+
+// rótulo de competência 'AAAA-MM' → 'mar/26'
+const _MES_ABR=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function _compLabel(c){ if(!c||c.length<7) return c||'—'; const [y,m]=c.split('-'); return _MES_ABR[(+m||1)-1]+'/'+y.slice(2); }
+const _dreR=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+// monta a DRE no padrão contábil: seções Receita/Despesa, categorias (plano de
+// contas), uma coluna por mês (análise horizontal) + Total, AV% (vertical, % da
+// receita) e AH% (horizontal, último mês vs anterior).
+function _dreRender(txns){
+  if(!txns.length) return '<p class="empty">Sem dados ainda. Importe um extrato.</p>';
+  const meses=[...new Set(txns.map(_txComp).filter(Boolean))].sort();
+  const sec={Receita:{}, Despesa:{}};
+  txns.forEach(t=>{
+    const nat=t.tipo==='credito'?'Receita':'Despesa';
+    const cat=t.categoria||'Não classificado';
+    const m=_txComp(t)||'—';
+    (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+(+t.valor);
+  });
+  const somaMes=obj=>meses.map(m=>obj[m]||0);
+  const totLinha=obj=>meses.reduce((s,m)=>s+(obj[m]||0),0);
+  // base da análise vertical = receita total de cada mês
+  const recPorMes=meses.map(m=>Object.values(sec.Receita).reduce((s,o)=>s+(o[m]||0),0));
+  const recTotal=recPorMes.reduce((a,b)=>a+b,0);
+  // AH% de uma linha = variação do último mês com dado vs o mês anterior com dado
+  const ah=valsArr=>{
+    const idx=valsArr.map((v,i)=>v?i:-1).filter(i=>i>=0);
+    if(idx.length<2) return null;
+    const prev=valsArr[idx[idx.length-2]], last=valsArr[idx[idx.length-1]];
+    if(!prev) return null; return (last-prev)/Math.abs(prev)*100;
+  };
+  const avPct=tot=>recTotal?tot/recTotal*100:0;
+  const fmtAV=p=>`<span class="dre-av">${(p||0).toFixed(1).replace('.',',')}%</span>`;
+  const fmtAH=p=>p===null?'<span class="dre-av">—</span>':`<span class="${p>=0?'dre-pos':'dre-neg'}" style="font-size:11px">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1).replace('.',',')}%</span>`;
+  const cellMes=arr=>arr.map(v=>`<td>${v?_dreR(v):'<span class="dre-av">—</span>'}</td>`).join('');
+
+  const head=`<thead><tr><th>Conta</th>${meses.map(m=>`<th>${_compLabel(m)}</th>`).join('')}<th>Total</th><th>AV%</th><th>AH%</th></tr></thead>`;
+  let body='<tbody>';
+  // seções
+  [['Receita','RECEITAS'],['Despesa','DESPESAS']].forEach(([nat,titulo])=>{
+    const cats=Object.entries(sec[nat]).sort((a,b)=>totLinha(b[1])-totLinha(a[1]));
+    body+=`<tr class="dre-sec"><td>${titulo}</td>${meses.map(()=>'<td></td>').join('')}<td></td><td></td><td></td></tr>`;
+    if(!cats.length){ body+=`<tr class="dre-cat"><td>—</td>${meses.map(()=>'<td><span class="dre-av">—</span></td>').join('')}<td><span class="dre-av">—</span></td><td></td><td></td></tr>`; }
+    cats.forEach(([cat,obj])=>{
+      const arr=somaMes(obj), tot=totLinha(obj);
+      body+=`<tr class="dre-cat"><td>${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
+    });
+    // total da seção
+    const totMes=meses.map((m,i)=>Object.values(sec[nat]).reduce((s,o)=>s+(o[m]||0),0));
+    const totSec=totMes.reduce((a,b)=>a+b,0);
+    body+=`<tr class="dre-tot"><td>${nat==='Receita'?'= Total das receitas':'= Total das despesas'}</td>${cellMes(totMes)}<td>${_dreR(totSec)}</td><td>${fmtAV(avPct(totSec))}</td><td>${fmtAH(ah(totMes))}</td></tr>`;
+  });
+  // resultado líquido
+  const despMes=meses.map(m=>Object.values(sec.Despesa).reduce((s,o)=>s+(o[m]||0),0));
+  const resMes=recPorMes.map((r,i)=>r-despMes[i]);
+  const resTot=resMes.reduce((a,b)=>a+b,0);
+  body+=`<tr class="dre-res"><td>RESULTADO LÍQUIDO</td>${resMes.map(v=>`<td class="${v>=0?'dre-pos':'dre-neg'}">${_dreR(v)}</td>`).join('')}<td class="${resTot>=0?'dre-pos':'dre-neg'}">${_dreR(resTot)}</td><td>${fmtAV(avPct(resTot))}</td><td>${fmtAH(ah(resMes))}</td></tr>`;
+  // margem (%) por mês
+  const margMes=resMes.map((r,i)=>recPorMes[i]?r/recPorMes[i]*100:0);
+  body+=`<tr class="dre-mg"><td>Margem líquida</td>${margMes.map((p,i)=>`<td>${recPorMes[i]?(p>=0?'':'−')+Math.abs(p).toFixed(1).replace('.',',')+'%':'<span class="dre-av">—</span>'}</td>`).join('')}<td>${recTotal?(resTot/recTotal*100).toFixed(1).replace('.',',')+'%':'—'}</td><td></td><td></td></tr>`;
+  body+='</tbody>';
+  return `<table class="dre-tbl">${head}${body}</table>`;
 }
 
 // ── Conciliação bancária ──────────────────────────────────────

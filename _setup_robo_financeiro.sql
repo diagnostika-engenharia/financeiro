@@ -8,6 +8,10 @@
 -- (_setup_tabelas_financeiro.sql). valor em fin_contas_* está em
 -- CENTAVOS; em fin_transacoes_bancarias está em REAIS. As funções
 -- normalizam tudo para REAIS no JSON de saída.
+--
+-- IMPORTANTE: a coluna `data` em fin_transacoes_bancarias é TEXT
+-- (formato AAAA-MM-DD), por isso usamos to_char(data::date,...) e
+-- data_vencimento/recebimento/pagamento::date. DEPLOYADO 16/06/2026.
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -32,13 +36,13 @@ begin
     'a_receber', (
       select jsonb_build_object(
         'pendente_total', round(coalesce(sum(valor),0)/100.0,2),
-        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento < hoje),0)/100.0,2),
+        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento::date < hoje),0)/100.0,2),
         'qtd', count(*),
         'proximos', coalesce((
           select jsonb_agg(jsonb_build_object(
             'cliente',cliente,'categoria',categoria,
-            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento,'DD/MM/YYYY'),
-            'vencido',(data_vencimento < hoje)))
+            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento::date,'DD/MM/YYYY'),
+            'vencido',(data_vencimento::date < hoje)))
           from (select * from public.fin_contas_receber
                 where status='Pendente' and coalesce(estornado,false)=false
                 order by data_vencimento limit 15) s), '[]'::jsonb)
@@ -49,13 +53,13 @@ begin
     'a_pagar', (
       select jsonb_build_object(
         'pendente_total', round(coalesce(sum(valor),0)/100.0,2),
-        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento < hoje),0)/100.0,2),
+        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento::date < hoje),0)/100.0,2),
         'qtd', count(*),
         'proximos', coalesce((
           select jsonb_agg(jsonb_build_object(
             'fornecedor',fornecedor,'categoria',categoria,
-            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento,'DD/MM/YYYY'),
-            'vencido',(data_vencimento < hoje)))
+            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento::date,'DD/MM/YYYY'),
+            'vencido',(data_vencimento::date < hoje)))
           from (select * from public.fin_contas_pagar
                 where status='Pendente' and coalesce(estornado,false)=false
                 order by data_vencimento limit 15) s), '[]'::jsonb)
@@ -66,11 +70,11 @@ begin
     'recebido_competencia', (
       select round(coalesce(sum(valor),0)/100.0,2) from public.fin_contas_receber
       where status='Recebido' and coalesce(estornado,false)=false
-        and to_char(data_recebimento,'YYYY-MM')=comp),
+        and to_char(data_recebimento::date,'YYYY-MM')=comp),
     'pago_competencia', (
       select round(coalesce(sum(valor),0)/100.0,2) from public.fin_contas_pagar
       where status='Pago' and coalesce(estornado,false)=false
-        and to_char(data_pagamento,'YYYY-MM')=comp),
+        and to_char(data_pagamento::date,'YYYY-MM')=comp),
 
     -- DRE da competência a partir do extrato conciliado/importado
     'dre', (
@@ -98,7 +102,7 @@ begin
 
     'ultimas_transacoes', coalesce((
       select jsonb_agg(jsonb_build_object(
-        'data',to_char(data,'DD/MM/YYYY'),'historico',historico,
+        'data',to_char(data::date,'DD/MM/YYYY'),'historico',historico,
         'categoria',categoria,'tipo',tipo,'valor',round(valor,2)))
       from (select * from public.fin_transacoes_bancarias
             order by data desc, id desc limit 20) u), '[]'::jsonb)
@@ -118,7 +122,7 @@ security definer
 set search_path = public
 as $$
   select coalesce(jsonb_agg(jsonb_build_object(
-    'data',to_char(data,'DD/MM/YYYY'),'historico',historico,
+    'data',to_char(data::date,'DD/MM/YYYY'),'historico',historico,
     'categoria',categoria,'tipo',tipo,'valor',round(valor,2),
     'competencia',competencia)), '[]'::jsonb)
   from (
