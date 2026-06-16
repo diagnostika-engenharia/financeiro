@@ -3623,7 +3623,7 @@ function _exTabela(txns,preview){
   return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead><tbody>`+
     txns.map(t=>`<tr>
       <td>${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}</td>
-      <td>${esc(t.historico||'')}</td>
+      <td>${esc(t.historico||t.descricao||'')}</td>
       <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
@@ -3631,44 +3631,72 @@ function _exTabela(txns,preview){
 }
 function cancelarExtrato(){ _exPendentes=null; document.getElementById('ex-preview-card').style.display='none'; document.getElementById('ex-status').textContent=''; }
 
-async function confirmarImportExtrato(){
-  if(!_exPendentes){ return; }
-  const btn=document.getElementById('ex-confirm-btn'); btn.disabled=true; btn.textContent='Importando…';
-  const rows=_exPendentes.txns.map(t=>({
+// Detecta quais colunas a tabela realmente tem (esquema pode ser antigo) — cacheado
+let _txnCols=null;
+async function _txnSchema(){
+  if(_txnCols) return _txnCols;
+  const cand=['conta','historico','descricao','hash','origem_arquivo','competencia','conta_receber_id','conta_pagar_id','status','categoria','tipo_categoria'];
+  const cols=new Set(['data','valor','tipo']);
+  await Promise.all(cand.map(async c=>{ const r=await sb.from('fin_transacoes_bancarias').select(c).limit(1); if(!r.error) cols.add(c); }));
+  _txnCols=cols; return cols;
+}
+// monta a linha só com as colunas existentes; histórico cai em 'descricao' se não houver 'historico'
+function _txnRow(t,cols){
+  const full={
     conta:t.conta||null, data:t.data, historico:t.historico, descricao:t.historico,
     valor:t.valor, tipo:t.tipo==='C'?'credito':'debito',
     categoria:t.categoria, tipo_categoria:t.tipo_categoria, status:'classificado',
     hash:t.hash, origem_arquivo:t.origem_arquivo, competencia:t.competencia
-  }));
+  };
+  const row={}; Object.keys(full).forEach(k=>{ if(cols.has(k)) row[k]=full[k]; });
+  return row;
+}
+async function confirmarImportExtrato(){
+  if(!_exPendentes){ return; }
+  const btn=document.getElementById('ex-confirm-btn'); btn.disabled=true; btn.textContent='Importando…';
+  const cols=await _txnSchema();
+  let rows=_exPendentes.txns.map(t=>_txnRow(t,cols));
   let inseridas=0, dup=0, erro=null;
-  // upsert por hash (ignora duplicados já importados)
-  const {data,error}=await sb.from('fin_transacoes_bancarias').upsert(rows,{onConflict:'hash',ignoreDuplicates:true}).select('id');
-  if(error){ erro=error.message; }
-  else { inseridas=data?data.length:0; dup=rows.length-inseridas; }
-  // auditoria das importações
-  try{ if(!error) await sb.from('fin_extratos_import').insert(_exPendentes.arquivos.map(a=>({arquivo:a.arquivo,conta:a.conta,periodo:a.periodo,total_linhas:a.total_linhas,total_credito:a.total_credito,total_debito:a.total_debito,status:'importado'}))); }catch(e){}
+  if(cols.has('hash')){
+    // dedupe robusto por hash
+    const {data,error}=await sb.from('fin_transacoes_bancarias').upsert(rows,{onConflict:'hash',ignoreDuplicates:true}).select('id');
+    if(error){ erro=error.message; } else { inseridas=data?data.length:0; dup=rows.length-inseridas; }
+  }else{
+    // esquema antigo (sem hash): dedupe no cliente por data+descricao+valor+tipo
+    const {data:exist}=await sb.from('fin_transacoes_bancarias').select('data,descricao,valor,tipo').limit(5000);
+    const chave=r=>[r.data,(r.descricao||'').trim(),(+r.valor).toFixed(2),r.tipo].join('|');
+    const jah=new Set((exist||[]).map(chave));
+    const novas=rows.filter(r=>!jah.has(chave(r)));
+    dup=rows.length-novas.length;
+    if(novas.length){ const {data,error}=await sb.from('fin_transacoes_bancarias').insert(novas).select('id');
+      if(error){ erro=error.message; } else { inseridas=data?data.length:0; } }
+  }
+  // auditoria das importações (tolerante a esquema)
+  try{ if(!erro) await sb.from('fin_extratos_import').insert(_exPendentes.arquivos.map(a=>({arquivo:a.arquivo,conta:a.conta,periodo:a.periodo,total_linhas:a.total_linhas,total_credito:a.total_credito,total_debito:a.total_debito,status:'importado'}))); }catch(e){}
   btn.disabled=false; btn.textContent='Importar para o sistema';
   if(erro){
     document.getElementById('ex-status').innerHTML='<span style="color:var(--red)">Erro ao importar: '+esc(erro)+(/relation|does not exist/i.test(erro)?' — rode o setup das tabelas (_setup_tabelas_financeiro.sql).':'')+'</span>';
     toast('Falha ao importar extrato',true); return;
   }
+  const aviso=cols.has('hash')?'':' — dica: rode _fix_colunas_transacoes.sql p/ ativar dedupe por hash e a conciliação completa.';
+  document.getElementById('ex-status').innerHTML='<span style="color:var(--green)">✓ '+inseridas+' importado(s)'+(dup?', '+dup+' já existiam':'')+aviso+'</span>';
   toast(`${inseridas} lançamento(s) importado(s)${dup?', '+dup+' já existiam':''}`);
   cancelarExtrato();
   renderExtratoDRE();
 }
 
+const _txComp=t=>t.competencia||(t.data?String(t.data).slice(0,7):'');
 async function renderExtratoDRE(){
   const filtro=document.getElementById('ex-comp-filtro')?.value||'';
-  let q=sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(1000);
-  if(filtro) q=q.eq('competencia',filtro);
-  const {data,error}=await q;
+  const {data,error}=await sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(2000);
   const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
   if(error){ const msg=/relation|does not exist/i.test(error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(error.message);
     if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
-  const txns=data||[];
+  let txns=data||[];
+  if(filtro) txns=txns.filter(t=>_txComp(t)===filtro);  // filtro de competência no cliente
   // preencher filtro de competências
   const sel=document.getElementById('ex-comp-filtro');
-  if(sel){ const comps=[...new Set(txns.map(t=>t.competencia).filter(Boolean))].sort().reverse();
+  if(sel){ const comps=[...new Set((data||[]).map(_txComp).filter(Boolean))].sort().reverse();
     const cur=sel.value; sel.innerHTML='<option value="">Todas as competências</option>'+comps.map(c=>`<option value="${c}">${c}</option>`).join(''); sel.value=cur; }
   const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
   const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
@@ -3731,7 +3759,7 @@ async function loadConciliacao(){
         <div class="cc-top"><span class="ex-tag ${ehCred?'cred':'deb'}">${ehCred?'crédito':'débito'}</span>
           <b>${ehCred?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</b>
           <span class="cc-data">${esc(t.dataBR||formatData(t.data))}</span></div>
-        <div class="cc-hist">${esc(t.historico||'')} <span style="color:var(--text2)">· ${esc(t.categoria||'')}</span></div>
+        <div class="cc-hist">${esc(t.historico||t.descricao||'')} <span style="color:var(--text2)">· ${esc(t.categoria||'')}</span></div>
       </div>
       <div class="cc-actions">
         ${contas.length?`<select class="ano-select cc-sel" id="cc-sel-${t.id}">${opts}</select>
@@ -3746,7 +3774,7 @@ async function loadConciliacao(){
   fb.innerHTML=conciliados.length?`<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Vínculo</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>`+
     conciliados.map(t=>`<tr>
       <td>${esc(t.dataBR||formatData(t.data))}</td>
-      <td>${esc(t.historico||'')}</td>
+      <td>${esc(t.historico||t.descricao||'')}</td>
       <td>${t.conta_receber_id?'<span class="ex-tag cred">a receber</span>':t.conta_pagar_id?'<span class="ex-tag deb">a pagar</span>':'<span style="font-size:12px;color:var(--text2)">sem vínculo</span>'}</td>
       <td style="text-align:right;color:${t.tipo==='credito'?'var(--green)':'var(--red)'}">${t.tipo==='credito'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
       <td><button class="btn btn-outline btn-sm" onclick="desconciliarTxn(${t.id})" title="Desfazer conciliação">↶</button></td>
@@ -3754,19 +3782,21 @@ async function loadConciliacao(){
 }
 
 async function conciliarTxn(txnId, contaId, tipo){
-  const upd={status:'conciliado'};
+  const cols=await _txnSchema();
+  const upd=cols.has('status')?{status:'conciliado'}:{};
   if(contaId){
     if(tipo==='r'){
       const c=_ccReceber.find(x=>''+x.id===''+contaId);
       const{error}=await sb.from('fin_contas_receber').update({status:'Recebido',forma_pagamento:'Conciliação bancária',data_recebimento:(_ccTxnData(txnId)||hoje())}).eq('id',contaId);
       if(error){toast('Erro ao baixar conta a receber',true);return;}
-      upd.conta_receber_id=contaId;
+      if(cols.has('conta_receber_id')) upd.conta_receber_id=contaId;
     }else{
       const{error}=await sb.from('fin_contas_pagar').update({status:'Pago',data_pagamento:(_ccTxnData(txnId)||hoje())}).eq('id',contaId);
       if(error){toast('Erro ao baixar conta a pagar',true);return;}
-      upd.conta_pagar_id=contaId;
+      if(cols.has('conta_pagar_id')) upd.conta_pagar_id=contaId;
     }
   }
+  if(!Object.keys(upd).length){ toast(contaId?'Baixa registrada':'Nada a marcar'); loadConciliacao(); return; }
   const{error}=await sb.from('fin_transacoes_bancarias').update(upd).eq('id',txnId);
   if(error){toast('Erro ao conciliar',true);return;}
   toast(contaId?'Conciliado e baixa registrada':'Marcado como conferido');
@@ -3774,10 +3804,19 @@ async function conciliarTxn(txnId, contaId, tipo){
 }
 function _ccTxnData(txnId){ return _ccTxnDatas[txnId]||null; } // baixa registrada com a data do extrato
 async function desconciliarTxn(txnId){
-  const{data}=await sb.from('fin_transacoes_bancarias').select('conta_receber_id,conta_pagar_id').eq('id',txnId).single();
-  if(data?.conta_receber_id){ await sb.from('fin_contas_receber').update({status:'Pendente',data_recebimento:null,forma_pagamento:null}).eq('id',data.conta_receber_id); }
-  if(data?.conta_pagar_id){ await sb.from('fin_contas_pagar').update({status:'Pendente',data_pagamento:null}).eq('id',data.conta_pagar_id); }
-  await sb.from('fin_transacoes_bancarias').update({status:'classificado',conta_receber_id:null,conta_pagar_id:null}).eq('id',txnId);
+  const cols=await _txnSchema();
+  const hasLinks=cols.has('conta_receber_id')||cols.has('conta_pagar_id');
+  if(hasLinks){
+    const sel=[cols.has('conta_receber_id')?'conta_receber_id':null,cols.has('conta_pagar_id')?'conta_pagar_id':null].filter(Boolean).join(',');
+    const{data}=await sb.from('fin_transacoes_bancarias').select(sel).eq('id',txnId).single();
+    if(data?.conta_receber_id){ await sb.from('fin_contas_receber').update({status:'Pendente',data_recebimento:null,forma_pagamento:null}).eq('id',data.conta_receber_id); }
+    if(data?.conta_pagar_id){ await sb.from('fin_contas_pagar').update({status:'Pendente',data_pagamento:null}).eq('id',data.conta_pagar_id); }
+  }
+  const upd={};
+  if(cols.has('status')) upd.status='classificado';
+  if(cols.has('conta_receber_id')) upd.conta_receber_id=null;
+  if(cols.has('conta_pagar_id')) upd.conta_pagar_id=null;
+  if(Object.keys(upd).length) await sb.from('fin_transacoes_bancarias').update(upd).eq('id',txnId);
   toast('Conciliação desfeita'); loadConciliacao();
 }
 

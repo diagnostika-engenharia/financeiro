@@ -1,3 +1,6 @@
 node_modules/
 *.log
 .DS_Store
+
+# dados bancarios reais - nunca publicar
+_carga_extratos.sql
