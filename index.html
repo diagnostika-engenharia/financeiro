@@ -7,6 +7,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <style>
 :root{
   --teal:#155B67;--turq:#00B4AC;--lima:#8DB72A;
@@ -230,8 +232,51 @@ body.capturing .rel-acao{display:none!important}
 .nfse-resultado{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:12.5px;line-height:1.5}
 .nfse-resultado.ok{background:var(--green-lt);color:#1B5E20;border:1px solid #C8E6C9}
 .nfse-resultado.erro{background:var(--red-lt);color:var(--red);border:1px solid #f3c6c1}
-.nfse-acao-bar{display:flex;align-items:center;gap:14px;background:var(--white);padding:14px 16px;border-radius:var(--r);box-shadow:var(--shadow);position:sticky;bottom:0}
+.nfse-acao-bar{display:flex;align-items:center;gap:14px;background:var(--white);padding:14px 16px;border-radius:var(--r);box-shadow:var(--shadow);position:sticky;bottom:0;flex-wrap:wrap}
+/* Histórico de NFS-e */
+.nfse-hist-panel{margin-top:16px;background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.nfse-hist-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none}
+.nfse-hist-hd:hover{background:var(--bg)}
+.nfse-hist-badge{display:inline-block;background:var(--teal,#155B67);color:#fff;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px;margin-left:6px}
+.nfse-hist-toggle{font-size:12px;color:var(--text2)}
+.nfse-hist-body{max-height:0;overflow:hidden;transition:max-height .25s ease}
+.nfse-hist-panel.open .nfse-hist-body{max-height:1400px;overflow:auto}
+.nfse-hist-empty{padding:18px 16px;color:var(--text2);font-size:13px}
+.nfse-hist-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.nfse-hist-tbl th{text-align:left;padding:8px 12px;background:var(--bg);color:var(--text2);font-weight:600;position:sticky;top:0}
+.nfse-hist-tbl td{padding:8px 12px;border-top:1px solid var(--border,#eee);vertical-align:top}
+.nfse-hist-tbl small{color:var(--text2)}
+.nfse-amb-pill{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px}
+.nfse-amb-pill.prod{background:var(--green-lt);color:#1B5E20}
+.nfse-amb-pill.teste{background:#FFF3E0;color:#E65100}
+/* Extratos & DRE */
+.upload-area.drag{border-color:var(--turq,#00B4AC);background:var(--green-lt,#E8F5E9)}
+.ex-recon{margin-bottom:12px}
+.ex-recon-line{padding:8px 12px;border-radius:8px;font-size:12.5px;margin-bottom:6px}
+.ex-recon-line.ok{background:var(--green-lt,#E8F5E9);color:#1B5E20;border:1px solid #C8E6C9}
+.ex-recon-line.warn{background:#FFF3E0;color:#E65100;border:1px solid #FFE0B2}
+.ex-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px}
+.ex-tag.cred{background:var(--green-lt,#E8F5E9);color:#1B5E20}
+.ex-tag.deb{background:#FDECEA;color:#C62828}
+.ex-dre-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.ex-kpi{padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.ex-kpi span{font-size:12px;color:var(--text2)}
+.ex-kpi b{font-size:20px}
+@media(max-width:820px){ .ex-dre-grid{grid-template-columns:repeat(2,1fr)} }
+.cc-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px;border:1px solid var(--border,#e5e7eb);border-radius:10px;margin-bottom:8px}
+.cc-row.cc-has{border-color:#A5D6A7;background:var(--green-lt,#E8F5E9)}
+.cc-info{flex:1 1 260px;min-width:0}
+.cc-top{display:flex;align-items:center;gap:8px;font-size:15px}
+.cc-data{font-size:12px;color:var(--text2)}
+.cc-hist{font-size:12.5px;color:var(--text);margin-top:3px;word-break:break-word}
+.cc-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cc-sel{max-width:300px}
+@media(max-width:820px){ .cc-actions{width:100%} .cc-sel{flex:1 1 100%;max-width:none} }
 @media(max-width:820px){
+  .nfse-hist-tbl thead{display:none}
+  .nfse-hist-tbl,.nfse-hist-tbl tbody,.nfse-hist-tbl tr,.nfse-hist-tbl td{display:block;width:100%}
+  .nfse-hist-tbl tr{border-top:2px solid var(--border,#eee);padding:6px 0}
+  .nfse-hist-tbl td{border:none;padding:3px 14px}
   .nfse-comp{flex-direction:column;align-items:stretch}
   .nfse-resumo{justify-content:space-between}
   .nfse-fgrid{grid-template-columns:1fr;gap:4px}
@@ -377,9 +422,8 @@ body.capturing .rel-acao{display:none!important}
 
       <div class="sn-section">EM BREVE</div>
       <button class="sn-btn" id="sn-reembolsos" onclick="nav('reembolsos')"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Reembolsos</button>
-      <button class="sn-btn disabled"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Conciliação<span class="soon">em breve</span></button>
-      <button class="sn-btn disabled"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>DRE<span class="soon">em breve</span></button>
-      <button class="sn-btn disabled"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Fluxo de Caixa<span class="soon">em breve</span></button>
+      <button class="sn-btn" id="sn-extrato" onclick="nav('extrato')"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Extratos & DRE</button>
+      <button class="sn-btn" id="sn-conciliacao" onclick="nav('conciliacao')"><svg viewBox="0 0 24 24"><path d="M21 7H7a2 2 0 0 0-2 2v10"/><path d="m18 4 3 3-3 3"/><path d="M3 17h14a2 2 0 0 0 2-2V5"/><path d="m6 20-3-3 3-3"/></svg>Conciliação</button>
       <button class="sn-btn" id="sn-cofre" onclick="nav('cofre')"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Cofre</button>
 
       <div class="sn-footer">
@@ -514,7 +558,21 @@ body.capturing .rel-acao{display:none!important}
             <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l4 4 8-8"/></svg>
             Revisar e Emitir selecionadas
           </button>
+          <button class="btn btn-outline" onclick="openNfseAvulsa()">+ Nova nota avulsa (ART, laudo…)</button>
+          <button class="btn btn-outline" onclick="openNovoCliente()">+ Novo cliente</button>
+          <button class="btn btn-outline" onclick="lancarMensalidades()">⇩ Lançar mensalidades no Contas a Receber</button>
           <span id="nfse-status" style="font-size:12px;color:var(--text2)"></span>
+        </div>
+
+        <!-- Histórico de notas emitidas -->
+        <div class="nfse-hist-panel" id="nfse-hist-panel">
+          <div class="nfse-hist-hd" onclick="toggleNfseHist()">
+            <b>📂 Histórico de notas emitidas <span class="nfse-hist-badge" id="nfse-hist-count">0</span></b>
+            <span class="nfse-hist-toggle">ver / ocultar</span>
+          </div>
+          <div class="nfse-hist-body">
+            <div id="nfse-hist-lista"><div class="nfse-hist-empty">Carregando…</div></div>
+          </div>
         </div>
       </div>
 
@@ -713,6 +771,89 @@ body.capturing .rel-acao{display:none!important}
 
       </div>
 
+      <!-- EXTRATOS & DRE -->
+      <div class="page" id="page-extrato">
+        <div class="page-header">
+          <div><h2>Extratos &amp; DRE</h2><p>Importe o extrato bancário (PDF) — cada lançamento alimenta a DRE e o fluxo de caixa</p></div>
+          <select id="ex-comp-filtro" class="ano-select" onchange="renderExtratoDRE()" style="max-width:200px"><option value="">Todas as competências</option></select>
+        </div>
+
+        <!-- Upload -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-bd">
+            <div class="upload-area" id="ex-drop" onclick="document.getElementById('ex-input').click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+              <p>Arraste o extrato do banco aqui (PDF)<br>ou</p>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();document.getElementById('ex-input').click()">Selecionar PDF</button>
+              <small style="display:block;margin-top:8px">Sicoob (conta corrente). Os valores são conferidos pelo saldo do extrato antes de importar.</small>
+            </div>
+            <input type="file" id="ex-input" accept=".pdf" multiple style="display:none" onchange="extratoArquivos(this.files)">
+            <div id="ex-status" style="font-size:13px;margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- Pré-visualização da importação -->
+        <div class="card" id="ex-preview-card" style="display:none;margin-bottom:16px">
+          <div class="card-hd"><h3>Pré-visualização — confira antes de importar</h3>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="cancelarExtrato()">Cancelar</button>
+              <button class="btn btn-primary btn-sm" id="ex-confirm-btn" onclick="confirmarImportExtrato()">Importar para o sistema</button>
+            </div>
+          </div>
+          <div class="card-bd">
+            <div id="ex-recon" class="ex-recon"></div>
+            <div id="ex-preview-lista" style="max-height:420px;overflow:auto"></div>
+          </div>
+        </div>
+
+        <!-- DRE / resumo -->
+        <div class="ex-dre-grid">
+          <div class="card ex-kpi"><span>Receitas</span><b class="val-green" id="ex-kpi-rec">R$ 0,00</b></div>
+          <div class="card ex-kpi"><span>Despesas</span><b style="color:var(--red)" id="ex-kpi-desp">R$ 0,00</b></div>
+          <div class="card ex-kpi"><span>Resultado</span><b id="ex-kpi-res">R$ 0,00</b></div>
+          <div class="card ex-kpi"><span>Lançamentos</span><b id="ex-kpi-n">0</b></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-hd"><h3>DRE por categoria</h3></div>
+          <div class="card-bd"><div id="ex-dre-cats"><p class="empty">Sem dados ainda. Importe um extrato.</p></div></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-hd"><h3>Lançamentos importados</h3>
+            <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE()">↺ Atualizar</button>
+          </div>
+          <div class="card-bd"><div id="ex-txns" style="max-height:520px;overflow:auto"></div></div>
+        </div>
+      </div>
+
+      <!-- CONCILIAÇÃO -->
+      <div class="page" id="page-conciliacao">
+        <div class="page-header">
+          <div><h2>Conciliação bancária</h2><p>Cruza os lançamentos do extrato com as contas a receber e a pagar — confirme cada baixa</p></div>
+          <button class="btn btn-outline btn-sm" onclick="loadConciliacao()">↺ Atualizar</button>
+        </div>
+
+        <div class="ex-dre-grid">
+          <div class="card ex-kpi"><span>A conciliar</span><b id="cc-kpi-pend">0</b></div>
+          <div class="card ex-kpi"><span>Conciliados</span><b class="val-green" id="cc-kpi-ok">0</b></div>
+          <div class="card ex-kpi"><span>Créditos sem baixa</span><b id="cc-kpi-cred">R$ 0,00</b></div>
+          <div class="card ex-kpi"><span>Débitos sem baixa</span><b id="cc-kpi-deb">R$ 0,00</b></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-hd"><h3>Lançamentos do extrato a conciliar</h3>
+            <small style="color:var(--text2)">verde = sugestão automática encontrada</small>
+          </div>
+          <div class="card-bd"><div id="cc-lista"><p class="empty">Carregando…</p></div></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-hd"><h3>Já conciliados</h3></div>
+          <div class="card-bd"><div id="cc-feitos" style="max-height:420px;overflow:auto"><p class="empty">—</p></div></div>
+        </div>
+      </div>
+
       <!-- COFRE -->
       <div class="page" id="page-cofre">
         <div class="page-header">
@@ -776,6 +917,80 @@ body.capturing .rel-acao{display:none!important}
     <div class="modal-ft">
       <button class="btn btn-outline" onclick="closeModal('modal-receber')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveReceber()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO CLIENTE (CONDOMÍNIO) -->
+<div class="modal-bg" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-hd"><h3>Novo cliente</h3><button onclick="closeModal('modal-cliente')">×</button></div>
+    <div class="modal-bd">
+      <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Adiciona um condomínio/cliente à lista de emissão de NFS-e. Fica salvo neste navegador.</p>
+      <div class="form-row"><label>Nome do condomínio/cliente *</label><input id="nc-nome" placeholder="Ex.: Residencial Bela Vista"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>CNPJ *</label><input id="nc-cnpj" placeholder="só números"></div>
+        <div class="form-row"><label>Inscrição municipal</label><input id="nc-im" placeholder="opcional"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Município</label><input id="nc-municipio" placeholder="Ex.: Campinas"></div>
+        <div class="form-row"><label>Cód. município (IBGE)</label><input id="nc-codmun" value="3509502"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>CEP</label><input id="nc-cep" placeholder="só números"></div>
+        <div class="form-row"><label>E-mail</label><input id="nc-email" type="email" placeholder="financeiro@..."></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Valor mensal (R$)</label><input id="nc-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
+        <div class="form-row"><label>ISS</label><select id="nc-iss"><option value="2">Não retido</option><option value="1">Retido</option></select></div>
+      </div>
+      <div class="form-row"><label>Descrição padrão da nota</label><textarea id="nc-desc" rows="3" placeholder="Use {{vencimento}}, {{valor}} como variáveis. Deixe vazio para padrão."></textarea></div>
+      <div id="nc-result"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovoCliente()">Salvar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVA NOTA AVULSA (ART, laudo, etc.) -->
+<div class="modal-bg" id="modal-avulsa">
+  <div class="modal">
+    <div class="modal-hd"><h3>Nova nota avulsa</h3><button onclick="closeModal('modal-avulsa')">×</button></div>
+    <div class="modal-bd">
+      <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Para itens fora da mensalidade (ART, laudo, vistoria…). O tomador pode ser <b>CNPJ</b> ou <b>CPF</b> (ex.: CPF de um morador para uma ART). Usa a competência e o ambiente selecionados na tela.</p>
+      <div class="form-2col">
+        <div class="form-row"><label>Tipo de tomador *</label>
+          <select id="av-tipo-doc" onchange="avTipoDocChange()"><option value="cnpj">CNPJ (empresa/condomínio)</option><option value="cpf">CPF (pessoa física)</option></select>
+        </div>
+        <div class="form-row"><label>Documento *</label><input id="av-doc" placeholder="CNPJ do tomador (só números)"></div>
+      </div>
+      <div class="form-row"><label id="av-razao-lbl">Razão social</label><input id="av-razao" placeholder="Nome / razão social do tomador"></div>
+      <div class="form-2col">
+        <div class="form-row"><label>E-mail (envio da nota)</label><input id="av-email" type="email" placeholder="opcional"></div>
+        <div class="form-row"><label>CEP</label><input id="av-cep" placeholder="só números"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Município</label><input id="av-municipio" value="Campinas"></div>
+        <div class="form-row"><label>Cód. município (IBGE)</label><input id="av-codmun" value="3509502"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Serviço *</label>
+          <select id="av-servico"><option>ART</option><option>Laudo técnico</option><option>Vistoria</option><option>Parecer técnico</option><option>Projeto</option><option>Outro</option></select>
+        </div>
+        <div class="form-row"><label>Item da lista (LC 116)</label><input id="av-item" value="07.03"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-row"><label>Valor (R$) *</label><input id="av-valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
+        <div class="form-row"><label>ISS</label><select id="av-iss"><option value="2">Não retido</option><option value="1">Retido</option></select></div>
+      </div>
+      <div class="form-row"><label>Descrição da nota</label><textarea id="av-desc" rows="3"></textarea></div>
+      <div id="av-result"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-avulsa')">Cancelar</button>
+      <button class="btn btn-primary" id="av-emitir-btn" onclick="emitirAvulsa()">Emitir nota avulsa</button>
     </div>
   </div>
 </div>
@@ -1196,6 +1411,8 @@ function nav(page){
   if(page==='reembolsos')loadReembolsos();
   if(page==='cofre')loadCofre();
   if(page==='nfse')initNfse();
+  if(page==='extrato')initExtrato();
+  if(page==='conciliacao')loadConciliacao();
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
@@ -2915,9 +3132,19 @@ let _nfseInit=false;
 // estado de edição por condomínio: {id:{sel,valor,descricao,parcela}}
 const _nfseEstado={};
 
+// clientes adicionados pelo usuário (persistidos em localStorage)
+const NFSE_CONDOS_KEY='diag_nfse_condos_extra';
+function _nfseCarregarExtras(){
+  try{
+    const arr=JSON.parse(localStorage.getItem(NFSE_CONDOS_KEY)||'[]');
+    arr.forEach(c=>{ if(!NFSE_CONDOS.some(x=>x.id===c.id)) NFSE_CONDOS.push(c); });
+  }catch(e){}
+}
+
 function initNfse(){
   if(_nfseInit){ renderNfse(); return; }
   _nfseInit=true;
+  _nfseCarregarExtras();
   // popular mês/ano
   const ms=document.getElementById('nfse-mes'); ms.innerHTML='';
   _MESES_NF.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;ms.appendChild(o);});
@@ -2929,6 +3156,7 @@ function initNfse(){
   // estado inicial
   NFSE_CONDOS.forEach(c=>{_nfseEstado[c.id]={sel:true,valor:c.valor,descricao:c.descricao,parcela:c.parcelamento?.parcela_atual||null,resultado:null};});
   renderNfse();
+  loadNfseHist();
 }
 
 function _nfseVencimento(){
@@ -2988,6 +3216,7 @@ function renderNfse(){
           <b>Tomador:</b> ${esc(t.razao_social)} · ${esc(t.email)}<br>
           <b>Vencimento:</b> ${_nfseVencimento()} · <b>PIX:</b> ${NFSE_PRESTADOR.pix_chave} (${NFSE_PRESTADOR.pix_banco})<br>
           <b>Envio:</b> ${esc(c.envio)}${c.obs?'<br><b>⚠ '+esc(c.obs)+'</b>':''}
+          ${c.custom?`<br><button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="removerClienteCustom('${c.id}')">Remover cliente</button>`:''}
         </div>
         ${st.resultado?`<div class="nfse-resultado ${st.resultado.ok?'ok':'erro'}">${st.resultado.msg}</div>`:''}
       </div>`;
@@ -3014,13 +3243,43 @@ function toggleAmbiente(){
   renderNfse();
 }
 
+// vencimento em ISO (YYYY-MM-DD) p/ Contas a Receber
+function _nfseVencISO(){
+  const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
+  return `${ano}-${String(mes).padStart(2,'0')}-${String(NFSE_PRESTADOR.vencimento_dia).padStart(2,'0')}`;
+}
+
+// Cria a Conta a Receber (PRODUÇÃO) e devolve o id, ou null.
+async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO){
+  try{
+    const payload={
+      cliente:nome, categoria:'Serviços de Engenharia',
+      valor:Math.round((+valorNum)*100),
+      descricao:(descricao||'').slice(0,500),
+      data_vencimento:vencISO, dia_vencimento:NFSE_PRESTADOR.vencimento_dia,
+      recorrente:false, lembrete_nota_fiscal:false
+    };
+    const{data,error}=await sb.from('fin_contas_receber').insert(payload).select('id').single();
+    if(error){ console.warn('contas_receber',error.message); return null; }
+    return data?.id||null;
+  }catch(e){ console.warn(e); return null; }
+}
+
+// Grava o histórico da nota emitida.
+async function _nfseGravarHistorico(row){
+  try{ const{error}=await sb.from('fin_nfse_emitidas').insert(row);
+    if(error) console.warn('hist nfse',error.message);
+  }catch(e){ console.warn(e); }
+}
+
 async function emitirNfse(){
   const sel=NFSE_CONDOS.filter(c=>_nfseEstado[c.id].sel);
   if(!sel.length){ toast('Selecione ao menos um condomínio',true); return; }
   const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
   const comp=`${_MESES_NF[mes-1]}/${ano}`;
-  if(_nfseAmbiente==='producao'){
-    if(!confirm(`PRODUÇÃO — emitir ${sel.length} nota(s) fiscal(is) REAL(is) da competência ${comp}?\n\nTotal: R$ ${sel.reduce((s,c)=>s+(+_nfseEstado[c.id].valor||0),0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`)) return;
+  const prod=_nfseAmbiente==='producao';
+  if(prod){
+    if(!confirm(`PRODUÇÃO — emitir ${sel.length} nota(s) fiscal(is) REAL(is) da competência ${comp}?\n\nElas entrarão no Contas a Receber.\n\nTotal: R$ ${sel.reduce((s,c)=>s+(+_nfseEstado[c.id].valor||0),0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`)) return;
   }
   const btn=document.getElementById('nfse-emitir-btn'); btn.disabled=true;
   const statusEl=document.getElementById('nfse-status');
@@ -3028,6 +3287,7 @@ async function emitirNfse(){
   for(const c of sel){
     const st=_nfseEstado[c.id];
     statusEl.textContent=`Emitindo ${c.nome}…`;
+    const descFinal=_nfseDescFinal(c);
     const payload={
       ambiente:_nfseAmbiente, competencia:comp,
       prestador:NFSE_PRESTADOR,
@@ -3035,7 +3295,7 @@ async function emitirNfse(){
       tomador:c.tomador,
       valor:(+st.valor).toFixed(2),
       iss_retido:c.iss_retido,
-      descricao:_nfseDescFinal(c),
+      descricao:descFinal,
       vencimento:_nfseVencimento(),
       parcela:st.parcela, megazap:!!c.megazap
     };
@@ -3044,7 +3304,20 @@ async function emitirNfse(){
       const r=await fetch(NFSE_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
       const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(e){}
       if(r.ok && j.ok && j.numero_nfse){
-        st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${_nfseAmbiente==='homologacao'?' <em>(homologação/teste — sem valor fiscal)</em>':''}`};
+        // PRODUÇÃO → lança no Contas a Receber
+        let crId=null;
+        if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO()); }
+        // grava histórico (sempre)
+        await _nfseGravarHistorico({
+          condominio_id:c.id, nome:c.nome,
+          tomador_doc:c.tomador.cnpj, tomador_tipo:'cnpj', tomador_razao:c.tomador.razao_social,
+          competencia:comp, valor:(+st.valor), iss_retido:c.iss_retido, descricao:descFinal,
+          parcela:st.parcela?+st.parcela:null, numero_nfse:String(j.numero_nfse),
+          codigo_verificacao:j.codigo_verificacao||null, ambiente:_nfseAmbiente,
+          status:prod?'emitida':'teste', conta_receber_id:crId, avulsa:false,
+          servico:'Mensalidade de engenharia', raw:j
+        });
+        st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${prod?(crId?' <em>(lançada no Contas a Receber)</em>':' <em>(emitida; falha ao lançar em Contas a Receber — confira)</em>'):' <em>(homologação/teste — sem valor fiscal)</em>'}`};
         if(c.parcelamento && st.parcela!=null) st.parcela=+st.parcela+1; // incrementa p/ próxima
         ok++;
       }else{
@@ -3060,7 +3333,452 @@ async function emitirNfse(){
   btn.disabled=false;
   statusEl.textContent=`Concluído: ${ok} emitida(s)${fail?', '+fail+' com erro':''}.`;
   toast(`${ok} nota(s) emitida(s)${fail?', '+fail+' falha(s)':''}`, fail>0);
+  if(prod){ loadReceber&&loadReceber(); loadDash&&loadDash(); }
+  renderNfse(); loadNfseHist();
+}
+
+// ── Histórico de NFS-e ─────────────────────────────────────────
+async function loadNfseHist(){
+  const box=document.getElementById('nfse-hist-lista'); if(!box) return;
+  const{data,error}=await sb.from('fin_nfse_emitidas').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){ box.innerHTML=`<div class="nfse-hist-empty">Histórico indisponível${/relation|does not exist/i.test(error.message)?' — rode o setup das tabelas (_setup_tabelas_financeiro.sql).':': '+esc(error.message)}</div>`; return; }
+  if(!data||!data.length){ box.innerHTML='<div class="nfse-hist-empty">Nenhuma nota registrada ainda.</div>'; return; }
+  document.getElementById('nfse-hist-count').textContent=data.length;
+  box.innerHTML=`<table class="nfse-hist-tbl"><thead><tr>
+      <th>Nº</th><th>Tomador</th><th>Competência</th><th>Valor</th><th>Serviço</th><th>Ambiente</th><th>Emitida em</th></tr></thead><tbody>`+
+    data.map(n=>`<tr>
+      <td><b>${esc(n.numero_nfse||'—')}</b>${n.codigo_verificacao?'<br><small>'+esc(n.codigo_verificacao)+'</small>':''}</td>
+      <td>${esc(n.nome||n.tomador_razao||'—')}<br><small>${esc(n.tomador_doc||'')}</small></td>
+      <td>${esc(n.competencia||'—')}</td>
+      <td>R$ ${(+n.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td>${esc(n.servico||(n.avulsa?'Avulsa':'Mensalidade'))}${n.avulsa?' <span class="nfse-flag">avulsa</span>':''}</td>
+      <td><span class="nfse-amb-pill ${n.ambiente==='producao'?'prod':'teste'}">${n.ambiente==='producao'?'produção':'teste'}</span>${n.conta_receber_id?'<br><small>↳ Contas a Receber</small>':''}</td>
+      <td><small>${n.created_at?new Date(n.created_at).toLocaleString('pt-BR'):'—'}</small></td>
+    </tr>`).join('')+`</tbody></table>`;
+}
+function toggleNfseHist(){
+  const p=document.getElementById('nfse-hist-panel'); const open=p.classList.toggle('open');
+  if(open) loadNfseHist();
+}
+
+// ── Nova nota avulsa (ART, laudo, etc.) ────────────────────────
+function openNfseAvulsa(){
+  document.getElementById('av-tipo-doc').value='cnpj';
+  document.getElementById('av-doc').value='';
+  document.getElementById('av-razao').value='';
+  document.getElementById('av-email').value='';
+  document.getElementById('av-municipio').value='Campinas';
+  document.getElementById('av-codmun').value='3509502';
+  document.getElementById('av-cep').value='';
+  document.getElementById('av-servico').value='ART';
+  document.getElementById('av-item').value='07.03';
+  document.getElementById('av-valor').value='';
+  document.getElementById('av-iss').value='2';
+  document.getElementById('av-desc').value='Emissão de ART (Anotação de Responsabilidade Técnica) referente a serviço de engenharia.';
+  document.getElementById('av-result').innerHTML='';
+  document.getElementById('modal-avulsa').classList.add('open');
+}
+function avTipoDocChange(){
+  const t=document.getElementById('av-tipo-doc').value;
+  document.getElementById('av-doc').placeholder = t==='cpf'?'CPF do tomador (só números)':'CNPJ do tomador (só números)';
+  document.getElementById('av-razao-lbl').textContent = t==='cpf'?'Nome do tomador':'Razão social';
+}
+async function emitirAvulsa(){
+  const tipo=document.getElementById('av-tipo-doc').value;
+  const doc=document.getElementById('av-doc').value.replace(/\D/g,'');
+  const razao=document.getElementById('av-razao').value.trim();
+  const email=document.getElementById('av-email').value.trim();
+  const municipio=document.getElementById('av-municipio').value.trim();
+  const codmun=document.getElementById('av-codmun').value.trim();
+  const cep=document.getElementById('av-cep').value.replace(/\D/g,'');
+  const servico=document.getElementById('av-servico').value.trim();
+  const item=document.getElementById('av-item').value.trim();
+  const valor=parseFloat(document.getElementById('av-valor').value);
+  const iss=document.getElementById('av-iss').value;
+  const desc=document.getElementById('av-desc').value.trim();
+  const res=document.getElementById('av-result');
+  if(!doc || (tipo==='cpf'?doc.length!==11:doc.length!==14)){ res.innerHTML='<div class="nfse-resultado erro">Documento inválido para '+tipo.toUpperCase()+'.</div>'; return; }
+  if(!razao){ res.innerHTML='<div class="nfse-resultado erro">Informe o nome/razão do tomador.</div>'; return; }
+  if(!(valor>0)){ res.innerHTML='<div class="nfse-resultado erro">Informe um valor válido.</div>'; return; }
+  const prod=_nfseAmbiente==='producao';
+  if(prod && !confirm(`PRODUÇÃO — emitir nota avulsa REAL de ${servico||'serviço'} no valor de R$ ${valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}?\n\nVai entrar no Contas a Receber.`)) return;
+  const comp=`${_MESES_NF[(+document.getElementById('nfse-mes').value)-1]}/${document.getElementById('nfse-ano').value}`;
+  const tomador={ [tipo]:doc, razao_social:razao, inscricao_municipal:'', municipio, cod_municipio:codmun, cep, uf:'SP', email };
+  const prestador={...NFSE_PRESTADOR, item_lista:item||NFSE_PRESTADOR.item_lista};
+  const payload={ ambiente:_nfseAmbiente, competencia:comp, prestador, condominio_id:'avulsa', nome:razao,
+    tomador, valor:valor.toFixed(2), iss_retido:iss,
+    descricao:desc.replace(/\{\{vencimento\}\}/g,_nfseVencimento()).replace(/\{\{valor\}\}/g,valor.toLocaleString('pt-BR',{minimumFractionDigits:2})),
+    vencimento:_nfseVencimento(), parcela:null, megazap:false, avulsa:true, servico };
+  res.innerHTML='<div class="nfse-resultado">Emitindo…</div>';
+  document.getElementById('av-emitir-btn').disabled=true;
+  try{
+    const r=await fetch(NFSE_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(e){}
+    if(r.ok && j.ok && j.numero_nfse){
+      let crId=null;
+      if(prod){ crId=await _nfseCriarContaReceber(razao,valor,(servico?servico+' — ':'')+desc,_nfseVencISO()); }
+      await _nfseGravarHistorico({
+        condominio_id:'avulsa', nome:razao, tomador_doc:doc, tomador_tipo:tipo, tomador_razao:razao,
+        competencia:comp, valor:valor, iss_retido:iss, descricao:payload.descricao, parcela:null,
+        numero_nfse:String(j.numero_nfse), codigo_verificacao:j.codigo_verificacao||null, ambiente:_nfseAmbiente,
+        status:prod?'emitida':'teste', conta_receber_id:crId, avulsa:true, servico:servico||'Avulsa', raw:j });
+      res.innerHTML=`<div class="nfse-resultado ok">✓ Nota avulsa nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?' · cód. <b>'+esc(j.codigo_verificacao)+'</b>':''}${prod?(crId?' (lançada no Contas a Receber)':' (emitida; confira o Contas a Receber)'):' (homologação/teste)'}</div>`;
+      if(prod){ loadReceber&&loadReceber(); loadDash&&loadDash(); }
+      loadNfseHist();
+    }else{
+      const erro=j.fault||(j.erros&&j.erros.length?j.erros.map(e=>(e.codigo?e.codigo+': ':'')+e.mensagem).join('; '):'')||txt||('HTTP '+r.status);
+      res.innerHTML='<div class="nfse-resultado erro">✗ Falha: '+esc(String(erro).slice(0,400))+'</div>';
+    }
+  }catch(e){ res.innerHTML='<div class="nfse-resultado erro">✗ Erro de conexão: '+esc(e.message)+'</div>'; }
+  document.getElementById('av-emitir-btn').disabled=false;
+}
+
+// ── Cadastro de novo cliente (condomínio) ──────────────────────
+function openNovoCliente(){
+  ['nc-nome','nc-cnpj','nc-im','nc-municipio','nc-cep','nc-email','nc-desc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nc-codmun').value='3509502';
+  document.getElementById('nc-valor').value='';
+  document.getElementById('nc-iss').value='2';
+  document.getElementById('nc-result').innerHTML='';
+  document.getElementById('modal-cliente').classList.add('open');
+}
+function salvarNovoCliente(){
+  const nome=document.getElementById('nc-nome').value.trim();
+  const cnpj=document.getElementById('nc-cnpj').value.replace(/\D/g,'');
+  const im=document.getElementById('nc-im').value.trim();
+  const municipio=document.getElementById('nc-municipio').value.trim();
+  const codmun=document.getElementById('nc-codmun').value.trim();
+  const cep=document.getElementById('nc-cep').value.replace(/\D/g,'');
+  const email=document.getElementById('nc-email').value.trim();
+  const valor=parseFloat(document.getElementById('nc-valor').value)||0;
+  const iss=document.getElementById('nc-iss').value;
+  let desc=document.getElementById('nc-desc').value.trim();
+  const res=document.getElementById('nc-result');
+  if(!nome){ res.innerHTML='<div class="nfse-resultado erro">Informe o nome do condomínio/cliente.</div>'; return; }
+  if(cnpj.length!==14){ res.innerHTML='<div class="nfse-resultado erro">CNPJ inválido (14 dígitos).</div>'; return; }
+  if(!desc) desc='Prestação de serviços técnicos mensais de assessoria em engenharia condominial, conforme contrato.\nPagamento via PIX Chave CNPJ: 54.027.948/0001-60.\nVencimento {{vencimento}}';
+  const id='cli_'+cnpj;
+  if(NFSE_CONDOS.some(c=>c.id===id)){ res.innerHTML='<div class="nfse-resultado erro">Já existe um cliente com este CNPJ.</div>'; return; }
+  const novo={ id, nome, custom:true,
+    tomador:{cnpj,inscricao_municipal:im,razao_social:nome.toUpperCase(),municipio,cod_municipio:codmun,cep,uf:'SP',email},
+    valor:valor.toFixed(2), iss_retido:iss, descricao:desc, envio:'E-mail automático da prefeitura' };
+  NFSE_CONDOS.push(novo);
+  // persistir (só os custom)
+  try{ const extras=NFSE_CONDOS.filter(c=>c.custom); localStorage.setItem(NFSE_CONDOS_KEY,JSON.stringify(extras)); }catch(e){}
+  _nfseEstado[id]={sel:true,valor:novo.valor,descricao:novo.descricao,parcela:null,resultado:null};
+  closeModal('modal-cliente');
+  toast('Cliente "'+nome+'" cadastrado');
   renderNfse();
+}
+function removerClienteCustom(id){
+  if(!confirm('Remover este cliente da lista de emissão?')) return;
+  const i=NFSE_CONDOS.findIndex(c=>c.id===id); if(i<0) return;
+  NFSE_CONDOS.splice(i,1); delete _nfseEstado[id];
+  try{ localStorage.setItem(NFSE_CONDOS_KEY,JSON.stringify(NFSE_CONDOS.filter(c=>c.custom))); }catch(e){}
+  renderNfse();
+}
+
+// ── Lançar mensalidades de uma competência no Contas a Receber ──
+async function lancarMensalidades(){
+  const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
+  const comp=`${_MESES_NF[mes-1]}/${ano}`;
+  const sel=NFSE_CONDOS.filter(c=>_nfseEstado[c.id]?.sel && !c.parcelamento);
+  if(!sel.length){ toast('Selecione os condomínios (mensalidade) na lista',true); return; }
+  if(!confirm(`Lançar ${sel.length} mensalidade(s) de ${comp} no Contas a Receber?\n\n`+sel.map(c=>`• ${c.nome}: R$ ${(+_nfseEstado[c.id].valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')+`\n\nVenc. dia ${NFSE_PRESTADOR.vencimento_dia}, status Pendente. (Não emite nota — apenas lança a cobrança.)`)) return;
+  let ok=0,fail=0;
+  for(const c of sel){
+    const id=await _nfseCriarContaReceber(c.nome,_nfseEstado[c.id].valor,`Mensalidade de engenharia — ${comp}`,_nfseVencISO());
+    if(id) ok++; else fail++;
+  }
+  toast(`${ok} mensalidade(s) lançada(s)${fail?', '+fail+' falha(s)':''}`, fail>0);
+  loadReceber&&loadReceber(); loadDash&&loadDash();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EXTRATOS BANCÁRIOS (Sicoob) → DRE / Fluxo de caixa
+// ══════════════════════════════════════════════════════════════
+let _exInit=false, _exRegras=null, _exPendentes=null;
+const _EX_INLINE=/(\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD])/;
+const _EX_VAL=/^\d{1,3}(?:\.\d{3})*,\d{2}\*?$/;
+function _exNum(s){ return parseFloat(String(s).replace('*','').replace(/\./g,'').replace(',','.')); }
+
+function initExtrato(){
+  if(!_exInit){ _exInit=true; _exSetupDrop(); }
+  renderExtratoDRE();
+}
+function _exSetupDrop(){
+  const dz=document.getElementById('ex-drop'); if(!dz) return;
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+  dz.addEventListener('drop',e=>{ if(e.dataTransfer?.files?.length) extratoArquivos(e.dataTransfer.files); });
+}
+
+// Extrai texto posicional de um PDF via pdf.js
+async function _exLerPdf(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const pages=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const vp=page.getViewport({scale:1});
+    const tc=await page.getTextContent();
+    const items=tc.items.filter(i=>i.str.trim()).map(i=>({
+      text:i.str.trim(), x0:i.transform[4], top:vp.height-i.transform[5]
+    }));
+    pages.push(items);
+  }
+  return pages;
+}
+
+// Parser Sicoob (portado do parser validado por reconciliação de saldo)
+function _exParseSicoob(pages){
+  const txns=[]; let saldoAnt=null, saldoFim=null, periodo=null, conta=null;
+  for(const items of pages){
+    const fulltext=items.slice().sort((a,b)=>a.top-b.top||a.x0-b.x0).map(i=>i.text).join(' ');
+    if(!periodo){ const m=fulltext.match(/ODO:\s*([0-9/]+)\s*-\s*([0-9/]+)/); if(m) periodo=[m[1],m[2]]; }
+    if(!conta){ const m=fulltext.match(/CONTA:\s*([0-9.\-]+)/); if(m) conta=m[1]; }
+    const rcVals=items.filter(w=>w.x0>=435 && _EX_VAL.test(w.text));
+    const flags=items.filter(w=>(w.text==='C'||w.text==='D') && w.x0>=460);
+    const dates=items.filter(w=>/^\d{2}\/\d{2}$/.test(w.text) && w.x0<140);
+    const used=new Set();
+    const rcFor=top=>{ const c=rcVals.filter(v=>(v.top-top)>=-9 && (v.top-top)<=4 && !used.has(v)); if(!c.length)return null; return c.reduce((a,b)=>Math.abs(b.top-top)<Math.abs(a.top-top)?b:a); };
+    const flagFor=v=>{ const c=flags.filter(f=>(f.top-v.top)>=0 && (f.top-v.top)<16); if(!c.length)return null; return c.reduce((a,b)=>(b.top-v.top)<(a.top-v.top)?b:a).text; };
+    for(const d of dates){
+      const rowws=items.filter(w=>Math.abs(w.top-d.top)<3).sort((a,b)=>a.x0-b.x0);
+      const row=rowws.map(w=>w.text).join(' ');
+      const isSaldo=/SALDO/.test(row);
+      let hist=row.slice(6).trim(), val=null, fl=null;
+      const im=row.match(_EX_INLINE);
+      if(im){ val=_exNum(im[1]); fl=im[2]; hist=row.slice(6,row.indexOf(im[0])).trim(); }
+      else { const v=rcFor(d.top); if(!v) continue; used.add(v); val=_exNum(v.text); fl=flagFor(v); }
+      if(/SALDO ANTERIOR/.test(row)){ if(saldoAnt===null) saldoAnt=val; continue; }
+      if(isSaldo){ saldoFim=val; continue; }
+      // ano da competência a partir do período
+      let ano=periodo?periodo[0].slice(6):''+new Date().getFullYear();
+      const dataISO=ano+'-'+d.text.slice(3,5)+'-'+d.text.slice(0,2);
+      txns.push({data:dataISO, dataBR:d.text, historico:hist.slice(0,80), valor:val, tipo:fl});
+    }
+  }
+  const cred=txns.filter(t=>t.tipo==='C').reduce((s,t)=>s+t.valor,0);
+  const deb=txns.filter(t=>t.tipo==='D').reduce((s,t)=>s+t.valor,0);
+  const calc=(saldoAnt||0)+cred-deb;
+  const reconcilia = saldoFim!==null && Math.abs(calc-saldoFim)<0.01;
+  const semFlag = txns.filter(t=>t.tipo!=='C'&&t.tipo!=='D').length;
+  return {txns,saldoAnt,saldoFim,periodo,conta,cred,deb,calc,reconcilia,semFlag};
+}
+
+async function _exCarregarRegras(){
+  if(_exRegras) return _exRegras;
+  try{ const{data}=await sb.from('fin_regras_classificacao').select('*').eq('ativa',true).order('prioridade'); _exRegras=data||[]; }
+  catch(e){ _exRegras=[]; }
+  if(!_exRegras.length) _exRegras=[
+    {padrao:'PIX RECEB',categoria:'Recebimento PIX',tipo_categoria:'Receita'},
+    {padrao:'PIX EMIT',categoria:'Pagamento PIX',tipo_categoria:'Despesa'},
+    {padrao:'COMP VISA',categoria:'Cartao/Compras',tipo_categoria:'Despesa'},
+    {padrao:'DEB DEVOLU',categoria:'Devolucao PIX',tipo_categoria:'Despesa'},
+    {padrao:'TARIFA',categoria:'Tarifas bancarias',tipo_categoria:'Despesa'},
+    {padrao:'IOF',categoria:'Impostos/IOF',tipo_categoria:'Despesa'}];
+  return _exRegras;
+}
+function _exClassificar(t,regras){
+  const h=(t.historico||'').toUpperCase();
+  for(const r of regras){ if(h.includes(r.padrao.toUpperCase())) return {categoria:r.categoria,tipo_categoria:r.tipo_categoria}; }
+  return {categoria:'Não classificado', tipo_categoria: t.tipo==='C'?'Receita':'Despesa'};
+}
+// hash determinístico (sem libs) p/ dedupe
+function _exHash(s){ let h=0; for(let i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return 'sic'+(h>>>0).toString(16); }
+
+async function extratoArquivos(files){
+  if(!window.pdfjsLib){ document.getElementById('ex-status').innerHTML='<span style="color:var(--red)">Leitor de PDF ainda carregando, tente de novo em 1s.</span>'; return; }
+  const st=document.getElementById('ex-status');
+  const regras=await _exCarregarRegras();
+  let todas=[]; let resumoHtml=''; let arquivos=[];
+  for(const f of files){
+    if(!/\.pdf$/i.test(f.name)){ continue; }
+    st.textContent='Lendo '+f.name+'…';
+    try{
+      const pages=await _exLerPdf(f);
+      const r=_exParseSicoob(pages);
+      r.txns.forEach(t=>{ const cl=_exClassificar(t,regras); t.categoria=cl.categoria; t.tipo_categoria=cl.tipo_categoria;
+        t.competencia=t.data.slice(0,7); t.origem_arquivo=f.name; t.conta=r.conta||'';
+        t.hash=_exHash(f.name+'|'+t.data+'|'+t.historico+'|'+t.valor.toFixed(2)+'|'+t.tipo); });
+      todas=todas.concat(r.txns);
+      arquivos.push({arquivo:f.name,conta:r.conta,periodo:r.periodo?r.periodo.join(' a '):'',total_linhas:r.txns.length,total_credito:r.cred,total_debito:r.deb});
+      resumoHtml+=`<div class="ex-recon-line ${r.reconcilia?'ok':'warn'}">
+        <b>${esc(f.name)}</b> · ${r.periodo?esc(r.periodo.join(' a ')):'período?'} · ${r.txns.length} lançamentos ·
+        C R$ ${r.cred.toLocaleString('pt-BR',{minimumFractionDigits:2})} / D R$ ${r.deb.toLocaleString('pt-BR',{minimumFractionDigits:2})} ·
+        ${r.reconcilia?'✓ confere com o saldo do extrato':'⚠ NÃO bate com o saldo ('+(r.semFlag?r.semFlag+' sem tipo':'verifique')+')'}</div>`;
+    }catch(e){ resumoHtml+=`<div class="ex-recon-line warn">✗ ${esc(f.name)}: ${esc(e.message)}</div>`; }
+  }
+  if(!todas.length){ st.innerHTML=resumoHtml||'<span style="color:var(--red)">Nenhum lançamento reconhecido.</span>'; return; }
+  st.textContent='';
+  _exPendentes={txns:todas, arquivos};
+  document.getElementById('ex-recon').innerHTML=resumoHtml;
+  document.getElementById('ex-preview-card').style.display='';
+  document.getElementById('ex-preview-lista').innerHTML=_exTabela(todas,true);
+  document.getElementById('ex-preview-card').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function _exTabela(txns,preview){
+  return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead><tbody>`+
+    txns.map(t=>`<tr>
+      <td>${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}</td>
+      <td>${esc(t.historico||'')}</td>
+      <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}</td>
+      <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
+      <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${t.tipo==='C'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+    </tr>`).join('')+`</tbody></table>`;
+}
+function cancelarExtrato(){ _exPendentes=null; document.getElementById('ex-preview-card').style.display='none'; document.getElementById('ex-status').textContent=''; }
+
+async function confirmarImportExtrato(){
+  if(!_exPendentes){ return; }
+  const btn=document.getElementById('ex-confirm-btn'); btn.disabled=true; btn.textContent='Importando…';
+  const rows=_exPendentes.txns.map(t=>({
+    conta:t.conta||null, data:t.data, historico:t.historico, descricao:t.historico,
+    valor:t.valor, tipo:t.tipo==='C'?'credito':'debito',
+    categoria:t.categoria, tipo_categoria:t.tipo_categoria, status:'classificado',
+    hash:t.hash, origem_arquivo:t.origem_arquivo, competencia:t.competencia
+  }));
+  let inseridas=0, dup=0, erro=null;
+  // upsert por hash (ignora duplicados já importados)
+  const {data,error}=await sb.from('fin_transacoes_bancarias').upsert(rows,{onConflict:'hash',ignoreDuplicates:true}).select('id');
+  if(error){ erro=error.message; }
+  else { inseridas=data?data.length:0; dup=rows.length-inseridas; }
+  // auditoria das importações
+  try{ if(!error) await sb.from('fin_extratos_import').insert(_exPendentes.arquivos.map(a=>({arquivo:a.arquivo,conta:a.conta,periodo:a.periodo,total_linhas:a.total_linhas,total_credito:a.total_credito,total_debito:a.total_debito,status:'importado'}))); }catch(e){}
+  btn.disabled=false; btn.textContent='Importar para o sistema';
+  if(erro){
+    document.getElementById('ex-status').innerHTML='<span style="color:var(--red)">Erro ao importar: '+esc(erro)+(/relation|does not exist/i.test(erro)?' — rode o setup das tabelas (_setup_tabelas_financeiro.sql).':'')+'</span>';
+    toast('Falha ao importar extrato',true); return;
+  }
+  toast(`${inseridas} lançamento(s) importado(s)${dup?', '+dup+' já existiam':''}`);
+  cancelarExtrato();
+  renderExtratoDRE();
+}
+
+async function renderExtratoDRE(){
+  const filtro=document.getElementById('ex-comp-filtro')?.value||'';
+  let q=sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(1000);
+  if(filtro) q=q.eq('competencia',filtro);
+  const {data,error}=await q;
+  const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
+  if(error){ const msg=/relation|does not exist/i.test(error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(error.message);
+    if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
+  const txns=data||[];
+  // preencher filtro de competências
+  const sel=document.getElementById('ex-comp-filtro');
+  if(sel){ const comps=[...new Set(txns.map(t=>t.competencia).filter(Boolean))].sort().reverse();
+    const cur=sel.value; sel.innerHTML='<option value="">Todas as competências</option>'+comps.map(c=>`<option value="${c}">${c}</option>`).join(''); sel.value=cur; }
+  const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
+  const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
+  document.getElementById('ex-kpi-rec').textContent='R$ '+rec.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('ex-kpi-desp').textContent='R$ '+desp.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const res=rec-desp; const resEl=document.getElementById('ex-kpi-res');
+  resEl.textContent=(res<0?'− R$ ':'R$ ')+Math.abs(res).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  resEl.style.color=res<0?'var(--red)':'var(--green)';
+  document.getElementById('ex-kpi-n').textContent=txns.length;
+  // DRE por categoria
+  const grupos={};
+  txns.forEach(t=>{ const k=(t.tipo_categoria||'?')+'|'+(t.categoria||'?'); (grupos[k]=grupos[k]||{tipo:t.tipo_categoria,cat:t.categoria,total:0,n:0}); grupos[k].total+=(+t.valor); grupos[k].n++; });
+  const arr=Object.values(grupos).sort((a,b)=>(a.tipo<b.tipo?-1:1)||b.total-a.total);
+  if(!arr.length){ cats.innerHTML='<p class="empty">Sem dados ainda. Importe um extrato.</p>'; }
+  else cats.innerHTML='<table class="nfse-hist-tbl"><thead><tr><th>Natureza</th><th>Categoria</th><th>Lanç.</th><th style="text-align:right">Total</th></tr></thead><tbody>'+
+    arr.map(g=>`<tr><td><span class="ex-tag ${g.tipo==='Receita'?'cred':'deb'}">${esc(g.tipo||'?')}</span></td><td>${esc(g.cat||'?')}</td><td>${g.n}</td><td style="text-align:right;color:${g.tipo==='Receita'?'var(--green)':'var(--red)'}">R$ ${g.total.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('')+'</tbody></table>';
+  txnsBox.innerHTML = txns.length? _exTabela(txns.map(t=>({...t,tipo:t.tipo==='credito'?'C':'D'})),false) : '<p class="empty">Nenhum lançamento importado.</p>';
+}
+
+// ── Conciliação bancária ──────────────────────────────────────
+let _ccReceber=[], _ccPagar=[], _ccTxnDatas={};
+const _ccDias=(a,b)=>Math.abs((new Date(a)-new Date(b))/86400000);
+// melhor candidato: mesmo valor (centavos) e menor distância de data
+function _ccMatch(txn,contas){
+  const alvo=Math.round(txn.valor*100);
+  const cands=contas.filter(c=>Math.round(c.valor)===alvo); // c.valor já em centavos
+  if(!cands.length) return null;
+  return cands.slice().sort((a,b)=>_ccDias(a.data_vencimento,txn.data)-_ccDias(b.data_vencimento,txn.data))[0];
+}
+async function loadConciliacao(){
+  const lista=document.getElementById('cc-lista'); lista.innerHTML='<p class="empty">Carregando…</p>';
+  const [tx,rc,pg]=await Promise.all([
+    sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(1000),
+    sb.from('fin_contas_receber').select('id,cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),
+    sb.from('fin_contas_pagar').select('id,fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false)
+  ]);
+  if(tx.error){ const msg=/relation|does not exist/i.test(tx.error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(tx.error.message);
+    lista.innerHTML='<p class="empty">'+msg+'</p>'; document.getElementById('cc-feitos').innerHTML=''; return; }
+  _ccReceber=rc.data||[]; _ccPagar=pg.data||[];
+  const txns=tx.data||[];
+  _ccTxnDatas={}; txns.forEach(t=>{ _ccTxnDatas[t.id]=t.data; });
+  const conciliados=txns.filter(t=>t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id);
+  const pendentes=txns.filter(t=>!(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id));
+  // KPIs
+  document.getElementById('cc-kpi-pend').textContent=pendentes.length;
+  document.getElementById('cc-kpi-ok').textContent=conciliados.length;
+  document.getElementById('cc-kpi-cred').textContent='R$ '+pendentes.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('cc-kpi-deb').textContent='R$ '+pendentes.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  // lista pendentes
+  if(!pendentes.length){ lista.innerHTML='<p class="empty">Tudo conciliado 🎉 — nenhum lançamento pendente.</p>'; }
+  else lista.innerHTML=pendentes.map(t=>{
+    const ehCred=t.tipo==='credito';
+    const contas=ehCred?_ccReceber:_ccPagar;
+    const sug=_ccMatch(t,contas);
+    const nome=c=>ehCred?c.cliente:c.fornecedor;
+    const opts=contas.slice().sort((a,b)=>_ccDias(a.data_vencimento,t.data)-_ccDias(b.data_vencimento,t.data))
+      .map(c=>`<option value="${c.id}" ${sug&&c.id===sug.id?'selected':''}>${esc(nome(c)||'—')} · ${fmt(c.valor)} · venc ${formatData(c.data_vencimento)}</option>`).join('');
+    return `<div class="cc-row ${sug?'cc-has':''}">
+      <div class="cc-info">
+        <div class="cc-top"><span class="ex-tag ${ehCred?'cred':'deb'}">${ehCred?'crédito':'débito'}</span>
+          <b>${ehCred?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</b>
+          <span class="cc-data">${esc(t.dataBR||formatData(t.data))}</span></div>
+        <div class="cc-hist">${esc(t.historico||'')} <span style="color:var(--text2)">· ${esc(t.categoria||'')}</span></div>
+      </div>
+      <div class="cc-actions">
+        ${contas.length?`<select class="ano-select cc-sel" id="cc-sel-${t.id}">${opts}</select>
+          <button class="btn btn-green btn-sm" onclick="conciliarTxn(${t.id},document.getElementById('cc-sel-${t.id}').value,'${ehCred?'r':'p'}')">${sug?'✓ Conciliar (baixa)':'Vincular & baixar'}</button>`
+          :`<span style="font-size:12px;color:var(--text2)">sem ${ehCred?'conta a receber':'conta a pagar'} pendente igual</span>`}
+        <button class="btn btn-outline btn-sm" onclick="conciliarTxn(${t.id},'','${ehCred?'r':'p'}')" title="Marca como conferido sem dar baixa em conta (tarifas, impostos, etc.)">Sem vínculo</button>
+      </div>
+    </div>`;
+  }).join('');
+  // já conciliados
+  const fb=document.getElementById('cc-feitos');
+  fb.innerHTML=conciliados.length?`<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Vínculo</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>`+
+    conciliados.map(t=>`<tr>
+      <td>${esc(t.dataBR||formatData(t.data))}</td>
+      <td>${esc(t.historico||'')}</td>
+      <td>${t.conta_receber_id?'<span class="ex-tag cred">a receber</span>':t.conta_pagar_id?'<span class="ex-tag deb">a pagar</span>':'<span style="font-size:12px;color:var(--text2)">sem vínculo</span>'}</td>
+      <td style="text-align:right;color:${t.tipo==='credito'?'var(--green)':'var(--red)'}">${t.tipo==='credito'?'+':'−'} R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="desconciliarTxn(${t.id})" title="Desfazer conciliação">↶</button></td>
+    </tr>`).join('')+`</tbody></table>`:'<p class="empty">Nenhum lançamento conciliado ainda.</p>';
+}
+
+async function conciliarTxn(txnId, contaId, tipo){
+  const upd={status:'conciliado'};
+  if(contaId){
+    if(tipo==='r'){
+      const c=_ccReceber.find(x=>''+x.id===''+contaId);
+      const{error}=await sb.from('fin_contas_receber').update({status:'Recebido',forma_pagamento:'Conciliação bancária',data_recebimento:(_ccTxnData(txnId)||hoje())}).eq('id',contaId);
+      if(error){toast('Erro ao baixar conta a receber',true);return;}
+      upd.conta_receber_id=contaId;
+    }else{
+      const{error}=await sb.from('fin_contas_pagar').update({status:'Pago',data_pagamento:(_ccTxnData(txnId)||hoje())}).eq('id',contaId);
+      if(error){toast('Erro ao baixar conta a pagar',true);return;}
+      upd.conta_pagar_id=contaId;
+    }
+  }
+  const{error}=await sb.from('fin_transacoes_bancarias').update(upd).eq('id',txnId);
+  if(error){toast('Erro ao conciliar',true);return;}
+  toast(contaId?'Conciliado e baixa registrada':'Marcado como conferido');
+  loadConciliacao();
+}
+function _ccTxnData(txnId){ return _ccTxnDatas[txnId]||null; } // baixa registrada com a data do extrato
+async function desconciliarTxn(txnId){
+  const{data}=await sb.from('fin_transacoes_bancarias').select('conta_receber_id,conta_pagar_id').eq('id',txnId).single();
+  if(data?.conta_receber_id){ await sb.from('fin_contas_receber').update({status:'Pendente',data_recebimento:null,forma_pagamento:null}).eq('id',data.conta_receber_id); }
+  if(data?.conta_pagar_id){ await sb.from('fin_contas_pagar').update({status:'Pendente',data_pagamento:null}).eq('id',data.conta_pagar_id); }
+  await sb.from('fin_transacoes_bancarias').update({status:'classificado',conta_receber_id:null,conta_pagar_id:null}).eq('id',txnId);
+  toast('Conciliação desfeita'); loadConciliacao();
 }
 
 </script>
