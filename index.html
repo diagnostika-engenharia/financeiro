@@ -186,6 +186,68 @@ body.capturing .rel-acao{display:none!important}
 .upload-area p{font-size:13px;margin-bottom:8px}
 .upload-area small{font-size:11px;color:var(--gray4)}
 
+/* ── NOTAS FISCAIS (NFS-e) ── */
+.nfse-amb{display:flex;align-items:center;gap:14px;border-radius:var(--r);padding:12px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.nfse-amb.homol{background:var(--warn-lt);border-left:4px solid var(--warn)}
+.nfse-amb.prod{background:var(--red-lt);border-left:4px solid var(--red)}
+.nfse-amb>div{flex:1}
+.nfse-amb strong{display:block;font-size:13px;font-weight:800;margin-bottom:2px}
+.nfse-amb.homol strong{color:#B7600A}
+.nfse-amb.prod strong{color:var(--red)}
+.nfse-amb span{font-size:12px;color:var(--text2)}
+.nfse-amb-toggle{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;white-space:nowrap}
+.nfse-amb-toggle input{width:16px;height:16px;accent-color:var(--red);cursor:pointer}
+.nfse-comp{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;background:var(--white);padding:14px 16px;border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:14px}
+.nfse-resumo{display:flex;gap:22px}
+.nfse-resumo>div{display:flex;flex-direction:column;text-align:right}
+.nfse-resumo span{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);font-weight:700}
+.nfse-resumo b{font-size:20px;font-weight:800;color:var(--teal)}
+.nfse-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;border-left:4px solid var(--gray3);transition:border-color .15s}
+.nfse-card.sel{border-left-color:var(--turq)}
+.nfse-card.emitida{border-left-color:var(--green);opacity:.92}
+.nfse-card-hd{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer}
+.nfse-card-hd:hover{background:#f9fbfc}
+.nfse-chk{width:18px;height:18px;accent-color:var(--teal);cursor:pointer;flex-shrink:0}
+.nfse-nome{flex:1;min-width:0}
+.nfse-nome b{font-size:14px;font-weight:700;color:var(--text);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nfse-nome small{font-size:11.5px;color:var(--text2)}
+.nfse-valor{font-size:15px;font-weight:800;color:var(--teal);white-space:nowrap}
+.nfse-iss{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.nfse-iss.ret{background:#FEF3E2;color:#B7600A}
+.nfse-iss.nret{background:var(--green-lt);color:#1E8449}
+.nfse-chev{color:var(--text2);transition:transform .2s;flex-shrink:0}
+.nfse-card.open .nfse-chev{transform:rotate(180deg)}
+.nfse-body{display:none;padding:4px 16px 16px;border-top:1px solid var(--gray2);background:var(--gray)}
+.nfse-card.open .nfse-body{display:block}
+.nfse-fgrid{display:grid;grid-template-columns:140px 1fr;gap:10px;margin-top:12px;align-items:center}
+.nfse-fgrid label{font-size:12px;font-weight:600;color:var(--text2)}
+.nfse-fgrid input,.nfse-fgrid textarea{width:100%;border:1.5px solid var(--gray2);border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:var(--white);font-family:inherit}
+.nfse-fgrid input:focus,.nfse-fgrid textarea:focus{border-color:var(--turq)}
+.nfse-fgrid textarea{min-height:120px;resize:vertical;line-height:1.45}
+.nfse-tom{font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.6}
+.nfse-tom b{color:var(--text)}
+.nfse-flag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;background:#E3F2FD;color:#1565C0;padding:2px 8px;border-radius:10px;margin-left:6px}
+.nfse-resultado{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:12.5px;line-height:1.5}
+.nfse-resultado.ok{background:var(--green-lt);color:#1B5E20;border:1px solid #C8E6C9}
+.nfse-resultado.erro{background:var(--red-lt);color:var(--red);border:1px solid #f3c6c1}
+.nfse-acao-bar{display:flex;align-items:center;gap:14px;background:var(--white);padding:14px 16px;border-radius:var(--r);box-shadow:var(--shadow);position:sticky;bottom:0}
+@media(max-width:820px){
+  .nfse-comp{flex-direction:column;align-items:stretch}
+  .nfse-resumo{justify-content:space-between}
+  .nfse-fgrid{grid-template-columns:1fr;gap:4px}
+  .nfse-fgrid label{margin-top:8px}
+  .nfse-acao-bar{flex-direction:column;align-items:stretch}
+  .nfse-acao-bar .btn{justify-content:center}
+  /* cabeçalho do card: nome em cima (largura toda), badge+valor embaixo */
+  .nfse-card-hd{flex-wrap:wrap;row-gap:8px}
+  .nfse-nome{flex:1 1 100%;order:1}
+  .nfse-nome b{white-space:normal}
+  .nfse-chk{order:0}
+  .nfse-chev{order:0;margin-left:auto}
+  .nfse-iss{order:2}
+  .nfse-valor{order:2;margin-left:auto}
+}
+
 /* ── TOAST ── */
 #toast{position:fixed;bottom:20px;right:20px;background:var(--teal);color:var(--white);padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);display:none;z-index:9999}
 #toast.err{background:var(--red)}
@@ -309,6 +371,9 @@ body.capturing .rel-acao{display:none!important}
       <button class="sn-btn" id="sn-pagar" onclick="nav('pagar')">
         <svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>A Pagar
       </button>
+      <button class="sn-btn" id="sn-nfse" onclick="nav('nfse')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Notas Fiscais
+      </button>
 
       <div class="sn-section">EM BREVE</div>
       <button class="sn-btn" id="sn-reembolsos" onclick="nav('reembolsos')"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Reembolsos</button>
@@ -402,6 +467,54 @@ body.capturing .rel-acao{display:none!important}
           <div class="card-bd"><table class="tbl"><thead><tr>
             <th class="sortable" data-pcol="fornecedor">Fornecedor</th><th class="sortable" data-pcol="categoria">Categoria</th><th class="sortable" data-pcol="data_vencimento">Vencimento</th><th class="sortable" data-pcol="valor">Valor</th><th class="sortable" data-pcol="status">Status</th><th></th>
           </tr></thead><tbody id="tbl-pagar"><tr><td colspan="6" class="empty">Carregando…</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- NOTAS FISCAIS (NFS-e) -->
+      <div class="page" id="page-nfse">
+        <div class="page-header">
+          <div><h2>Notas Fiscais (NFS-e)</h2><p>Emissão mensal — Prefeitura de Campinas (ABRASF 2.03)</p></div>
+          <button class="btn btn-outline btn-sm" onclick="renderNfse()">↺ Recarregar</button>
+        </div>
+
+        <!-- Banner ambiente -->
+        <div id="nfse-amb-banner" class="nfse-amb homol">
+          <div>
+            <strong id="nfse-amb-titulo">⚠ MODO HOMOLOGAÇÃO (teste)</strong>
+            <span id="nfse-amb-desc">As notas geradas aqui são de TESTE, sem valor fiscal. Use para conferir a tela. A emissão real (produção) só é liberada manualmente.</span>
+          </div>
+          <label class="nfse-amb-toggle">
+            <input type="checkbox" id="nfse-prod-chk" onchange="toggleAmbiente()">
+            <span>Produção</span>
+          </label>
+        </div>
+
+        <!-- Seletor de competência -->
+        <div class="nfse-comp">
+          <div class="func-col">
+            <label>Competência (mês de referência)</label>
+            <div style="display:flex;gap:8px">
+              <select id="nfse-mes" class="ano-select" style="width:120px"></select>
+              <select id="nfse-ano" class="ano-select"></select>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div class="nfse-resumo">
+            <div><span>Selecionadas</span><b id="nfse-qtd">0</b></div>
+            <div><span>Total</span><b id="nfse-total" class="val-green">R$ 0,00</b></div>
+          </div>
+        </div>
+
+        <!-- Lista de condomínios -->
+        <div id="nfse-lista"></div>
+
+        <!-- Ação -->
+        <div class="nfse-acao-bar">
+          <button class="btn btn-primary" id="nfse-emitir-btn" onclick="emitirNfse()">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l4 4 8-8"/></svg>
+            Revisar e Emitir selecionadas
+          </button>
+          <span id="nfse-status" style="font-size:12px;color:var(--text2)"></span>
         </div>
       </div>
 
@@ -1011,41 +1124,56 @@ function toast(msg,err=false){
   setTimeout(()=>t.style.display='none',3000);
 }
 
-// ── Auth ─────────────────────────────────────────────────────
-async function doLogin(){
-  const email=document.getElementById('l-email').value.trim();
-  const pass=document.getElementById('l-pass').value;
-  const err=document.getElementById('login-err');
-  err.style.display='none';
-  const{error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error){err.style.display='block';return;}
-  initApp();
+// ── Auth (login ÚNICO do sistema) ─────────────────────────────
+// O Financeiro NÃO tem login próprio: usa a sessão criada pelo login
+// central do Portal (mesma origem em produção). Sem sessão -> Portal.
+const PORTAL_LOGIN='/';
+
+function bloqueioFin(){
+  document.getElementById('login-screen').style.display='none';
+  document.body.innerHTML=`<div style="position:fixed;inset:0;background:linear-gradient(135deg,var(--teal),var(--turq));color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Segoe UI',sans-serif">
+    <div style="background:#fff;color:#1A2E31;border-radius:16px;padding:32px;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <h2 style="color:var(--teal);margin-bottom:10px;font-size:20px">🔒 Acesso restrito</h2>
+      <p style="color:#4A6568;margin-bottom:20px;line-height:1.5;font-size:13px">O Financeiro é interno da Diagnóstika. Faça login no portal de sistemas.</p>
+      <a href="${PORTAL_LOGIN}" style="display:inline-block;background:var(--teal);color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">🔑 Ir para o Login</a>
+    </div>
+  </div>`;
 }
 
 async function doLogout(){
-  await sb.auth.signOut();
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+  try{ await sb.auth.signOut(); }catch(e){}
+  location.replace(PORTAL_LOGIN);
 }
-
-document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
 // ── Init ─────────────────────────────────────────────────────
 async function initApp(){
   const{data:{session}}=await sb.auth.getSession();
-  if(!session){return;}
+  if(!session){ location.replace(PORTAL_LOGIN); return; }
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   const u=session.user;
-  document.getElementById('sn-nome').textContent=u.user_metadata?.name||u.email.split('@')[0];
+  document.getElementById('sn-nome').textContent=u.user_metadata?.nome||u.user_metadata?.name||u.email.split('@')[0];
   document.getElementById('sn-email-disp').textContent=u.email;
   loadDash();
   loadContasBancarias();
 }
 
+// Gate: exige a sessão do login central. Esconde a tela de login antiga.
 window.addEventListener('DOMContentLoaded',async()=>{
-  const{data:{session}}=await sb.auth.getSession();
-  if(session)initApp();
+  const ls=document.getElementById('login-screen'); if(ls) ls.style.display='none';
+  let session=null;
+  for(let i=0;i<4;i++){
+    const{data}=await sb.auth.getSession();
+    if(data?.session){ session=data.session; break; }
+    await new Promise(r=>setTimeout(r,250));
+  }
+  if(!session){ location.replace(PORTAL_LOGIN); return; }
+  // Financeiro é interno: síndico não entra.
+  try{
+    const{data:vincs}=await sb.from('user_condos').select('role').eq('user_id',session.user.id);
+    if(vincs && vincs.length && vincs.every(v=>v.role==='sindico')){ bloqueioFin(); return; }
+  }catch(e){}
+  initApp();
 });
 
 // ── Navegação ─────────────────────────────────────────────────
@@ -1067,6 +1195,7 @@ function nav(page){
   if(page==='pagar')loadPagar();
   if(page==='reembolsos')loadReembolsos();
   if(page==='cofre')loadCofre();
+  if(page==='nfse')initNfse();
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
@@ -2742,6 +2871,198 @@ async function registrarEntradaAutomaticaCofre(conta, dataRecebimento) {
 window.addEventListener('DOMContentLoaded',()=>{
   handleGoogleCallback();
 });
+// ══════════════════════════════════════════════════════════════
+//  NOTAS FISCAIS (NFS-e) — Campinas ABRASF 2.03
+// ══════════════════════════════════════════════════════════════
+// Webhook do nó n8n "Diagnóstika — NFS-e Campinas (F3)".
+// Em homologação não há valor fiscal; produção só é liberada manualmente.
+const NFSE_WEBHOOK='https://84.46.248.23.sslip.io/webhook/nfse-emitir';
+
+const NFSE_PRESTADOR={
+  cnpj:'54027948000160', inscricao_municipal:'009440666', razao_social:'DIAGNOSTIKA ENGENHARIA LTDA',
+  cnae:'711200002', item_lista:'07.03', municipio_incidencia:'3509502', serie_rps:'E',
+  pix_chave:'54.027.948/0001-60', pix_banco:'Sicoob', vencimento_dia:20
+};
+
+// Cadastro espelhado de cadastro-condominios.json (revisar sempre antes de emitir)
+const NFSE_CONDOS=[
+  { id:'jardins_malta', nome:'Residencial Jardins do Malta',
+    tomador:{cnpj:'39520821000194',inscricao_municipal:'',razao_social:'CONDOMÍNIO RESIDENCIAL JARDINS DO MALTA',municipio:'Hortolândia',cod_municipio:'3519055',cep:'13185096',uf:'SP',email:'financeiro01@apto.adm.br'},
+    valor:'2000.00', iss_retido:'2',
+    descricao:'Prestação de serviços técnicos mensais de assessoria em engenharia condominial, conforme contrato. Incluindo visitas técnicas, emissão de documentos, suporte remoto, análise de obras e reformas.\nPagamento realizado via PIX Chave CNPJ: 54.027.948/0001-60.\nVencimento {{vencimento}}',
+    envio:'E-mail automático da prefeitura + MegaZap p/ administradora Apto', megazap:true },
+  { id:'village_matisse', nome:'Edifício Village Matisse',
+    tomador:{cnpj:'54127097000127',inscricao_municipal:'001017195',razao_social:'CONDOMINIO EDIFICIO VILLAGE MATISSE',municipio:'Campinas',cod_municipio:'3509502',cep:'13026002',uf:'SP',email:'merlizc@hotmail.com'},
+    valor:'1150.00', iss_retido:'1',
+    parcelamento:{ativo:true,parcela_atual:8,total:12,contrato:'DK-2025-VM'},
+    descricao:'Serviços de engenharia - Elaboração de Projeto de Infraestrutura para Ar Condicionado - Contrato DK-2025-VM - Parcela {{parcela}}/12.\nValor: R$ {{valor}}\nVencimento: {{vencimento}}\nForma de Pagamento: PIX\nDados Bancários:\nBanco Sicoob - Diagnóstika Engenharia LTDA - CNPJ 54.027.948/0001-60\nChave PIX: 54.027.948/0001-60',
+    envio:'E-mail automático da prefeitura' },
+  { id:'santa_clara', nome:'Residencial Santa Clara',
+    tomador:{cnpj:'39836306000118',inscricao_municipal:'',razao_social:'RESIDENCIAL SANTA CLARA',municipio:'Paulínia',cod_municipio:'3536505',cep:'13145756',uf:'SP',email:'financeiro@rbodemir.com.br'},
+    valor:'1621.00', iss_retido:'2',
+    descricao:'Prestação de serviços técnicos de engenharia, compreendendo assessoria mensal à administração condominial, emissão de pareceres técnicos, vistorias em campo e apoio à gestão de manutenção predial\nSERVIÇOS DE ENGENHARIA\nPIX CNPJ: 54.027.948/0001-60 DIAGNOSTIKA ENGENHARIA\nVencimento {{vencimento}}',
+    envio:'E-mail automático da prefeitura' },
+  { id:'portal_primavera', nome:'Portal Primavera',
+    tomador:{cnpj:'26481953000102',inscricao_municipal:'',razao_social:'PORTAL PRIMAVERA',municipio:'Hortolândia',cod_municipio:'3519055',cep:'13183255',uf:'SP',email:'contasapagar@destracondominios.com'},
+    valor:'1750.00', iss_retido:'2',
+    descricao:'Prestação de serviços técnicos de engenharia, compreendendo assessoria mensal à administração condominial, emissão de pareceres técnicos, vistorias em campo, apoio à gestão de manutenção predial e acompanhamento técnico conforme contrato firmado.\nValor faturado nesta competência conforme condição comercial concedida por liberalidade, em caráter provisório, sem prejuízo das condições contratuais vigentes\nR$ {{valor}} Contrato mensal\nForma de pagamento: PIX para Diagnóstika Engenharia LTDA CNPJ 54.027.948/0001-60\nBanco: Sicoob\nChave PIX: 54.027.948/0001-60\nVencimento: {{vencimento}}',
+    obs:'Pode ter itens avulsos (ex.: ART de laudo). Revisar valor e descrição.',
+    envio:'E-mail automático da prefeitura' },
+];
+const _MESES_NF=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let _nfseAmbiente='homologacao';
+let _nfseInit=false;
+// estado de edição por condomínio: {id:{sel,valor,descricao,parcela}}
+const _nfseEstado={};
+
+function initNfse(){
+  if(_nfseInit){ renderNfse(); return; }
+  _nfseInit=true;
+  // popular mês/ano
+  const ms=document.getElementById('nfse-mes'); ms.innerHTML='';
+  _MESES_NF.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;ms.appendChild(o);});
+  const anoSel=document.getElementById('nfse-ano'); anoSel.innerHTML='';
+  const anoAtual=new Date().getFullYear();
+  for(let a=anoAtual-1;a<=anoAtual+1;a++){const o=document.createElement('option');o.value=a;o.textContent=a;if(a===anoAtual)o.selected=true;anoSel.appendChild(o);}
+  ms.value=String(new Date().getMonth()+1);
+  ms.onchange=renderNfse; anoSel.onchange=renderNfse;
+  // estado inicial
+  NFSE_CONDOS.forEach(c=>{_nfseEstado[c.id]={sel:true,valor:c.valor,descricao:c.descricao,parcela:c.parcelamento?.parcela_atual||null,resultado:null};});
+  renderNfse();
+}
+
+function _nfseVencimento(){
+  const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
+  return `${String(NFSE_PRESTADOR.vencimento_dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
+}
+function _nfseDescFinal(c){
+  const st=_nfseEstado[c.id];
+  let d=st.descricao
+    .replace(/\{\{valor\}\}/g, (+st.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}))
+    .replace(/\{\{vencimento\}\}/g, _nfseVencimento())
+    .replace(/\{\{parcela\}\}/g, st.parcela!=null?st.parcela:'');
+  return d;
+}
+
+function renderNfse(){
+  // banner ambiente
+  const banner=document.getElementById('nfse-amb-banner');
+  if(_nfseAmbiente==='producao'){
+    banner.className='nfse-amb prod';
+    document.getElementById('nfse-amb-titulo').textContent='🔴 MODO PRODUÇÃO (nota fiscal real)';
+    document.getElementById('nfse-amb-desc').textContent='As notas emitidas terão VALOR FISCAL e serão registradas na Prefeitura de Campinas. Confira tudo antes de emitir.';
+    document.getElementById('nfse-emitir-btn').className='btn btn-danger';
+  }else{
+    banner.className='nfse-amb homol';
+    document.getElementById('nfse-amb-titulo').textContent='⚠ MODO HOMOLOGAÇÃO (teste)';
+    document.getElementById('nfse-amb-desc').textContent='As notas geradas aqui são de TESTE, sem valor fiscal. Use para conferir a tela. A emissão real (produção) só é liberada manualmente.';
+    document.getElementById('nfse-emitir-btn').className='btn btn-primary';
+  }
+  const cont=document.getElementById('nfse-lista'); cont.innerHTML='';
+  NFSE_CONDOS.forEach(c=>{
+    const st=_nfseEstado[c.id];
+    const issRet=c.iss_retido==='1';
+    const card=document.createElement('div');
+    card.className='nfse-card'+(st.sel?' sel':'')+(st.resultado?.ok?' emitida':'');
+    const t=c.tomador;
+    card.innerHTML=`
+      <div class="nfse-card-hd" onclick="if(event.target.tagName!=='INPUT')this.parentNode.classList.toggle('open')">
+        <input type="checkbox" class="nfse-chk" ${st.sel?'checked':''} onclick="event.stopPropagation();toggleNfseSel('${c.id}',this.checked)">
+        <div class="nfse-nome">
+          <b>${esc(c.nome)}${c.megazap?'<span class="nfse-flag">📲 MegaZap</span>':''}</b>
+          <small>${esc(t.municipio)} · CNPJ ${esc(t.cnpj)}${c.parcelamento?' · Parcela '+st.parcela+'/'+c.parcelamento.total:''}</small>
+        </div>
+        <span class="nfse-iss ${issRet?'ret':'nret'}">${issRet?'ISS retido':'ISS não retido'}</span>
+        <span class="nfse-valor">R$ ${(+st.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+        <svg class="nfse-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="nfse-body">
+        <div class="nfse-fgrid">
+          <label>Valor (R$)</label>
+          <input type="number" step="0.01" value="${st.valor}" onchange="setNfseCampo('${c.id}','valor',this.value)">
+          ${c.parcelamento?`<label>Parcela</label><input type="number" min="1" max="${c.parcelamento.total}" value="${st.parcela}" onchange="setNfseCampo('${c.id}','parcela',this.value)">`:''}
+          <label>Descrição da nota</label>
+          <textarea onchange="setNfseCampo('${c.id}','descricao',this.value)">${esc(st.dirty?st.descricao:_nfseDescFinal(c))}</textarea>
+        </div>
+        <div class="nfse-tom">
+          <b>Tomador:</b> ${esc(t.razao_social)} · ${esc(t.email)}<br>
+          <b>Vencimento:</b> ${_nfseVencimento()} · <b>PIX:</b> ${NFSE_PRESTADOR.pix_chave} (${NFSE_PRESTADOR.pix_banco})<br>
+          <b>Envio:</b> ${esc(c.envio)}${c.obs?'<br><b>⚠ '+esc(c.obs)+'</b>':''}
+        </div>
+        ${st.resultado?`<div class="nfse-resultado ${st.resultado.ok?'ok':'erro'}">${st.resultado.msg}</div>`:''}
+      </div>`;
+    cont.appendChild(card);
+  });
+  _nfseTotais();
+}
+function toggleNfseSel(id,v){ _nfseEstado[id].sel=v; renderNfse(); }
+function setNfseCampo(id,campo,v){ _nfseEstado[id][campo]=v; if(campo==='descricao')_nfseEstado[id].dirty=true; if(campo==='valor'||campo==='parcela')renderNfse(); }
+function _nfseTotais(){
+  let qtd=0,total=0;
+  NFSE_CONDOS.forEach(c=>{const st=_nfseEstado[c.id];if(st.sel){qtd++;total+=(+st.valor||0);}});
+  document.getElementById('nfse-qtd').textContent=qtd;
+  document.getElementById('nfse-total').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+function toggleAmbiente(){
+  const prod=document.getElementById('nfse-prod-chk').checked;
+  if(prod){
+    if(!confirm('⚠ ATENÇÃO: ativar PRODUÇÃO vai emitir NOTAS FISCAIS REAIS com valor fiscal na Prefeitura de Campinas.\n\nTem certeza? (recomendado testar em homologação primeiro)')){
+      document.getElementById('nfse-prod-chk').checked=false; return;
+    }
+    _nfseAmbiente='producao';
+  }else _nfseAmbiente='homologacao';
+  renderNfse();
+}
+
+async function emitirNfse(){
+  const sel=NFSE_CONDOS.filter(c=>_nfseEstado[c.id].sel);
+  if(!sel.length){ toast('Selecione ao menos um condomínio',true); return; }
+  const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
+  const comp=`${_MESES_NF[mes-1]}/${ano}`;
+  if(_nfseAmbiente==='producao'){
+    if(!confirm(`PRODUÇÃO — emitir ${sel.length} nota(s) fiscal(is) REAL(is) da competência ${comp}?\n\nTotal: R$ ${sel.reduce((s,c)=>s+(+_nfseEstado[c.id].valor||0),0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`)) return;
+  }
+  const btn=document.getElementById('nfse-emitir-btn'); btn.disabled=true;
+  const statusEl=document.getElementById('nfse-status');
+  let ok=0,fail=0;
+  for(const c of sel){
+    const st=_nfseEstado[c.id];
+    statusEl.textContent=`Emitindo ${c.nome}…`;
+    const payload={
+      ambiente:_nfseAmbiente, competencia:comp,
+      prestador:NFSE_PRESTADOR,
+      condominio_id:c.id, nome:c.nome,
+      tomador:c.tomador,
+      valor:(+st.valor).toFixed(2),
+      iss_retido:c.iss_retido,
+      descricao:_nfseDescFinal(c),
+      vencimento:_nfseVencimento(),
+      parcela:st.parcela, megazap:!!c.megazap
+    };
+    try{
+      // text/plain = "simple request": evita preflight CORS. O nó n8n faz JSON.parse do corpo.
+      const r=await fetch(NFSE_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+      const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(e){}
+      if(r.ok && j.ok && j.numero_nfse){
+        st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${_nfseAmbiente==='homologacao'?' <em>(homologação/teste — sem valor fiscal)</em>':''}`};
+        if(c.parcelamento && st.parcela!=null) st.parcela=+st.parcela+1; // incrementa p/ próxima
+        ok++;
+      }else{
+        const erro = j.fault || (j.erros&&j.erros.length?j.erros.map(e=>(e.codigo?e.codigo+': ':'')+e.mensagem).join('; '):'') || txt || ('HTTP '+r.status);
+        st.resultado={ok:false,msg:'✗ Falha: '+esc(String(erro).slice(0,400))};
+        fail++;
+      }
+    }catch(e){
+      st.resultado={ok:false,msg:'✗ Erro de conexão com o motor n8n: '+esc(e.message)+'. Verifique se o webhook "nfse-emitir" está ativo.'};
+      fail++;
+    }
+  }
+  btn.disabled=false;
+  statusEl.textContent=`Concluído: ${ok} emitida(s)${fail?', '+fail+' com erro':''}.`;
+  toast(`${ok} nota(s) emitida(s)${fail?', '+fail+' falha(s)':''}`, fail>0);
+  renderNfse();
+}
+
 </script>
 </body>
 </html>
