@@ -171,6 +171,9 @@ body.capturing .rel-acao{display:none!important}
 .mes-btn.sel{background:var(--teal);color:var(--white);border-color:var(--teal)}
 .ano-select{border:1.5px solid var(--gray2);border-radius:7px;padding:7px 10px;font-size:13px;background:var(--white);outline:none;color:var(--text);width:90px}
 .ano-select:focus{border-color:var(--turq)}
+.mes-chip{border:1.5px solid var(--gray2);background:var(--white);color:var(--text2);border-radius:999px;padding:5px 12px;font-size:12.5px;cursor:pointer;font-weight:600;transition:.12s;white-space:nowrap}
+.mes-chip:hover{border-color:var(--turq);color:var(--teal)}
+.mes-chip.on{background:var(--teal);border-color:var(--teal);color:#fff}
 .btn-gerar-rel2{background:var(--lima);color:var(--white);border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;margin-top:auto}
 .btn-gerar-rel2:hover{opacity:.9}
 /* relatórios gerados */
@@ -262,8 +265,8 @@ body.capturing .rel-acao{display:none!important}
 .dre-tbl th,.dre-tbl td{padding:6px 10px;text-align:right;white-space:nowrap}
 .dre-tbl th:first-child,.dre-tbl td:first-child{text-align:left;position:sticky;left:0;background:var(--white);z-index:1}
 .dre-tbl thead th{border-bottom:2px solid var(--gray3);color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
-.dre-tbl tbody .dre-sec td{background:var(--gray);font-weight:700;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;color:var(--text2)}
-.dre-tbl tbody .dre-sec td:first-child{background:var(--gray)}
+.dre-tbl tbody .dre-sec td{background:var(--gray);font-weight:700;color:var(--text);border-top:1px solid var(--gray3)}
+.dre-tbl tbody .dre-sec td:first-child{background:var(--gray);text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;color:var(--text2)}
 .dre-tbl .dre-cat td:first-child{padding-left:22px;color:var(--text)}
 .dre-tbl .dre-cat td{color:var(--text2)}
 .dre-tbl .dre-tot td{border-top:1px solid var(--gray3);font-weight:700;color:var(--text)}
@@ -826,7 +829,7 @@ body.capturing .rel-acao{display:none!important}
         <!-- Lançamentos importados do extrato -->
         <div class="card" style="margin-top:16px">
           <div class="card-hd"><h3>Lançamentos importados</h3>
-            <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE()">↺ Atualizar</button>
+            <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE(true)">↺ Atualizar</button>
           </div>
           <div class="card-bd"><div id="ex-txns" style="max-height:420px;overflow:auto"></div></div>
         </div>
@@ -866,8 +869,11 @@ body.capturing .rel-acao{display:none!important}
             <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer;user-select:none">
               <input type="checkbox" id="ex-inc-cofre" checked onchange="renderExtratoDRE()" style="cursor:pointer"> 🔒 Incluir Cofre (dinheiro)
             </label>
-            <select id="ex-comp-filtro" class="ano-select" onchange="renderExtratoDRE()" style="max-width:200px"><option value="">Todas as competências</option></select>
           </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:-4px 2px 0">
+          <span style="font-size:12px;color:var(--text2);font-weight:600;margin-right:2px">Período:</span>
+          <div id="ex-mes-chips" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"></div>
         </div>
 
         <div class="ex-dre-grid">
@@ -3723,7 +3729,7 @@ async function confirmarImportExtrato(){
   document.getElementById('ex-status').innerHTML='<span style="color:var(--green)">✓ '+inseridas+' importado(s)'+(dup?', '+dup+' já existiam':'')+aviso+'</span>';
   toast(`${inseridas} lançamento(s) importado(s)${dup?', '+dup+' já existiam':''}`);
   cancelarExtrato();
-  renderExtratoDRE();
+  renderExtratoDRE(true);
 }
 
 const _txComp=t=>t.competencia||(t.data?String(t.data).slice(0,7):'');
@@ -3751,14 +3757,25 @@ function _cofreComoTxns(rows){
       valor:(+r.valor||0)/100, origem_arquivo:'Cofre', _cofre:true
     }));
 }
-let _cofreCache=null;
-async function renderExtratoDRE(){
-  const filtro=document.getElementById('ex-comp-filtro')?.value||'';
+let _cofreCache=null, _dreBankCache=null;
+// meses selecionados na DRE (vazio = todos). Permite escolher vários períodos.
+let _dreMeses=new Set();
+function _dreToggleMes(m){
+  if(!m){ _dreMeses.clear(); }            // chip "Todos"
+  else { _dreMeses.has(m)?_dreMeses.delete(m):_dreMeses.add(m); }
+  renderExtratoDRE();                      // re-filtra usando cache (sem rede)
+}
+async function renderExtratoDRE(force){
+  if(force){ _dreBankCache=null; _cofreCache=null; }
   const incCofre=document.getElementById('ex-inc-cofre')?.checked!==false;
-  const {data,error}=await sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(2000);
   const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
-  if(error){ const msg=/relation|does not exist/i.test(error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(error.message);
-    if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
+  let data=_dreBankCache;
+  if(data===null){
+    const {data:d,error}=await sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(2000);
+    if(error){ const msg=/relation|does not exist/i.test(error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(error.message);
+      if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
+    _dreBankCache=d||[]; data=_dreBankCache;
+  }
   // carrega o cofre (cache) e consolida com o banco se o toggle estiver ligado
   if(incCofre && _cofreCache===null){
     try{ const{data:cf}=await sb.from('fin_livro_caixa_cofre').select('*'); _cofreCache=cf||[]; }
@@ -3766,12 +3783,16 @@ async function renderExtratoDRE(){
   }
   const cofreTxns = incCofre ? _cofreComoTxns(_cofreCache) : [];
   let all=(data||[]).concat(cofreTxns);
-  let txns=all.slice();
-  if(filtro) txns=txns.filter(t=>_txComp(t)===filtro);  // filtro de competência no cliente
-  // preencher filtro de competências
-  const sel=document.getElementById('ex-comp-filtro');
-  if(sel){ const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort().reverse();
-    const cur=sel.value; sel.innerHTML='<option value="">Todas as competências</option>'+comps.map(c=>`<option value="${c}">${c}</option>`).join(''); sel.value=cur; }
+  // chips de meses (mais recente primeiro) + chip "Todos"
+  const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort().reverse();
+  [..._dreMeses].forEach(m=>{ if(!comps.includes(m)) _dreMeses.delete(m); });  // limpa meses sumidos
+  const chipsBox=document.getElementById('ex-mes-chips');
+  if(chipsBox){
+    chipsBox.innerHTML='<button class="mes-chip'+(_dreMeses.size===0?' on':'')+'" onclick="_dreToggleMes(\'\')">Todos</button>'+
+      comps.map(c=>'<button class="mes-chip'+(_dreMeses.has(c)?' on':'')+'" onclick="_dreToggleMes(\''+c+'\')">'+_compLabel(c)+'</button>').join('');
+  }
+  // filtra pelos meses escolhidos (vazio = todos)
+  let txns = _dreMeses.size ? all.filter(t=>_dreMeses.has(_txComp(t))) : all.slice();
   const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
   const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
   document.getElementById('ex-kpi-rec').textContent='R$ '+rec.toLocaleString('pt-BR',{minimumFractionDigits:2});
@@ -3830,16 +3851,15 @@ function _dreRender(txns){
   // seções
   [['Receita','RECEITAS'],['Despesa','DESPESAS']].forEach(([nat,titulo])=>{
     const cats=Object.entries(sec[nat]).sort((a,b)=>totLinha(b[1])-totLinha(a[1]));
-    body+=`<tr class="dre-sec"><td>${titulo}</td>${meses.map(()=>'<td></td>').join('')}<td></td><td></td><td></td></tr>`;
+    // total da seção NO TOPO (cabeçalho mostra o total; os lançamentos vêm abaixo)
+    const totMes=meses.map(m=>Object.values(sec[nat]).reduce((s,o)=>s+(o[m]||0),0));
+    const totSec=totMes.reduce((a,b)=>a+b,0);
+    body+=`<tr class="dre-sec"><td>${titulo}</td>${cellMes(totMes)}<td>${_dreR(totSec)}</td><td>${fmtAV(avPct(totSec))}</td><td>${fmtAH(ah(totMes))}</td></tr>`;
     if(!cats.length){ body+=`<tr class="dre-cat"><td>—</td>${meses.map(()=>'<td><span class="dre-av">—</span></td>').join('')}<td><span class="dre-av">—</span></td><td></td><td></td></tr>`; }
     cats.forEach(([cat,obj])=>{
       const arr=somaMes(obj), tot=totLinha(obj);
       body+=`<tr class="dre-cat"><td>${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
     });
-    // total da seção
-    const totMes=meses.map((m,i)=>Object.values(sec[nat]).reduce((s,o)=>s+(o[m]||0),0));
-    const totSec=totMes.reduce((a,b)=>a+b,0);
-    body+=`<tr class="dre-tot"><td>${nat==='Receita'?'= Total das receitas':'= Total das despesas'}</td>${cellMes(totMes)}<td>${_dreR(totSec)}</td><td>${fmtAV(avPct(totSec))}</td><td>${fmtAH(ah(totMes))}</td></tr>`;
   });
   // resultado líquido
   const despMes=meses.map(m=>Object.values(sec.Despesa).reduce((s,o)=>s+(o[m]||0),0));
