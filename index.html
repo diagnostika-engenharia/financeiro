@@ -3783,8 +3783,8 @@ async function renderExtratoDRE(force){
   }
   const cofreTxns = incCofre ? _cofreComoTxns(_cofreCache) : [];
   let all=(data||[]).concat(cofreTxns);
-  // chips de meses (mais recente primeiro) + chip "Todos"
-  const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort().reverse();
+  // chips de meses (do mais antigo para o mais recente) + chip "Todos"
+  const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort();
   [..._dreMeses].forEach(m=>{ if(!comps.includes(m)) _dreMeses.delete(m); });  // limpa meses sumidos
   const chipsBox=document.getElementById('ex-mes-chips');
   if(chipsBox){
