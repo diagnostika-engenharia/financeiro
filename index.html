@@ -861,8 +861,13 @@ body.capturing .rel-acao{display:none!important}
       <!-- DRE (página própria) -->
       <div class="page" id="page-dre">
         <div class="page-header">
-          <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
-          <select id="ex-comp-filtro" class="ano-select" onchange="renderExtratoDRE()" style="max-width:200px"><option value="">Todas as competências</option></select>
+          <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado (Banco + Cofre) por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer;user-select:none">
+              <input type="checkbox" id="ex-inc-cofre" checked onchange="renderExtratoDRE()" style="cursor:pointer"> 🔒 Incluir Cofre (dinheiro)
+            </label>
+            <select id="ex-comp-filtro" class="ano-select" onchange="renderExtratoDRE()" style="max-width:200px"><option value="">Todas as competências</option></select>
+          </div>
         </div>
 
         <div class="ex-dre-grid">
@@ -3608,7 +3613,17 @@ async function _exCarregarRegras(){
 }
 function _exClassificar(t,regras){
   const h=(t.historico||'').toUpperCase();
-  for(const r of regras){ if(h.includes(r.padrao.toUpperCase())) return {categoria:r.categoria,tipo_categoria:r.tipo_categoria}; }
+  const v=+(t.valor||0);
+  const mov=t.tipo==='C'?'credito':'debito';
+  for(const r of regras){
+    if(r.tipo_mov && r.tipo_mov!==mov) continue;              // regra restrita a crédito/débito
+    if(r.valor_exato!=null && r.valor_exato!==''){            // regra por valor exato
+      if(Math.abs(v-(+r.valor_exato))>=0.005) continue;
+      if(r.padrao && !h.includes(r.padrao.toUpperCase())) continue;
+      return {categoria:r.categoria,tipo_categoria:r.tipo_categoria};
+    }
+    if(r.padrao && h.includes(r.padrao.toUpperCase())) return {categoria:r.categoria,tipo_categoria:r.tipo_categoria};
+  }
   return {categoria:'Não classificado', tipo_categoria: t.tipo==='C'?'Receita':'Despesa'};
 }
 // hash determinístico (sem libs) p/ dedupe
@@ -3712,17 +3727,50 @@ async function confirmarImportExtrato(){
 }
 
 const _txComp=t=>t.competencia||(t.data?String(t.data).slice(0,7):'');
+// mapeia uma descrição do cofre para uma conta do plano de contas (DRE)
+function _cofreCat(desc,tipo){
+  const d=(desc||'').toLowerCase();
+  if(/reembolso/.test(d)) return 'Reembolsos (cofre)';
+  if(/pr[óo] ?labore|sal[áa]rio|pagamento.*claudemir|claudemir/.test(d)) return 'Pró-labore (cofre)';
+  if(/recebimento|cliente|receb/.test(d)) return 'Receita de serviços (cofre)';
+  if(/mercado|jos[ée]/.test(d)) return 'Outras entradas (cofre)';
+  return tipo==='Entrada'?'Outras entradas (cofre)':'Outras saídas (cofre)';
+}
+// converte linhas do livro-caixa do cofre em "transações" no mesmo formato do DRE
+// (valor centavos→reais; Entrada=crédito/Receita, Saída=débito/Despesa). Ignora
+// linhas de "Saldo anterior" (saldo de abertura, não é movimento de resultado).
+function _cofreComoTxns(rows){
+  return (rows||[])
+    .filter(r=>!/saldo anterior/i.test(r.descricao||''))
+    .map(r=>({
+      data:r.data, competencia:String(r.data||'').slice(0,7),
+      historico:'🔒 Cofre · '+(r.descricao||'Movimentação'),
+      categoria:_cofreCat(r.descricao,r.tipo),
+      tipo: r.tipo==='Entrada'?'credito':'debito',
+      tipo_categoria: r.tipo==='Entrada'?'Receita':'Despesa',
+      valor:(+r.valor||0)/100, origem_arquivo:'Cofre', _cofre:true
+    }));
+}
+let _cofreCache=null;
 async function renderExtratoDRE(){
   const filtro=document.getElementById('ex-comp-filtro')?.value||'';
+  const incCofre=document.getElementById('ex-inc-cofre')?.checked!==false;
   const {data,error}=await sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(2000);
   const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
   if(error){ const msg=/relation|does not exist/i.test(error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(error.message);
     if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
-  let txns=data||[];
+  // carrega o cofre (cache) e consolida com o banco se o toggle estiver ligado
+  if(incCofre && _cofreCache===null){
+    try{ const{data:cf}=await sb.from('fin_livro_caixa_cofre').select('*'); _cofreCache=cf||[]; }
+    catch(e){ _cofreCache=[]; }
+  }
+  const cofreTxns = incCofre ? _cofreComoTxns(_cofreCache) : [];
+  let all=(data||[]).concat(cofreTxns);
+  let txns=all.slice();
   if(filtro) txns=txns.filter(t=>_txComp(t)===filtro);  // filtro de competência no cliente
   // preencher filtro de competências
   const sel=document.getElementById('ex-comp-filtro');
-  if(sel){ const comps=[...new Set((data||[]).map(_txComp).filter(Boolean))].sort().reverse();
+  if(sel){ const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort().reverse();
     const cur=sel.value; sel.innerHTML='<option value="">Todas as competências</option>'+comps.map(c=>`<option value="${c}">${c}</option>`).join(''); sel.value=cur; }
   const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
   const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
