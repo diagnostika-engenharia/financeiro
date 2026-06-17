@@ -18,6 +18,18 @@
   --warn:#E67E22;--warn-lt:#FEF9F0;
   --r:10px;--shadow:0 2px 8px rgba(0,0,0,.08);
 }
+[data-theme="dark"]{
+  --white:#1E2A2C;--gray:#151E20;--gray2:#253235;--gray3:#2E3E42;--gray4:#5A7478;
+  --text:#E8F0F1;--text2:#8AACB0;
+  --red-lt:#2A1A1A;--green-lt:#162415;--warn-lt:#2A1E10;
+  --shadow:0 2px 8px rgba(0,0,0,.35);
+}
+.theme-toggle{display:flex;align-items:center;gap:8px;padding:8px 18px;cursor:pointer;color:rgba(255,255,255,.55);font-size:12px;font-weight:600;transition:.15s;user-select:none}
+.theme-toggle:hover{color:rgba(255,255,255,.85)}
+.theme-toggle-track{width:32px;height:18px;border-radius:9px;background:rgba(255,255,255,.2);position:relative;transition:.2s;flex-shrink:0}
+.theme-toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#fff;transition:.2s}
+[data-theme="dark"] .theme-toggle-track{background:var(--turq)}
+[data-theme="dark"] .theme-toggle-track::after{left:17px}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
 body{background:var(--gray);color:var(--text);min-height:100vh}
 
@@ -453,6 +465,10 @@ body.capturing .rel-acao{display:none!important}
         <div class="sn-user">
           <strong id="sn-nome">—</strong>
           <span id="sn-email-disp">—</span>
+        </div>
+        <div class="theme-toggle" onclick="toggleTheme()">
+          <div class="theme-toggle-track"></div>
+          <span id="theme-label">Tema escuro</span>
         </div>
         <button class="sn-btn" onclick="doLogout()" style="color:#FFB4B4">
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sair
@@ -1391,6 +1407,22 @@ function bloqueioFin(){
     </div>
   </div>`;
 }
+
+function toggleTheme(){
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  const next = dark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  document.getElementById('theme-label').textContent = next==='dark' ? 'Tema claro' : 'Tema escuro';
+  localStorage.setItem('fin-theme', next);
+}
+(function(){
+  const t = localStorage.getItem('fin-theme');
+  if(t==='dark'){
+    document.documentElement.setAttribute('data-theme','dark');
+    const lbl = document.getElementById('theme-label');
+    if(lbl) lbl.textContent = 'Tema claro';
+  }
+})();
 
 async function doLogout(){
   try{ await sb.auth.signOut(); }catch(e){}
