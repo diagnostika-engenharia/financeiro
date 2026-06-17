@@ -376,6 +376,7 @@ body.capturing .rel-acao{display:none!important}
   .cf-detail{padding-left:18px}
   .cf-dgrid{grid-template-columns:1fr 1fr}
 }
+@media(max-width:819px){.cofre-main-grid{grid-template-columns:1fr!important}}
 
 /* ── MOBILE (drawer + adaptação) ── */
 .mobile-bar{display:none}
@@ -910,23 +911,83 @@ body.capturing .rel-acao{display:none!important}
           </div>
         </div>
 
-        <!-- Saldo Atual -->
-        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--green)">
-          <div style="padding:20px 24px;display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">Saldo Atual do Cofre</div>
-              <div id="cofre-saldo" style="font-size:32px;font-weight:800;color:var(--teal);margin-top:6px">—</div>
-              <div id="cofre-data" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
-            </div>
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          </div>
-        </div>
+        <!-- Layout de duas colunas: lista (esq) + painel lateral (dir) -->
+        <div class="cofre-main-grid" style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
 
-        <!-- Lista de Movimentações (expansível) -->
-        <div class="card">
-          <div class="card-hd"><h3>Histórico de Movimentações</h3></div>
-          <div class="card-bd" style="padding:0">
-            <div id="tbl-cofre" class="cf-list"><div class="cf-empty">Carregando…</div></div>
+          <!-- Coluna esquerda: saldo + histórico -->
+          <div>
+            <div class="card" style="margin-bottom:16px;border-left:4px solid var(--green)">
+              <div style="padding:18px 20px;display:flex;align-items:center;justify-content:space-between">
+                <div>
+                  <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">Saldo Atual do Cofre</div>
+                  <div id="cofre-saldo" style="font-size:28px;font-weight:800;color:var(--teal);margin-top:4px">—</div>
+                  <div id="cofre-data" style="font-size:11px;color:var(--text2);margin-top:2px"></div>
+                </div>
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.35"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-hd"><h3>Histórico de Movimentações</h3></div>
+              <div class="card-bd" style="padding:0">
+                <div id="tbl-cofre" class="cf-list"><div class="cf-empty">Carregando…</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna direita: KPIs do mês + sparkline -->
+          <div style="display:flex;flex-direction:column;gap:12px;position:sticky;top:16px">
+
+            <!-- KPIs do mês corrente -->
+            <div class="card" style="border-left:3px solid var(--teal)">
+              <div style="padding:14px 16px">
+                <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Mês Atual</div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:12px;color:var(--text2)">↑ Entradas</span>
+                    <span id="cofre-kpi-ent" style="font-size:14px;font-weight:700;color:var(--green)">—</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:12px;color:var(--text2)">↓ Saídas</span>
+                    <span id="cofre-kpi-sai" style="font-size:14px;font-weight:700;color:var(--red)">—</span>
+                  </div>
+                  <div style="height:1px;background:var(--border)"></div>
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:12px;color:var(--text2)">Saldo inicial</span>
+                    <span id="cofre-kpi-ini" style="font-size:13px;font-weight:600;color:var(--text1)">—</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:12px;color:var(--text2)">Variação</span>
+                    <span id="cofre-kpi-var" style="font-size:13px;font-weight:700">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sparkline 6 meses -->
+            <div class="card">
+              <div style="padding:14px 16px">
+                <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Saldo — Últimos 6 Meses</div>
+                <canvas id="cofre-sparkline" height="90" style="width:100%;display:block"></canvas>
+                <div id="cofre-spark-labels" style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--text2)"></div>
+              </div>
+            </div>
+
+            <!-- Distribuição Entradas vs Saídas (barra proporcional) -->
+            <div class="card">
+              <div style="padding:14px 16px">
+                <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Distribuição — Mês Atual</div>
+                <div id="cofre-barra-wrap">
+                  <div id="cofre-barra" style="height:8px;border-radius:4px;background:var(--gray2);overflow:hidden;margin-bottom:8px">
+                    <div id="cofre-barra-ent" style="height:100%;background:var(--green);width:50%;float:left"></div>
+                  </div>
+                  <div style="display:flex;gap:12px;font-size:11px">
+                    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span>Entradas</span>
+                    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span>Saídas</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -3300,6 +3361,119 @@ setInterval(()=>{
 // COFRE — LIVRO CAIXA
 // ═══════════════════════════════════════════════════════════════
 
+function renderCofreLateral(rows) {
+  const now = new Date();
+  const anoMes = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // KPIs do mês corrente
+  const doMes = rows.filter(r => r.data && r.data.startsWith(anoMes));
+  let entMes=0, saiMes=0;
+  doMes.forEach(r => { if(r.tipo==='Entrada') entMes+=r.valor; else saiMes+=r.valor; });
+
+  // Saldo inicial do mês = saldo_atual do último lançamento anterior ao mês
+  const antMes = rows.filter(r => r.data && r.data < anoMes+'-01');
+  const saldoIni = antMes.length ? antMes[antMes.length-1].saldo_atual : 0;
+  const variacao = entMes - saiMes;
+
+  const elEnt = document.getElementById('cofre-kpi-ent');
+  const elSai = document.getElementById('cofre-kpi-sai');
+  const elIni = document.getElementById('cofre-kpi-ini');
+  const elVar = document.getElementById('cofre-kpi-var');
+  if(elEnt) elEnt.textContent = fmt(entMes);
+  if(elSai) elSai.textContent = '−' + fmt(saiMes);
+  if(elIni) elIni.textContent = fmt(saldoIni);
+  if(elVar) {
+    elVar.textContent = (variacao>=0?'+':'') + fmt(variacao);
+    elVar.style.color = variacao>=0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  // Barra proporcional
+  const total = entMes + saiMes;
+  const pct = total > 0 ? Math.round((entMes/total)*100) : 50;
+  const barEnt = document.getElementById('cofre-barra-ent');
+  if(barEnt) barEnt.style.width = pct + '%';
+
+  // Sparkline: saldo final de cada um dos últimos 6 meses
+  const meses = [];
+  for(let i=5;i>=0;i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    meses.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const saldosMes = meses.map(m => {
+    const doM = rows.filter(r => r.data && r.data.startsWith(m));
+    if(!doM.length) {
+      // usa saldo do último anterior
+      const ant = rows.filter(r => r.data && r.data < m+'-01');
+      return ant.length ? ant[ant.length-1].saldo_atual : null;
+    }
+    return doM[doM.length-1].saldo_atual;
+  });
+
+  const labelsEl = document.getElementById('cofre-spark-labels');
+  if(labelsEl) {
+    labelsEl.innerHTML = meses.map(m => {
+      const [y,mo] = m.split('-');
+      const nomes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      return `<span>${nomes[parseInt(mo)-1]}</span>`;
+    }).join('');
+  }
+
+  const canvas = document.getElementById('cofre-sparkline');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 268;
+  const H = 90;
+  canvas.width = W;
+  canvas.height = H;
+
+  const vals = saldosMes.map(v => v ?? 0);
+  const minV = Math.min(...vals);
+  const maxV = Math.max(...vals);
+  const range = maxV - minV || 1;
+  const pad = { t:8, b:8, l:4, r:4 };
+  const innerW = W - pad.l - pad.r;
+  const innerH = H - pad.t - pad.b;
+
+  const xs = vals.map((_,i) => pad.l + (i/(vals.length-1))*innerW);
+  const ys = vals.map(v => pad.t + innerH - ((v-minV)/range)*innerH);
+
+  // gradiente de preenchimento
+  const grad = ctx.createLinearGradient(0, pad.t, 0, H);
+  grad.addColorStop(0, 'rgba(0,180,172,0.25)');
+  grad.addColorStop(1, 'rgba(0,180,172,0.02)');
+
+  ctx.clearRect(0,0,W,H);
+
+  // área preenchida
+  ctx.beginPath();
+  ctx.moveTo(xs[0], ys[0]);
+  for(let i=1;i<xs.length;i++) ctx.lineTo(xs[i],ys[i]);
+  ctx.lineTo(xs[xs.length-1], H-pad.b);
+  ctx.lineTo(xs[0], H-pad.b);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // linha
+  ctx.beginPath();
+  ctx.moveTo(xs[0], ys[0]);
+  for(let i=1;i<xs.length;i++) ctx.lineTo(xs[i],ys[i]);
+  ctx.strokeStyle = '#00B4AC';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // ponto no mês atual (último)
+  const lx = xs[xs.length-1], ly = ys[ys.length-1];
+  ctx.beginPath();
+  ctx.arc(lx, ly, 4, 0, Math.PI*2);
+  ctx.fillStyle = '#00B4AC';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
 async function loadCofre() {
   const {data,error} = await sb.from('fin_livro_caixa_cofre')
     .select('*')
@@ -3314,6 +3488,8 @@ async function loadCofre() {
   document.getElementById('cofre-saldo').style.color = saldo < 0 ? 'var(--red)' : 'var(--teal)';
   const hoje2 = new Date().toLocaleDateString('pt-BR');
   document.getElementById('cofre-data').textContent = 'Última atualização: ' + (rows.length ? formatData(rows[rows.length-1].data) : hoje2);
+
+  renderCofreLateral(rows);
 
   if(!rows.length) {
     document.getElementById('tbl-cofre').innerHTML='<div class="cf-empty">Nenhuma movimentação registrada.</div>';
