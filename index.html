@@ -119,6 +119,7 @@ table.tbl{width:100%;border-collapse:collapse}
 
 /* ── BOTÕES ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn:disabled{opacity:.55;cursor:not-allowed;pointer-events:none}
 .btn-primary{background:var(--teal);color:var(--white)}
 .btn-primary:hover{background:var(--turq)}
 .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
@@ -633,6 +634,9 @@ body.capturing .rel-acao{display:none!important}
       <div class="page" id="page-reembolsos">
         <div class="page-header">
           <div><h2>Meus Reembolsos</h2><p id="rem-subtitulo">Histórico completo de solicitações</p></div>
+          <button class="btn btn-primary btn-sm" onclick="regularizarTudoReembolsos()" id="btn-regularizar" title="Envia todos os relatórios pendentes ao financeiro e reconcilia com extrato/cofre">
+  ⚡ Regularizar tudo
+</button>
           <button class="btn btn-outline btn-sm" onclick="loadReembolsos()">↺ Atualizar</button>
         </div>
 
@@ -3158,7 +3162,139 @@ async function loadReembolsos(){
   atualizarMesGrid();
 
   await carregarHistoricoRem();
+
+  // Reconciliação silenciosa em background
+  setTimeout(()=>reconciliarReembolsosAuto(true).then(n=>{
+    if(n>0){
+      toast(`✅ ${n} reembolso${n>1?'s':''} reconciliado${n>1?'s':''} automaticamente`);
+      carregarHistoricoRem();
+      carregarHistoricoDigital();
+      loadPagar();loadDash();
+    }
+  }),800);
 }
+
+async function regularizarTudoReembolsos(){
+  const btn=document.getElementById('btn-regularizar');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Processando…';}
+  try{
+    let enviados=0;
+    // Passo 1: enviar todos "Gerado" ao financeiro
+    const todosRows=[..._histRemRows,..._digRemRows];
+    for(const r of todosRows){
+      if(r.statusDisplay==='Gerado'){
+        const tipo=_digRemRows.includes(r)?'digital':'visita';
+        try{
+          const res=await upsertContaReembolso(tipo,r.mes,r.total,r.qtd);
+          if(res.ok)enviados++;
+        }catch(e){console.error('[regularizar] erro em '+r.mes,e);}
+      }
+    }
+    // Passo 2: reconciliação automática
+    const reconciliados=await reconciliarReembolsosAuto(true);
+    // Passo 3: recarregar
+    await carregarHistoricoRem();
+    await carregarHistoricoDigital();
+    loadPagar();loadDash();
+    const msg=[];
+    if(enviados>0)msg.push(`${enviados} relatório${enviados>1?'s':''} enviado${enviados>1?'s':''} ao financeiro`);
+    if(reconciliados>0)msg.push(`${reconciliados} pagamento${reconciliados>1?'s':''} reconciliado${reconciliados>1?'s':''} automaticamente`);
+    if(msg.length===0)msg.push('Tudo já estava em dia!');
+    toast('✅ '+msg.join(' · '));
+  }catch(e){
+    toast('Erro ao regularizar: '+e.message,true);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='⚡ Regularizar tudo';}
+  }
+}
+
+async function reconciliarReembolsosAuto(silencioso=false){
+  try{
+    // 1. Buscar contas a pagar de reembolso que NÃO estão pagas
+    const{data:contasAbertas}=await sb.from('fin_contas_pagar')
+      .select('id,competencia,tipo_reembolso,valor,status,num_controle')
+      .in('tipo_reembolso',['visita','digital'])
+      .neq('status','Pago')
+      .not('estornado','eq',true);
+    if(!contasAbertas||!contasAbertas.length)return 0;
+
+    // 2. Buscar todas as saídas do cofre (tipo Saída) dos últimos 12 meses
+    const dataLimite=new Date();dataLimite.setMonth(dataLimite.getMonth()-12);
+    const{data:saidasCofre}=await sb.from('fin_livro_caixa_cofre')
+      .select('id,data,valor,descricao,origem')
+      .eq('tipo','Saída')
+      .gte('data',dataLimite.toISOString().slice(0,10));
+
+    // 3. Buscar débitos bancários dos últimos 12 meses
+    const{data:debitosBanco}=await sb.from('fin_transacoes_bancarias')
+      .select('id,data,valor,descricao,tipo')
+      .gte('data',dataLimite.toISOString().slice(0,10));
+
+    let reconciliados=0;
+
+    for(const conta of contasAbertas){
+      const valorAlvo=conta.valor; // centavos
+      const TOLERANCIA=100; // ±R$1,00
+
+      // Tentar match no cofre primeiro
+      const matchCofre=(saidasCofre||[]).find(s=>
+        Math.abs(s.valor-valorAlvo)<=TOLERANCIA &&
+        s.origem!=='Automático' // evitar duplicar lançamentos que o próprio sistema fez
+      );
+
+      // Tentar match no banco (débitos têm valor negativo ou tipo Débito)
+      const matchBanco=(debitosBanco||[]).find(t=>{
+        const vt=Math.abs(t.valor);
+        return Math.abs(vt-valorAlvo)<=TOLERANCIA && (t.tipo==='Débito'||t.valor<0);
+      });
+
+      const match=matchCofre||matchBanco;
+      if(!match)continue;
+
+      const fonte=matchCofre?'cofre':'banco';
+      const dataMatch=match.data;
+
+      // Marcar como Pago
+      const{error}=await sb.from('fin_contas_pagar').update({
+        status:'Pago',
+        data_pagamento:dataMatch,
+        fonte_pagamento:fonte,
+      }).eq('id',conta.id);
+      if(error){console.error('[reconciliar] erro ao pagar conta '+conta.id,error);continue;}
+
+      // Cascata: marcar reembolsos do mês como Pagos
+      if(conta.competencia&&conta.tipo_reembolso){
+        const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
+        await sb.from(tabela).update({status:'Pago'}).eq('mes',conta.competencia);
+      }
+
+      reconciliados++;
+      if(!silencioso){
+        toast(`✅ ${conta.num_controle||conta.competencia} reconciliado via ${fonte==='cofre'?'Cofre':'Banco'}`);
+      }
+    }
+
+    return reconciliados;
+  }catch(e){
+    console.error('[reconciliarAuto]',e);
+    return 0;
+  }
+}
+
+// Reconciliação periódica a cada 5 minutos (apenas se aba reembolsos estiver visível)
+setInterval(()=>{
+  const pag=document.getElementById('page-reembolsos');
+  if(pag&&pag.style.display!=='none'){
+    reconciliarReembolsosAuto(true).then(n=>{
+      if(n>0){
+        toast(`✅ ${n} reembolso${n>1?'s':''} reconciliado${n>1?'s':''} automaticamente`);
+        carregarHistoricoRem();
+        carregarHistoricoDigital();
+        loadPagar();loadDash();
+      }
+    });
+  }
+},5*60*1000);
 
 // ═══════════════════════════════════════════════════════════════
 // COFRE — LIVRO CAIXA
