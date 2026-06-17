@@ -1105,17 +1105,33 @@ body.capturing .rel-acao{display:none!important}
 <!-- MODAL: MARCAR PAGO -->
 <div class="modal-bg" id="modal-pago">
   <div class="modal">
-    <div class="modal-hd"><h3>Marcar como Pago</h3><button onclick="closeModal('modal-pago')">×</button></div>
+    <div class="modal-hd"><h3>Registrar Pagamento</h3><button onclick="closeModal('modal-pago')">×</button></div>
     <div class="modal-bd">
       <input type="hidden" id="mpag-id">
+      <input type="hidden" id="mpag-valor">
+      <input type="hidden" id="mpag-desc">
       <div class="form-row"><label>Data do Pagamento *</label><input id="mpag-data" type="date"></div>
-      <div class="form-row"><label>Conta Bancária (opcional)</label>
-        <select id="mpag-conta"><option value="">Sem vínculo</option></select>
+      <div class="form-row">
+        <label>Fonte do Pagamento *</label>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600">
+            <input type="radio" name="mpag-fonte" value="banco" checked> 🏦 Banco Sicoob
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600">
+            <input type="radio" name="mpag-fonte" value="cofre"> 🔒 Cofre (dinheiro)
+          </label>
+        </div>
+      </div>
+      <div id="mpag-banco-info" style="font-size:12px;color:var(--text2);margin-top:4px;padding:8px 10px;background:var(--gray);border-radius:6px">
+        💡 O débito será registrado como aguardando conciliação. Quando o extrato do Sicoob chegar, faça o match na aba Extratos.
+      </div>
+      <div id="mpag-cofre-info" style="font-size:12px;color:var(--text2);margin-top:4px;padding:8px 10px;background:var(--gray);border-radius:6px;display:none">
+        💡 Uma saída será lançada automaticamente no Cofre.
       </div>
     </div>
     <div class="modal-ft">
       <button class="btn btn-outline" onclick="closeModal('modal-pago')">Cancelar</button>
-      <button class="btn btn-green" onclick="confirmarPago()">Confirmar</button>
+      <button class="btn btn-green" onclick="confirmarPago()">Confirmar Pagamento</button>
     </div>
   </div>
 </div>
@@ -1705,14 +1721,14 @@ function renderPagar(){
   _applySortHeaders('tbl-pagar','pcol',_sortPagar);
   document.getElementById('tbl-pagar').innerHTML=rows.length?rows.map(r=>`
     <tr>
-      <td>${esc(r.fornecedor)}</td>
+      <td>${esc(r.fornecedor)}${r.num_controle?`<span style="font-size:10px;font-family:monospace;color:var(--teal);margin-left:6px">[${r.num_controle}]</span>`:''}</td>
       <td>${esc(r.categoria)}</td>
       <td>${formatData(r.data_vencimento)}</td>
       <td>${fmt(r.valor)}</td>
       <td>${badgeSt(r.status,r.data_vencimento)}</td>
       <td style="white-space:nowrap">
         ${r.status===ST_AGUARDANDO?`<button class="btn btn-primary btn-sm" onclick="aprovarConta(${r.id})">✓ Aprovar e lançar</button> `:''}
-        ${r.status==='Pendente'&&!r.estornado?`<button class="btn btn-green btn-sm" onclick="openMarcarPago(${r.id})">Pagar</button> `:''}
+        ${r.status==='Pendente'&&!r.estornado?`<button class="btn btn-green btn-sm" onclick="openMarcarPago(${r.id},${r.valor},'${esc(r.fornecedor||'')}')">Pagar</button> `:''}
         ${r.status==='Pago'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="openEstornoP(${r.id})">Estornar</button> `:''}
         <button class="btn btn-outline btn-sm" onclick="editPagar(${r.id})">✎</button>
         <button class="btn btn-danger btn-sm" onclick="delPagar(${r.id})">✕</button>
@@ -1768,29 +1784,66 @@ async function delPagar(id){
   toast('Conta excluída');loadPagar();loadDash();
 }
 
-function openMarcarPago(id){
+function openMarcarPago(id, valor, desc){
   document.getElementById('mpag-id').value=id;
   document.getElementById('mpag-data').value=hoje();
+  document.getElementById('mpag-valor').value=valor||0;
+  document.getElementById('mpag-desc').value=desc||'';
+  // reset radio para banco
+  document.querySelectorAll('input[name="mpag-fonte"]').forEach(r=>r.checked=(r.value==='banco'));
+  document.getElementById('mpag-banco-info').style.display='block';
+  document.getElementById('mpag-cofre-info').style.display='none';
   document.getElementById('modal-pago').classList.add('open');
 }
 
 async function confirmarPago(){
   const id=document.getElementById('mpag-id').value;
   const data=document.getElementById('mpag-data').value;
-  const contaId=document.getElementById('mpag-conta').value||null;
-  if(!data){toast('Informe a data',true);return;}
-  const upd={status:'Pago',data_pagamento:data};
-  if(contaId)upd.conta_bancaria_id=parseInt(contaId);
-  // Busca o vínculo de reembolso antes de atualizar (para cascatear o status)
-  const{data:conta}=await sb.from('fin_contas_pagar').select('competencia,tipo_reembolso').eq('id',id).single();
+  const valorCents=parseInt(document.getElementById('mpag-valor').value)||0;
+  const desc=document.getElementById('mpag-desc').value||'Pagamento';
+  const fonte=document.querySelector('input[name="mpag-fonte"]:checked')?.value||'banco';
+  if(!data){toast('Informe a data de pagamento',true);return;}
+
+  // Busca dados da conta antes de atualizar
+  const{data:conta}=await sb.from('fin_contas_pagar')
+    .select('competencia,tipo_reembolso,valor,fornecedor,num_controle')
+    .eq('id',id).single();
+
+  const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte};
   const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
-  if(error){toast('Erro',true);return;}
-  // Cascata: marca os reembolsos do mês como Pagos
-  if(conta&&conta.competencia&&conta.tipo_reembolso){
+  if(error){toast('Erro ao registrar pagamento',true);return;}
+
+  // Cascata: marca reembolsos do mês como Pagos
+  if(conta?.competencia&&conta?.tipo_reembolso){
     const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
     await sb.from(tabela).update({status:'Pago'}).eq('mes',conta.competencia);
   }
-  closeModal('modal-pago');toast('Marcado como pago!');loadPagar();loadDash();
+
+  // Se pagamento pelo Cofre: lança saída automática
+  if(fonte==='cofre'&&valorCents>0){
+    const{data:{user}}=await sb.auth.getUser();
+    const numCtrl=conta?.num_controle||'';
+    const descCofre=conta?.fornecedor||(desc||'Pagamento');
+    await sb.from('fin_livro_caixa_cofre').insert({
+      user_id:user.id, data, tipo:'Saída',
+      descricao:descCofre+(numCtrl?` [${numCtrl}]`:''),
+      valor:valorCents, saldo_anterior:0, saldo_atual:0,
+      origem:'Automático', observacao:`Pagamento via cofre — ${data}`
+    });
+    await recalcularTodosSaldosCofre();
+    loadCofre();
+    toast('Pago! Saída lançada no Cofre automaticamente.');
+  }else{
+    toast('Pago! Aguardando conciliação com extrato Sicoob.');
+  }
+
+  closeModal('modal-pago');
+  loadPagar();loadDash();
+  // Atualizar histórico de reembolsos se for reembolso
+  if(conta?.tipo_reembolso){
+    if(conta.tipo_reembolso==='digital') carregarHistoricoDigital();
+    else carregarHistoricoRem();
+  }
 }
 
 function openEstornoP(id){
@@ -2309,9 +2362,27 @@ async function upsertContaReembolso(tipo,mes,totalCent,qtd){
 
   // Se já existe conta para este mês/tipo e ela já foi paga, não rebaixa o status.
   const{data:existente}=await sb.from('fin_contas_pagar')
-    .select('id,status,estornado').eq('competencia',mes).eq('tipo_reembolso',tipo).maybeSingle();
+    .select('id,status,estornado,num_controle').eq('competencia',mes).eq('tipo_reembolso',tipo).maybeSingle();
   if(existente&&existente.status==='Pago'&&!existente.estornado){
     return{skipped:true,motivo:'já pago'};
+  }
+
+  // Gerar num_controle consistente com renderHistRem
+  const _partes=mes.toLowerCase().split('/');
+  const _anoCtrl=_partes.length>1?'20'+_partes[1]:'2026';
+  const _prefixo=tipo==='digital'?'RD':'REL';
+  // Buscar quantas contas do mesmo tipo/ano já existem para gerar sequência
+  const{data:existentes}=await sb.from('fin_contas_pagar')
+    .select('num_controle')
+    .eq('tipo_reembolso',tipo)
+    .ilike('num_controle',`${_prefixo}-${_anoCtrl}-%`);
+  // Calcular próximo índice (ou manter o existente se já existe para este competencia)
+  let _numCtrl;
+  if(existente&&existente.num_controle){
+    _numCtrl=existente.num_controle; // mantém o número já atribuído
+  }else{
+    const _idx=(existentes||[]).length+1;
+    _numCtrl=`${_prefixo}-${_anoCtrl}-${String(_idx).padStart(3,'0')}`;
   }
 
   const payload={
@@ -2326,6 +2397,7 @@ async function upsertContaReembolso(tipo,mes,totalCent,qtd){
     tipo_reembolso:tipo,
     responsavel_user_id:resp.user_id,
     status:existente?existente.status:ST_AGUARDANDO,
+    num_controle:_numCtrl,
   };
   const{error}=await sb.from('fin_contas_pagar')
     .upsert(payload,{onConflict:'competencia,tipo_reembolso'});
@@ -2488,6 +2560,11 @@ try{
   }
   _relatorio={mes,visitas:data,total,porCidade};
 
+  // Determinar se já está pago — consulta _histRemRows (já carregado)
+  const histRow=_histRemRows.find(r=>r.mes===mes);
+  const isPago=histRow?.statusDisplay==='Pago';
+  const isEnviado=histRow?.statusDisplay==='Enviado';
+
   // Calcular data prevista de pagamento (dia 15 do mês seguinte)
   const MESES={'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
   const partes=mes.toLowerCase().split('/');
@@ -2590,8 +2667,8 @@ try{
 
   _previewModo='visita';
   document.getElementById('prev-rel-title').textContent='Preview do Relatório de Reembolsos';
-  document.getElementById('prev-btn-addvis').style.display='';
-  document.getElementById('prev-btn-cpagar').style.display='';
+  document.getElementById('prev-btn-addvis').style.display=isPago?'none':'';
+  document.getElementById('prev-btn-cpagar').style.display=(isPago||isEnviado)?'none':'';
   document.getElementById('modal-preview-rel').classList.add('open');
 }catch(e){console.error('[rel]',e);toast('Erro ao abrir preview: '+e.message,true);}
 }
@@ -2968,7 +3045,10 @@ try{
   _previewModo='digital';
   document.getElementById('prev-rel-title').textContent='Preview do Relatório Digital';
   document.getElementById('prev-btn-addvis').style.display='none';
-  document.getElementById('prev-btn-cpagar').style.display='none';
+  const histRowDig=_digRemRows.find(r=>r.mes===mes);
+  const isDigPago=histRowDig?.statusDisplay==='Pago';
+  const isDigEnviado=histRowDig?.statusDisplay==='Enviado';
+  document.getElementById('prev-btn-cpagar').style.display=(isDigPago||isDigEnviado)?'none':'';
   document.getElementById('modal-preview-rel').classList.add('open');
 }catch(e){console.error('[rel-dig]',e);toast('Erro ao abrir preview: '+e.message,true);}
 }
@@ -3214,6 +3294,14 @@ async function registrarEntradaAutomaticaCofre(conta, dataRecebimento) {
 }
 
 // Verificar callback Google no carregamento da página
+document.addEventListener('change', function(e){
+  if(e.target.name === 'mpag-fonte'){
+    const isCofre = e.target.value === 'cofre';
+    document.getElementById('mpag-banco-info').style.display = isCofre ? 'none' : 'block';
+    document.getElementById('mpag-cofre-info').style.display = isCofre ? 'block' : 'none';
+  }
+});
+
 window.addEventListener('DOMContentLoaded',()=>{
   handleGoogleCallback();
 });
