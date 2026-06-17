@@ -1413,10 +1413,10 @@ function toggleTheme(){
   const next = dark ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   document.getElementById('theme-label').textContent = next==='dark' ? 'Tema claro' : 'Tema escuro';
-  localStorage.setItem('fin-theme', next);
+  localStorage.setItem('dk-theme', next);
 }
 (function(){
-  const t = localStorage.getItem('fin-theme');
+  const t = localStorage.getItem('dk-theme');
   if(t==='dark'){
     document.documentElement.setAttribute('data-theme','dark');
     const lbl = document.getElementById('theme-label');
