@@ -115,24 +115,28 @@ values
    'CONDOMÍNIO RESIDENCIAL MONTE CARLO',
    null,
    'Paulínia', 'SP', '13140135', '3536505',
-   null, null,
+   'montecarlopaulinia@gmail.com', null,
    295000, false, null,
-   E'Prestação de serviços técnicos de engenharia condominial, conforme contrato.\nPIX CNPJ: 54.027.948/0001-60 DIAGNOSTIKA ENGENHARIA\nVencimento {{vencimento}}',
-   null, null, null, false),
+   E'Prestação de serviços técnicos de engenharia, compreendendo assessoria mensal à administração condominial, emissão de pareceres técnicos, vistorias em campo e apoio à gestão de manutenção predial\nSERVIÇOS DE ENGENHARIA\nPIX CNPJ: 54.027.948/0001-60 DIAGNOSTIKA ENGENHARIA\nVencimento {{vencimento}}',
+   null, null, null, true),
 
   ('Morada Morumbi',
    '42407400000166',
    'CONDOMÍNIO MORADA MORUMBI',
    null,
-   'Paulínia', 'SP', null, '3536505',
-   null, null,
+   'Paulínia', 'SP', '13140770', '3536505',
+   'sindico.moradamorumbi@gmail.com', null,
    243150, false, null,
-   E'Prestação de serviços técnicos de engenharia condominial, conforme contrato.\nPIX CNPJ: 54.027.948/0001-60 DIAGNOSTIKA ENGENHARIA\nVencimento {{vencimento}}',
-   null, null, null, false)
+   E'Prestação de serviços técnicos de engenharia, compreendendo assessoria mensal à administração condominial, emissão de pareceres técnicos, vistorias em campo e apoio à gestão de manutenção predial\nSERVIÇOS DE ENGENHARIA\nPIX CNPJ: 54.027.948/0001-60 DIAGNOSTIKA ENGENHARIA\nVencimento {{vencimento}}',
+   null, null, null, true)
 
 on conflict (cnpj) do update set
   nome = excluded.nome,
   razao_social = excluded.razao_social,
+  endereco = coalesce(excluded.endereco, public.fin_clientes.endereco),
+  cep = coalesce(excluded.cep, public.fin_clientes.cep),
+  email_financeiro = coalesce(excluded.email_financeiro, public.fin_clientes.email_financeiro),
+  descricao_padrao = coalesce(excluded.descricao_padrao, public.fin_clientes.descricao_padrao),
   valor_mensal = excluded.valor_mensal,
   faturamento_ativo = excluded.faturamento_ativo,
   updated_at = now();
