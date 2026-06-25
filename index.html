@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co https://84.46.248.23.sslip.io; img-src 'self' data: blob: https://fimmjgdwhifsrrbreche.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self';">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Financeiro · Diagnóstika</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -240,6 +241,7 @@ body.capturing .rel-acao{display:none!important}
 .nfse-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;border-left:4px solid var(--gray3);transition:border-color .15s}
 .nfse-card.sel{border-left-color:var(--turq)}
 .nfse-card.emitida{border-left-color:var(--green);opacity:.92}
+.nfse-card.fat-desab{opacity:.55;border-left-color:#aaa}.nfse-card.fat-desab .nfse-valor{color:#999}
 .nfse-card-hd{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer}
 .nfse-card-hd:hover{background:#f9fbfc}
 .nfse-chk{width:18px;height:18px;accent-color:var(--teal);cursor:pointer;flex-shrink:0}
@@ -290,6 +292,21 @@ body.capturing .rel-acao{display:none!important}
 .ex-upload-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .ex-upload-txt b{font-size:13.5px;color:var(--text)}
 .ex-upload-txt small{font-size:11.5px;color:var(--gray4)}
+/* Sicoob sync */
+.sicoob-sync-card{border:1.5px solid var(--gray3);border-radius:var(--r);padding:14px 18px;background:var(--white);margin-bottom:12px}
+.sicoob-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sicoob-status{display:flex;align-items:center;gap:8px}
+.sicoob-dot{width:10px;height:10px;border-radius:50%;background:var(--gray3);flex:none}
+.sicoob-dot.green{background:#22C55E}.sicoob-dot.yellow{background:#EAB308}.sicoob-dot.red{background:#EF4444}
+.sicoob-label{font-size:13px;color:var(--text2)}
+.sicoob-saldo{text-align:right;display:flex;flex-direction:column;gap:1px}
+.sicoob-saldo small{font-size:11px;color:var(--gray4)}.sicoob-saldo b{font-size:15px;color:var(--teal)}
+.sicoob-actions{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.sicoob-last-sync{font-size:11.5px;color:var(--gray4)}
+.ex-pdf-fallback{margin-bottom:8px}.ex-pdf-fallback summary{font-size:12.5px;color:var(--gray4);cursor:pointer;padding:4px 0}
+.ex-pdf-fallback summary:hover{color:var(--teal)}
+.ex-pdf-fallback .ex-upload-bar{margin-top:8px}
+[data-theme="dark"] .sicoob-sync-card{background:var(--card-bg);border-color:var(--gray3)}
 /* DRE contábil */
 .dre-tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px}
 .dre-tbl th,.dre-tbl td{padding:6px 10px;text-align:right;white-space:nowrap}
@@ -807,19 +824,41 @@ body.capturing .rel-acao{display:none!important}
       <!-- EXTRATOS & CONCILIAÇÃO -->
       <div class="page" id="page-extrato">
         <div class="page-header">
-          <div><h2>Extratos &amp; Conciliação</h2><p>Importe o extrato bancário (PDF) e concilie cada lançamento com as contas a receber/pagar</p></div>
+          <div><h2>Extratos &amp; Conciliação</h2><p>Sincronize com o Sicoob ou importe extrato manualmente</p></div>
         </div>
 
-        <!-- Upload (compacto) -->
-        <div class="ex-upload-bar" id="ex-drop" onclick="document.getElementById('ex-input').click()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-          <div class="ex-upload-txt">
-            <b>Importar extrato (PDF)</b>
-            <small>Arraste aqui ou clique — Sicoob, conferido pelo saldo antes de importar</small>
+        <!-- Sicoob Sync -->
+        <div class="sicoob-sync-card" id="sicoob-card">
+          <div class="sicoob-header">
+            <div class="sicoob-status">
+              <span class="sicoob-dot" id="sicoob-dot"></span>
+              <span class="sicoob-label" id="sicoob-label">Verificando conexão…</span>
+            </div>
+            <div class="sicoob-saldo" id="sicoob-saldo" style="display:none">
+              <small>Saldo atual</small>
+              <b id="sicoob-saldo-val">—</b>
+            </div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();document.getElementById('ex-input').click()">Selecionar PDF</button>
-          <input type="file" id="ex-input" accept=".pdf" multiple style="display:none" onchange="extratoArquivos(this.files)">
+          <div class="sicoob-actions">
+            <button class="btn btn-primary btn-sm" id="btn-sicoob-sync" onclick="sicoobSync()">🏦 Sincronizar Sicoob</button>
+            <span class="sicoob-last-sync" id="sicoob-last-sync"></span>
+          </div>
+          <div id="sicoob-msg" style="font-size:12.5px;margin-top:6px;color:var(--text2)"></div>
         </div>
+
+        <!-- Fallback: Upload PDF manual -->
+        <details class="ex-pdf-fallback">
+          <summary>…ou importar extrato PDF manualmente</summary>
+          <div class="ex-upload-bar" id="ex-drop" onclick="document.getElementById('ex-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <div class="ex-upload-txt">
+              <b>Importar extrato (PDF)</b>
+              <small>Arraste aqui ou clique — Sicoob, conferido pelo saldo antes de importar</small>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();document.getElementById('ex-input').click()">Selecionar PDF</button>
+            <input type="file" id="ex-input" accept=".pdf" multiple style="display:none" onchange="extratoArquivos(this.files)">
+          </div>
+        </details>
         <div id="ex-status" style="font-size:13px;margin:8px 2px 0"></div>
 
         <!-- Pré-visualização da importação -->
@@ -1033,7 +1072,7 @@ body.capturing .rel-acao{display:none!important}
   <div class="modal">
     <div class="modal-hd"><h3>Novo cliente</h3><button onclick="closeModal('modal-cliente')">×</button></div>
     <div class="modal-bd">
-      <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Adiciona um condomínio/cliente à lista de emissão de NFS-e. Fica salvo neste navegador.</p>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Adiciona um condomínio/cliente ao cadastro (Supabase). Ficará disponível em qualquer dispositivo.</p>
       <div class="form-row"><label>Nome do condomínio/cliente *</label><input id="nc-nome" placeholder="Ex.: Residencial Bela Vista"></div>
       <div class="form-2col">
         <div class="form-row"><label>CNPJ *</label><input id="nc-cnpj" placeholder="só números"></div>
@@ -3630,31 +3669,30 @@ const NFSE_PRESTADOR={
   pix_chave:'54.027.948/0001-60', pix_banco:'Sicoob', vencimento_dia:20
 };
 
-// Cadastro espelhado de cadastro-condominios.json (revisar sempre antes de emitir)
-const NFSE_CONDOS=[
-  { id:'jardins_malta', nome:'Residencial Jardins do Malta',
-    tomador:{cnpj:'39520821000194',inscricao_municipal:'',razao_social:'CONDOMÍNIO RESIDENCIAL JARDINS DO MALTA',municipio:'Hortolândia',cod_municipio:'3519055',cep:'13185096',uf:'SP',email:'financeiro01@apto.adm.br'},
-    valor:'2000.00', iss_retido:'2',
-    descricao:'Prestação de serviços técnicos mensais de assessoria em engenharia condominial, conforme contrato. Incluindo visitas técnicas, emissão de documentos, suporte remoto, análise de obras e reformas.\nPagamento realizado via PIX Chave CNPJ: 54.027.948/0001-60.\nVencimento {{vencimento}}',
-    envio:'E-mail automático da prefeitura + MegaZap p/ administradora Apto', megazap:true },
-  { id:'village_matisse', nome:'Edifício Village Matisse',
-    tomador:{cnpj:'54127097000127',inscricao_municipal:'001017195',razao_social:'CONDOMINIO EDIFICIO VILLAGE MATISSE',municipio:'Campinas',cod_municipio:'3509502',cep:'13026002',uf:'SP',email:'merlizc@hotmail.com'},
-    valor:'1150.00', iss_retido:'1',
-    parcelamento:{ativo:true,parcela_atual:8,total:12,contrato:'DK-2025-VM'},
-    descricao:'Serviços de engenharia - Elaboração de Projeto de Infraestrutura para Ar Condicionado - Contrato DK-2025-VM - Parcela {{parcela}}/12.\nValor: R$ {{valor}}\nVencimento: {{vencimento}}\nForma de Pagamento: PIX\nDados Bancários:\nBanco Sicoob - Diagnóstika Engenharia LTDA - CNPJ 54.027.948/0001-60\nChave PIX: 54.027.948/0001-60',
-    envio:'E-mail automático da prefeitura' },
-  { id:'santa_clara', nome:'Residencial Santa Clara',
-    tomador:{cnpj:'39836306000118',inscricao_municipal:'',razao_social:'RESIDENCIAL SANTA CLARA',municipio:'Paulínia',cod_municipio:'3536505',cep:'13145756',uf:'SP',email:'financeiro@rbodemir.com.br'},
-    valor:'1621.00', iss_retido:'2',
-    descricao:'Prestação de serviços técnicos de engenharia, compreendendo assessoria mensal à administração condominial, emissão de pareceres técnicos, vistorias em campo e apoio à gestão de manutenção predial\nSERVIÇOS DE ENGENHARIA\nPIX CNPJ: 54.027.948/0001-60 DIAGNOSTIKA ENGENHARIA\nVencimento {{vencimento}}',
-    envio:'E-mail automático da prefeitura' },
-  { id:'portal_primavera', nome:'Portal Primavera',
-    tomador:{cnpj:'26481953000102',inscricao_municipal:'',razao_social:'PORTAL PRIMAVERA',municipio:'Hortolândia',cod_municipio:'3519055',cep:'13183255',uf:'SP',email:'contasapagar@destracondominios.com'},
-    valor:'1750.00', iss_retido:'2',
-    descricao:'Prestação de serviços técnicos de engenharia, compreendendo assessoria mensal à administração condominial, emissão de pareceres técnicos, vistorias em campo, apoio à gestão de manutenção predial e acompanhamento técnico conforme contrato firmado.\nValor faturado nesta competência conforme condição comercial concedida por liberalidade, em caráter provisório, sem prejuízo das condições contratuais vigentes\nR$ {{valor}} Contrato mensal\nForma de pagamento: PIX para Diagnóstika Engenharia LTDA CNPJ 54.027.948/0001-60\nBanco: Sicoob\nChave PIX: 54.027.948/0001-60\nVencimento: {{vencimento}}',
-    obs:'Pode ter itens avulsos (ex.: ART de laudo). Revisar valor e descrição.',
-    envio:'E-mail automático da prefeitura' },
-];
+// Cadastro de condomínios — carregado do Supabase (fin_clientes)
+let NFSE_CONDOS=[];
+
+function _dbToNfseCondo(r){
+  const valorReais=(r.valor_mensal/100).toFixed(2);
+  return {
+    id:r.id, nome:r.nome, db_id:r.id,
+    faturamento_ativo:r.faturamento_ativo,
+    tomador:{cnpj:r.cnpj,inscricao_municipal:r.inscricao_municipal||'',razao_social:r.razao_social||r.nome.toUpperCase(),municipio:r.cidade||'',cod_municipio:r.cod_municipio||'',cep:r.cep||'',uf:r.uf||'SP',email:r.email_financeiro||''},
+    valor:valorReais, iss_retido:r.iss_retido?'1':'2',
+    parcelamento:r.parcelas_total?{ativo:true,parcela_atual:r.parcelas_emitidas||1,total:r.parcelas_total}:null,
+    descricao:r.descricao_padrao||'Prestação de serviços técnicos de engenharia condominial, conforme contrato.\nPIX CNPJ: 54.027.948/0001-60\nVencimento {{vencimento}}',
+    canal_envio:r.canal_envio, megazap:r.canal_envio==='megazap',
+    envio:r.canal_envio==='megazap'?'E-mail automático da prefeitura + MegaZap':'E-mail automático da prefeitura'
+  };
+}
+
+async function _nfseCarregarClientes(){
+  try{
+    const{data,error}=await sb.from('fin_clientes').select('*').eq('ativo',true).order('nome');
+    if(error){ console.warn('fin_clientes',error.message); return; }
+    NFSE_CONDOS=data.map(_dbToNfseCondo);
+  }catch(e){ console.warn('fin_clientes load',e); }
+}
 const _MESES_NF=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let _nfseAmbiente='homologacao';
 let _nfseInit=false;
@@ -3662,18 +3700,12 @@ let _nfseInit=false;
 const _nfseEstado={};
 
 // clientes adicionados pelo usuário (persistidos em localStorage)
-const NFSE_CONDOS_KEY='diag_nfse_condos_extra';
-function _nfseCarregarExtras(){
-  try{
-    const arr=JSON.parse(localStorage.getItem(NFSE_CONDOS_KEY)||'[]');
-    arr.forEach(c=>{ if(!NFSE_CONDOS.some(x=>x.id===c.id)) NFSE_CONDOS.push(c); });
-  }catch(e){}
-}
+// localStorage extras removido — tudo via fin_clientes no Supabase
 
-function initNfse(){
+async function initNfse(){
   if(_nfseInit){ renderNfse(); return; }
   _nfseInit=true;
-  _nfseCarregarExtras();
+  await _nfseCarregarClientes();
   // popular mês/ano
   const ms=document.getElementById('nfse-mes'); ms.innerHTML='';
   _MESES_NF.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;ms.appendChild(o);});
@@ -3720,13 +3752,14 @@ function renderNfse(){
     const st=_nfseEstado[c.id];
     const issRet=c.iss_retido==='1';
     const card=document.createElement('div');
-    card.className='nfse-card'+(st.sel?' sel':'')+(st.resultado?.ok?' emitida':'');
+    const fatDesab=c.faturamento_ativo===false;
+    card.className='nfse-card'+(st.sel&&!fatDesab?' sel':'')+(st.resultado?.ok?' emitida':'')+(fatDesab?' fat-desab':'');
     const t=c.tomador;
     card.innerHTML=`
       <div class="nfse-card-hd" onclick="if(event.target.tagName!=='INPUT')this.parentNode.classList.toggle('open')">
-        <input type="checkbox" class="nfse-chk" ${st.sel?'checked':''} onclick="event.stopPropagation();toggleNfseSel('${c.id}',this.checked)">
+        <input type="checkbox" class="nfse-chk" ${st.sel&&!fatDesab?'checked':''} ${fatDesab?'disabled':''} onclick="event.stopPropagation();toggleNfseSel('${c.id}',this.checked)">
         <div class="nfse-nome">
-          <b>${esc(c.nome)}${c.megazap?'<span class="nfse-flag">📲 MegaZap</span>':''}</b>
+          <b>${esc(c.nome)}${c.megazap?'<span class="nfse-flag">📲 MegaZap</span>':''}${fatDesab?'<span class="nfse-flag" style="background:#dc3545;color:#fff">Faturamento inativo</span>':''}</b>
           <small>${esc(t.municipio)} · CNPJ ${esc(t.cnpj)}${c.parcelamento?' · Parcela '+st.parcela+'/'+c.parcelamento.total:''}</small>
         </div>
         <span class="nfse-iss ${issRet?'ret':'nret'}">${issRet?'ISS retido':'ISS não retido'}</span>
@@ -3745,9 +3778,9 @@ function renderNfse(){
           <b>Tomador:</b> ${esc(t.razao_social)} · ${esc(t.email)}<br>
           <b>Vencimento:</b> ${_nfseVencimento()} · <b>PIX:</b> ${NFSE_PRESTADOR.pix_chave} (${NFSE_PRESTADOR.pix_banco})<br>
           <b>Envio:</b> ${esc(c.envio)}${c.obs?'<br><b>⚠ '+esc(c.obs)+'</b>':''}
-          ${c.custom?`<br><button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="removerClienteCustom('${c.id}')">Remover cliente</button>`:''}
+          <br><button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="removerClienteCustom('${c.id}')">Desativar cliente</button>
         </div>
-        ${st.resultado?`<div class="nfse-resultado ${st.resultado.ok?'ok':'erro'}">${st.resultado.msg}</div>`:''}
+        ${st.resultado?`<div class="nfse-resultado ${st.resultado.ok?'ok':'erro'}">${esc(st.resultado.msg)}</div>`:''}
       </div>`;
     cont.appendChild(card);
   });
@@ -3757,7 +3790,7 @@ function toggleNfseSel(id,v){ _nfseEstado[id].sel=v; renderNfse(); }
 function setNfseCampo(id,campo,v){ _nfseEstado[id][campo]=v; if(campo==='descricao')_nfseEstado[id].dirty=true; if(campo==='valor'||campo==='parcela')renderNfse(); }
 function _nfseTotais(){
   let qtd=0,total=0;
-  NFSE_CONDOS.forEach(c=>{const st=_nfseEstado[c.id];if(st.sel){qtd++;total+=(+st.valor||0);}});
+  NFSE_CONDOS.forEach(c=>{const st=_nfseEstado[c.id];if(st.sel&&c.faturamento_ativo!==false){qtd++;total+=(+st.valor||0);}});
   document.getElementById('nfse-qtd').textContent=qtd;
   document.getElementById('nfse-total').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
@@ -3802,7 +3835,7 @@ async function _nfseGravarHistorico(row){
 }
 
 async function emitirNfse(){
-  const sel=NFSE_CONDOS.filter(c=>_nfseEstado[c.id].sel);
+  const sel=NFSE_CONDOS.filter(c=>_nfseEstado[c.id].sel&&c.faturamento_ativo!==false);
   if(!sel.length){ toast('Selecione ao menos um condomínio',true); return; }
   const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
   const comp=`${_MESES_NF[mes-1]}/${ano}`;
@@ -3847,7 +3880,10 @@ async function emitirNfse(){
           servico:'Mensalidade de engenharia', raw:j
         });
         st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${prod?(crId?' <em>(lançada no Contas a Receber)</em>':' <em>(emitida; falha ao lançar em Contas a Receber — confira)</em>'):' <em>(homologação/teste — sem valor fiscal)</em>'}`};
-        if(c.parcelamento && st.parcela!=null) st.parcela=+st.parcela+1; // incrementa p/ próxima
+        if(c.parcelamento && st.parcela!=null){
+          st.parcela=+st.parcela+1;
+          if(prod&&c.db_id) sb.from('fin_clientes').update({parcelas_emitidas:+st.parcela}).eq('id',c.db_id).then(()=>{});
+        }
         ok++;
       }else{
         const erro = j.fault || (j.erros&&j.erros.length?j.erros.map(e=>(e.codigo?e.codigo+': ':'')+e.mensagem).join('; '):'') || txt || ('HTTP '+r.status);
@@ -3971,7 +4007,7 @@ function openNovoCliente(){
   document.getElementById('nc-result').innerHTML='';
   document.getElementById('modal-cliente').classList.add('open');
 }
-function salvarNovoCliente(){
+async function salvarNovoCliente(){
   const nome=document.getElementById('nc-nome').value.trim();
   const cnpj=document.getElementById('nc-cnpj').value.replace(/\D/g,'');
   const im=document.getElementById('nc-im').value.trim();
@@ -3985,33 +4021,42 @@ function salvarNovoCliente(){
   const res=document.getElementById('nc-result');
   if(!nome){ res.innerHTML='<div class="nfse-resultado erro">Informe o nome do condomínio/cliente.</div>'; return; }
   if(cnpj.length!==14){ res.innerHTML='<div class="nfse-resultado erro">CNPJ inválido (14 dígitos).</div>'; return; }
+  if(NFSE_CONDOS.some(c=>c.tomador.cnpj===cnpj)){ res.innerHTML='<div class="nfse-resultado erro">Já existe um cliente com este CNPJ.</div>'; return; }
   if(!desc) desc='Prestação de serviços técnicos mensais de assessoria em engenharia condominial, conforme contrato.\nPagamento via PIX Chave CNPJ: 54.027.948/0001-60.\nVencimento {{vencimento}}';
-  const id='cli_'+cnpj;
-  if(NFSE_CONDOS.some(c=>c.id===id)){ res.innerHTML='<div class="nfse-resultado erro">Já existe um cliente com este CNPJ.</div>'; return; }
-  const novo={ id, nome, custom:true,
-    tomador:{cnpj,inscricao_municipal:im,razao_social:nome.toUpperCase(),municipio,cod_municipio:codmun,cep,uf:'SP',email},
-    valor:valor.toFixed(2), iss_retido:iss, descricao:desc, envio:'E-mail automático da prefeitura' };
+  res.innerHTML='<div class="nfse-resultado">Salvando...</div>';
+  const payload={
+    nome, cnpj, razao_social:nome.toUpperCase(),
+    inscricao_municipal:im||null, cidade:municipio, uf:'SP',
+    cep:cep||null, cod_municipio:codmun||null,
+    email_financeiro:email||null,
+    valor_mensal:Math.round(valor*100),
+    iss_retido:iss==='1', aliquota_iss:iss==='1'?2.17:null,
+    descricao_padrao:desc, faturamento_ativo:false
+  };
+  const{data,error}=await sb.from('fin_clientes').insert(payload).select().single();
+  if(error){ res.innerHTML='<div class="nfse-resultado erro">Erro: '+esc(error.message)+'</div>'; return; }
+  const novo=_dbToNfseCondo(data);
   NFSE_CONDOS.push(novo);
-  // persistir (só os custom)
-  try{ const extras=NFSE_CONDOS.filter(c=>c.custom); localStorage.setItem(NFSE_CONDOS_KEY,JSON.stringify(extras)); }catch(e){}
-  _nfseEstado[id]={sel:true,valor:novo.valor,descricao:novo.descricao,parcela:null,resultado:null};
+  _nfseEstado[novo.id]={sel:false,valor:novo.valor,descricao:novo.descricao,parcela:null,resultado:null};
   closeModal('modal-cliente');
-  toast('Cliente "'+nome+'" cadastrado');
+  toast('Cliente "'+nome+'" cadastrado no banco');
   renderNfse();
 }
-function removerClienteCustom(id){
-  if(!confirm('Remover este cliente da lista de emissão?')) return;
-  const i=NFSE_CONDOS.findIndex(c=>c.id===id); if(i<0) return;
-  NFSE_CONDOS.splice(i,1); delete _nfseEstado[id];
-  try{ localStorage.setItem(NFSE_CONDOS_KEY,JSON.stringify(NFSE_CONDOS.filter(c=>c.custom))); }catch(e){}
+async function removerClienteCustom(id){
+  if(!confirm('Desativar este cliente? (pode ser reativado no banco)')) return;
+  const{error}=await sb.from('fin_clientes').update({ativo:false}).eq('id',id);
+  if(error){ toast('Erro ao desativar: '+error.message,true); return; }
+  const i=NFSE_CONDOS.findIndex(c=>c.id===id); if(i>=0) NFSE_CONDOS.splice(i,1);
+  delete _nfseEstado[id];
   renderNfse();
+  toast('Cliente desativado');
 }
 
 // ── Lançar mensalidades de uma competência no Contas a Receber ──
 async function lancarMensalidades(){
   const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
   const comp=`${_MESES_NF[mes-1]}/${ano}`;
-  const sel=NFSE_CONDOS.filter(c=>_nfseEstado[c.id]?.sel && !c.parcelamento);
+  const sel=NFSE_CONDOS.filter(c=>_nfseEstado[c.id]?.sel && !c.parcelamento && c.faturamento_ativo!==false);
   if(!sel.length){ toast('Selecione os condomínios (mensalidade) na lista',true); return; }
   if(!confirm(`Lançar ${sel.length} mensalidade(s) de ${comp} no Contas a Receber?\n\n`+sel.map(c=>`• ${c.nome}: R$ ${(+_nfseEstado[c.id].valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')+`\n\nVenc. dia ${NFSE_PRESTADOR.vencimento_dia}, status Pendente. (Não emite nota — apenas lança a cobrança.)`)) return;
   let ok=0,fail=0;
@@ -4031,8 +4076,86 @@ const _EX_INLINE=/(\d{1,3}(?:\.\d{3})*,\d{2})\s*([CD])/;
 const _EX_VAL=/^\d{1,3}(?:\.\d{3})*,\d{2}\*?$/;
 function _exNum(s){ return parseFloat(String(s).replace('*','').replace(/\./g,'').replace(',','.')); }
 
+// ── Sicoob Integration ──
+const SICOOB_N8N_BASE='https://84.46.248.23.sslip.io/webhook/';
+const SICOOB_SYNC_URL=SICOOB_N8N_BASE+'sicoob-sync-extrato';
+const SICOOB_SALDO_URL=SICOOB_N8N_BASE+'sicoob-saldo';
+let _sicoobReady=false;
+
+function sicoobUpdateStatus(state,label){
+  const dot=document.getElementById('sicoob-dot');
+  const lbl=document.getElementById('sicoob-label');
+  if(!dot||!lbl) return;
+  dot.className='sicoob-dot '+(state||'');
+  lbl.textContent=label||'';
+}
+
+async function sicoobCheckConnection(){
+  sicoobUpdateStatus('yellow','Verificando conexão…');
+  try{
+    const r=await fetch(SICOOB_SALDO_URL,{method:'GET',headers:{'X-API-Key':'PENDENTE'}});
+    if(r.ok){
+      const d=await r.json();
+      if(d.ok&&d.saldo!=null){
+        _sicoobReady=true;
+        sicoobUpdateStatus('green','Conectado ao Sicoob');
+        const se=document.getElementById('sicoob-saldo');
+        const sv=document.getElementById('sicoob-saldo-val');
+        if(se) se.style.display='';
+        if(sv) sv.textContent='R$ '+Number(d.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2});
+        return;
+      }
+    }
+    _sicoobReady=false;
+    sicoobUpdateStatus('red','Aguardando credenciais — configure no n8n');
+    document.getElementById('sicoob-msg').textContent='As credenciais do Sicoob ainda não foram configuradas no n8n. Use o checklist em Senhas/sicoob-checklist.md.';
+  }catch(e){
+    _sicoobReady=false;
+    sicoobUpdateStatus('red','n8n inacessível');
+    document.getElementById('sicoob-msg').textContent='Não foi possível conectar ao n8n. Verifique se a VPS está online.';
+  }
+}
+
+async function sicoobSync(){
+  const btn=document.getElementById('btn-sicoob-sync');
+  const msg=document.getElementById('sicoob-msg');
+  if(!_sicoobReady){
+    msg.textContent='⚠️ Credenciais não configuradas. Siga o checklist primeiro.';
+    msg.style.color='var(--red,#EF4444)';
+    return;
+  }
+  btn.disabled=true; btn.textContent='⏳ Sincronizando…';
+  msg.textContent=''; msg.style.color='var(--text2)';
+  try{
+    const r=await fetch(SICOOB_SYNC_URL,{method:'POST',headers:{'X-API-Key':'PENDENTE','Content-Type':'application/json'}});
+    const d=await r.json();
+    if(d.ok){
+      const ts=new Date(d.timestamp).toLocaleString('pt-BR');
+      msg.textContent='✅ Sync concluída: '+d.transacoes+' transações processadas';
+      msg.style.color='var(--green,#22C55E)';
+      document.getElementById('sicoob-last-sync').textContent='Última sync: '+ts;
+      localStorage.setItem('diag_sicoob_last_sync',ts);
+      renderExtratoDRE(true);
+      sicoobCheckConnection();
+    }else{
+      msg.textContent='❌ Erro na sync: '+(d.message||'resposta inesperada');
+      msg.style.color='var(--red,#EF4444)';
+    }
+  }catch(e){
+    msg.textContent='❌ Erro de conexão: '+e.message;
+    msg.style.color='var(--red,#EF4444)';
+  }finally{
+    btn.disabled=false; btn.textContent='🏦 Sincronizar Sicoob';
+  }
+}
+
+function sicoobRestoreLastSync(){
+  const ts=localStorage.getItem('diag_sicoob_last_sync');
+  if(ts){ const el=document.getElementById('sicoob-last-sync'); if(el) el.textContent='Última sync: '+ts; }
+}
+
 function initExtrato(){
-  if(!_exInit){ _exInit=true; _exSetupDrop(); }
+  if(!_exInit){ _exInit=true; _exSetupDrop(); sicoobRestoreLastSync(); sicoobCheckConnection(); }
   renderExtratoDRE();
 }
 function _exSetupDrop(){
