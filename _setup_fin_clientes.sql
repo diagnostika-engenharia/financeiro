@@ -50,7 +50,9 @@ create trigger trg_fin_clientes_updated
   before update on public.fin_clientes
   for each row execute function public.fin_clientes_updated_at();
 
--- 2) RLS
+-- 2) Grants + RLS
+grant select, insert, update, delete on public.fin_clientes to authenticated;
+grant select, insert, update, delete on public.fin_clientes to anon;
 alter table public.fin_clientes enable row level security;
 
 drop policy if exists "fin_clientes_select" on public.fin_clientes;
