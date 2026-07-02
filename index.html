@@ -2,8 +2,6 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co https://84.46.248.23.sslip.io; img-src 'self' data: blob: https://fimmjgdwhifsrrbreche.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self';">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Financeiro · Diagnóstika</title>
@@ -5490,6 +5488,70 @@ function verDetalhePL(id){
 
 function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.display='none';}
 
+</script>
+<script>
+/* ── Auto-atualização ─────────────────────────────────────────
+   O app compara a versão dele (APP_BUILD) com a publicada (version.json)
+   ao abrir, ao voltar pra janela e a cada 4 min. Divergiu:
+   - nos primeiros 5s de vida da página → recarrega sozinho com URL única
+     (?v=build&ts=agora — cada tentativa revalida de verdade no navegador);
+   - depois disso (usuário já pode estar trabalhando) → só o botão "Atualizar".
+   Teto de propagação: o CDN do GitHub Pages ignora query string e segura
+   max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
+   APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
+const APP_BUILD='20260702-155110';
+(function(){
+  const CHECK_MS=4*60*1000;
+  const T0=performance.now();
+  // captura o estado de auth da URL no arranque, ANTES de qualquer callback limpá-lo
+  const AUTH0=/access_token|refresh_token|code=|type=recovery|type=magiclink/.test((location.hash||'')+(location.search||''));
+  let novaBuild=null;
+  function irParaNova(b){
+    const q=new URLSearchParams(location.search);
+    q.delete('v'); q.delete('ts');
+    q.set('v',b); q.set('ts',Date.now());
+    location.replace(location.pathname+'?'+q.toString()+location.hash);
+  }
+  function banner(){
+    if(document.getElementById('upd-banner'))return;
+    const d=document.createElement('div');
+    d.id='upd-banner';
+    d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:99999;background:#155B67;color:#fff;padding:10px 16px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.3);font-size:13px;display:flex;gap:12px;align-items:center';
+    d.appendChild(document.createTextNode('🔄 Nova versão disponível'));
+    const b=document.createElement('button');
+    b.textContent='Atualizar';
+    b.title='Se a versão acabou de ser publicada, a propagação pode levar até 10 minutos';
+    b.style.cssText='border:0;border-radius:8px;padding:6px 14px;background:#00B4AC;color:#fff;font-weight:700;cursor:pointer;font-size:13px';
+    b.onclick=()=>irParaNova(novaBuild||Date.now());
+    d.appendChild(b);
+    document.body.appendChild(d);
+  }
+  async function checa(arranque){
+    try{
+      const r=await fetch('version.json?ts='+Date.now(),{cache:'no-store'});
+      if(!r.ok)return;
+      const j=await r.json();
+      // <= tolera rollback: só considera atualização quando a publicada é MAIS NOVA
+      // (formato YYYYMMDD-HHMMSS ordena lexicograficamente)
+      if(!j.build || j.build<=APP_BUILD){
+        sessionStorage.removeItem('upd_tries');
+        const bn=document.getElementById('upd-banner'); if(bn)bn.remove();
+        return;
+      }
+      novaBuild=j.build;
+      // reload automático só na janela real de arranque (5s): se a rede demorou
+      // e o usuário já pode estar trabalhando, cai no banner em vez de recarregar
+      if(arranque && !AUTH0 && performance.now()-T0<5000){
+        const t=+(sessionStorage.getItem('upd_tries')||0);
+        if(t<2){ sessionStorage.setItem('upd_tries',String(t+1)); irParaNova(j.build); return; }
+      }
+      banner();
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checa(false); });
+  setInterval(()=>checa(false),CHECK_MS);
+  checa(true);
+})();
 </script>
 </body>
 </html>
