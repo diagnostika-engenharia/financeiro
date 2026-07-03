@@ -1998,8 +1998,8 @@ async function _loadDashRealizado(de,ate,tok){
   const net=ent.map((e,i)=>e-sai[i]);
   let acc=0; const resLine=net.map(n=>acc+=n);
   _dashCharts.fluxo=new Chart(cv,{data:{labels:meses.map(_compLabel),datasets:[
-    {type:'bar',label:'Entradas',data:ent,backgroundColor:'#16A34A',borderRadius:4,order:2},
-    {type:'bar',label:'Saídas',data:sai,backgroundColor:'#E65100',borderRadius:4,order:2},
+    {type:'bar',label:'Entradas',data:ent,backgroundColor:'#16A34A',borderRadius:3,order:2,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.62},
+    {type:'bar',label:'Saídas',data:sai,backgroundColor:'#E65100',borderRadius:3,order:2,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.62},
     {type:'line',label:'Resultado acumulado',data:resLine,borderColor:'#155B67',backgroundColor:'#155B67',borderWidth:3,tension:.35,pointRadius:2.5,order:1}
   ]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:7,font:{size:11},padding:9}},
@@ -5614,7 +5614,7 @@ function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.disp
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260703-013611';
+const APP_BUILD='20260703-093436';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
