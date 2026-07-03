@@ -523,30 +523,59 @@ body.capturing .rel-acao{display:none!important}
           <button class="btn btn-outline btn-sm" onclick="loadDash()">↺ Atualizar</button>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 2px 12px">
-          <span style="font-size:12px;color:var(--text2);font-weight:600">Vencimento de:</span>
-          <input type="date" id="dash-de" onchange="loadDash()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
-          <span style="font-size:12px;color:var(--text2);font-weight:600">até:</span>
-          <input type="date" id="dash-ate" onchange="loadDash()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('dash-de').value='';document.getElementById('dash-ate').value='';loadDash()">Limpar período</button>
+          <span style="font-size:12px;color:var(--text2);font-weight:600">Período:</span>
+          <div id="dash-per-seg" style="display:inline-flex;flex-wrap:wrap;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12.5px">
+            <button type="button" data-p="mes" onclick="_setBiPer('mes')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">Este mês</button>
+            <button type="button" data-p="3" onclick="_setBiPer('3')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">3 meses</button>
+            <button type="button" data-p="6" onclick="_setBiPer('6')" style="border:0;border-right:1px solid var(--gray3);background:var(--teal);color:#fff;padding:6px 12px;cursor:pointer;font-weight:600">6 meses</button>
+            <button type="button" data-p="12" onclick="_setBiPer('12')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">12 meses</button>
+            <button type="button" data-p="ano" onclick="_setBiPer('ano')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">Este ano</button>
+            <button type="button" data-p="tudo" onclick="_setBiPer('tudo')" style="border:0;background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">Tudo</button>
+          </div>
         </div>
         <div class="kpi-row" id="kpi-row">
-          <div class="kpi green"><label>Entradas Previstas</label><div class="val" id="kpi-entrada">—</div></div>
-          <div class="kpi red"><label>Saídas Previstas</label><div class="val" id="kpi-saida">—</div></div>
-          <div class="kpi blue"><label>Saldo Projetado</label><div class="val" id="kpi-saldo">—</div></div>
-          <div class="kpi gray"><label>Contas Bancárias</label><div class="val" id="kpi-banco">—</div></div>
+          <div class="kpi green"><label>Receita no período</label><div class="val" id="kpi-bi-receita">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px">realizada</div></div>
+          <div class="kpi red"><label>Despesa no período</label><div class="val" id="kpi-bi-despesa">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px">realizada</div></div>
+          <div class="kpi blue"><label>Resultado</label><div class="val" id="kpi-bi-resultado">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="kpi-bi-resultado-sub">margem —</div></div>
+          <div class="kpi" style="border-color:var(--turq)"><label>Saldo em caixa</label><div class="val" id="kpi-bi-saldo" style="color:var(--teal)">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px">cofre + banco</div></div>
+          <div class="kpi" style="border-color:#E65100"><label>A receber vencido</label><div class="val" id="kpi-bi-vencido" style="color:#E65100">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="kpi-bi-vencido-sub">—</div></div>
         </div>
+        <style>@media(max-width:820px){#dash-donuts{grid-template-columns:1fr!important}}</style>
         <div class="card">
-          <div class="card-hd" style="flex-wrap:wrap;gap:8px">
-            <h3>Receita por categoria</h3>
-            <div id="dashcat-seg" style="display:inline-flex;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12px">
-              <button type="button" data-m="ambos" onclick="_setDashCat('ambos')" style="border:0;background:var(--turq);color:#fff;padding:5px 12px;cursor:pointer;font-weight:600">Ambos</button>
-              <button type="button" data-m="realizado" onclick="_setDashCat('realizado')" style="border:0;background:#fff;color:var(--text2);padding:5px 12px;cursor:pointer;font-weight:600">Realizado</button>
-              <button type="button" data-m="previsto" onclick="_setDashCat('previsto')" style="border:0;background:#fff;color:var(--text2);padding:5px 12px;cursor:pointer;font-weight:600">Previsto</button>
+          <div class="card-hd" style="gap:8px"><h3>Fluxo de caixa mensal</h3><span id="dash-fluxo-cap" style="font-size:11px;color:var(--text2)">entradas × saídas + resultado acumulado</span></div>
+          <div class="card-bd" style="padding:14px 16px">
+            <div style="position:relative;height:230px"><canvas id="dash-fluxo-chart"></canvas></div>
+            <div id="dash-fluxo-empty" class="empty" style="display:none">Sem movimentação bancária no período.</div>
+          </div>
+        </div>
+        <div id="dash-donuts" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
+          <div class="card" style="margin:0">
+            <div class="card-hd" style="flex-wrap:wrap;gap:6px">
+              <h3>Receita por categoria</h3>
+              <div id="dashcat-seg" style="display:inline-flex;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:11.5px">
+                <button type="button" data-m="ambos" onclick="_setDashCat('ambos')" style="border:0;border-right:1px solid var(--gray3);background:var(--turq);color:#fff;padding:4px 10px;cursor:pointer;font-weight:600">Ambos</button>
+                <button type="button" data-m="realizado" onclick="_setDashCat('realizado')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:4px 10px;cursor:pointer;font-weight:600">Realiz.</button>
+                <button type="button" data-m="previsto" onclick="_setDashCat('previsto')" style="border:0;background:#fff;color:var(--text2);padding:4px 10px;cursor:pointer;font-weight:600">Prev.</button>
+              </div>
+            </div>
+            <div class="card-bd" style="padding:12px 14px">
+              <div style="position:relative;height:190px"><canvas id="dash-cat-chart"></canvas></div>
+              <div id="dash-cat-empty" class="empty" style="display:none">Sem receitas.</div>
             </div>
           </div>
-          <div class="card-bd">
-            <div style="position:relative;height:260px"><canvas id="dash-cat-chart"></canvas></div>
-            <div id="dash-cat-empty" class="empty" style="display:none">Sem receitas no período/critério selecionado.</div>
+          <div class="card" style="margin:0">
+            <div class="card-hd"><h3>A Receber</h3><span style="font-size:11px;color:var(--text2)">por situação</span></div>
+            <div class="card-bd" style="padding:12px 14px">
+              <div style="position:relative;height:190px"><canvas id="dash-ar-chart"></canvas></div>
+              <div id="dash-ar-empty" class="empty" style="display:none">Nada a receber.</div>
+            </div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-hd"><h3>A Pagar</h3><span style="font-size:11px;color:var(--text2)">por categoria</span></div>
+            <div class="card-bd" style="padding:12px 14px">
+              <div style="position:relative;height:190px"><canvas id="dash-ap-chart"></canvas></div>
+              <div id="dash-ap-empty" class="empty" style="display:none">Nada a pagar.</div>
+            </div>
           </div>
         </div>
         <div class="card">
@@ -1696,7 +1725,7 @@ const ST_AGUARDANDO='Aguardando aprovação';
 const fmt=v=>'R$ '+(v/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 // ícone de cofre (safe) — usado como marcador do Cofre no lugar do cadeado
 const COFRE_ICO='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px;flex:none"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg>';
-const hoje=()=>new Date().toISOString().slice(0,10);
+const hoje=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};  // data LOCAL (não UTC) — coerente com fuso BRT
 function parseData(s){if(!s)return null;const[d,m,a]=s.split('/');return`${a}-${m}-${d}`;}
 function formatData(iso){if(!iso)return'—';const[a,m,d]=iso.split('-');return`${d}/${m}/${a}`;}
 function isVencido(dStr){if(!dStr)return false;return dStr<hoje();}
@@ -1869,101 +1898,187 @@ function nav(page){
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
+// ═══ Dashboard BI ═════════════════════════════════════════════
+// plugin: total no centro do donut (no-op se options.plugins.centerText ausente)
+// guardado: se o CDN do Chart.js falhar, o resto do app continua funcionando
+if(typeof Chart!=='undefined')Chart.register({id:'centerText',afterDraw(ch){const o=ch.config.options.plugins&&ch.config.options.plugins.centerText;if(!o)return;const a=ch.getDatasetMeta(0).data[0];if(!a)return;const{x,y}=a,ctx=ch.ctx;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 15px Segoe UI';ctx.fillStyle='#155B67';ctx.fillText(o.text,x,y-6);ctx.font='600 9px Segoe UI';ctx.fillStyle='#6B7B83';ctx.fillText(o.sub||'total',x,y+9);ctx.restore();}});
+
+let _biPer='6';
+function _biRange(){
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  const som=(yy,mm)=>{const d=new Date(yy,mm,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';};
+  const eom=(yy,mm)=>{const d=new Date(yy,mm+1,0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const ate=eom(y,m);   // teto = fim do mês corrente (não puxa lançamentos futuros)
+  if(_biPer==='tudo') return {de:'',ate:''};
+  if(_biPer==='ano') return {de:som(y,0),ate};
+  const back={mes:0,'3':2,'6':5,'12':11}[_biPer];
+  return {de:som(y, m-(back==null?5:back)), ate};
+}
+function _setBiPer(p){
+  _biPer=p;
+  document.querySelectorAll('#dash-per-seg button').forEach(b=>{const on=b.dataset.p===p;b.style.background=on?'var(--teal)':'#fff';b.style.color=on?'#fff':'var(--text2)';});
+  loadDash();
+}
+// transações já vêm em REAIS; fmt() é p/ centavos (contas). _fmtR p/ reais.
+const _fmtR=v=>(v<0?'− R$ ':'R$ ')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const _BRLk=v=>'R$ '+(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:v%1000?1:0,maximumFractionDigits:1})+'k';
+
+// saldo em caixa (banco + cofre) em centavos — promise cacheada dedupe chamadas simultâneas
+let _dashSaldoPromise=null;
+function _getSaldoCaixaCents(){
+  if(!_dashSaldoPromise){
+    _dashSaldoPromise=(async()=>{
+      try{
+        const[{data:bk},{data:cf}]=await Promise.all([
+          sb.from('fin_contas_bancarias').select('saldo').eq('ativa',true),
+          sb.from('fin_livro_caixa_cofre').select('valor,tipo')
+        ]);
+        const banco=(bk||[]).reduce((s,r)=>s+(+r.saldo||0),0);
+        const cofre=(cf||[]).reduce((s,r)=>s+(r.tipo==='Entrada'?(+r.valor||0):-(+r.valor||0)),0);
+        return banco+cofre;
+      }catch(e){ return 0; }
+    })();
+  }
+  return _dashSaldoPromise;
+}
+
+const _dashCharts={};
+function _dashDonut(id,emptyId,labels,valores,cores,centro,sub){
+  const cv=document.getElementById(id),emp=document.getElementById(emptyId);
+  if(!cv||typeof Chart==='undefined')return;
+  if(_dashCharts[id]){_dashCharts[id].destroy();_dashCharts[id]=null;}
+  if(!valores.some(v=>v>0)){ cv.style.display='none'; if(emp)emp.style.display=''; return; }
+  cv.style.display=''; if(emp)emp.style.display='none';
+  _dashCharts[id]=new Chart(cv,{type:'doughnut',
+    data:{labels,datasets:[{data:valores,backgroundColor:cores,borderWidth:2,borderColor:'#fff'}]},
+    options:{maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:11},padding:8}},
+        centerText:{text:centro,sub:sub||''},
+        tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((s,x)=>s+x,0);return ' '+c.label+': R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2})+(t?' ('+Math.round(c.raw/t*100)+'%)':'');}}}}}});
+}
+
+let _dashTok=0;
 async function loadDash(){
-  const de=document.getElementById('dash-de')?.value, ate=document.getElementById('dash-ate')?.value;
-  let qr=sb.from('fin_contas_receber').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false);
-  let qp=sb.from('fin_contas_pagar').select('valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false);
-  if(de){qr=qr.gte('data_vencimento',de);qp=qp.gte('data_vencimento',de);}
-  if(ate){qr=qr.lte('data_vencimento',ate);qp=qp.lte('data_vencimento',ate);}
-  const[{data:receber},{data:pagar},{data:bancos}]=await Promise.all([
-    qr, qp,
-    sb.from('fin_contas_bancarias').select('saldo,nome').eq('ativa',true),
-  ]);
-  const sumR=(receber||[]).reduce((s,r)=>s+r.valor,0);
-  const sumP=(pagar||[]).reduce((s,r)=>s+r.valor,0);
-  const sumB=(bancos||[]).reduce((s,r)=>s+r.saldo,0);
-  document.getElementById('kpi-entrada').textContent=fmt(sumR);
-  document.getElementById('kpi-saida').textContent=fmt(sumP);
-  document.getElementById('kpi-saldo').textContent=fmt(sumR-sumP);
-  document.getElementById('kpi-banco').textContent=fmt(sumB);
-
-  // mini tabelas
-  const r5=(receber||[]).sort((a,b)=>a.data_vencimento>b.data_vencimento?1:-1).slice(0,5);
-  document.getElementById('dash-receber').innerHTML=r5.length?r5.map(r=>`<tr>
-    <td>—</td><td>—</td><td>${formatData(r.data_vencimento)}</td>
-    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
-    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
-
-  const p5=(pagar||[]).sort((a,b)=>a.data_vencimento>b.data_vencimento?1:-1).slice(0,5);
-  document.getElementById('dash-pagar').innerHTML=p5.length?p5.map(r=>`<tr>
-    <td>—</td><td>—</td><td>${formatData(r.data_vencimento)}</td>
-    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
-    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
-
-  // dashboard completo precisa de cliente/fornecedor - recarrega com mais dados
-  loadDashFull();
-  loadDashCategorias();
+  _dashSaldoPromise=null;            // revalida saldo a cada refresh
+  const tok=++_dashTok;              // token: descarta respostas de períodos já trocados
+  const {de,ate}=_biRange();
+  _loadDashRealizado(de,ate,tok);    // KPIs realizados + fluxo de caixa (transações + cofre)
+  _loadDashSnapshot(tok);            // saldo, vencido, donuts A Receber/A Pagar, listas
+  loadDashCategorias();              // receita por categoria (guarda própria _catTok)
 }
 
-async function loadDashFull(){
-  const de=document.getElementById('dash-de')?.value, ate=document.getElementById('dash-ate')?.value;
-  let qr=sb.from('fin_contas_receber').select('cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5);
-  let qp=sb.from('fin_contas_pagar').select('fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento').limit(5);
-  if(de){qr=qr.gte('data_vencimento',de);qp=qp.gte('data_vencimento',de);}
-  if(ate){qr=qr.lte('data_vencimento',ate);qp=qp.lte('data_vencimento',ate);}
-  const[{data:receber},{data:pagar}]=await Promise.all([qr,qp]);
-  document.getElementById('dash-receber').innerHTML=(receber||[]).length?(receber).map(r=>`<tr>
-    <td>${esc(r.cliente)}</td><td>${esc(r.categoria)}</td><td>${formatData(r.data_vencimento)}</td>
-    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
-    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
-  document.getElementById('dash-pagar').innerHTML=(pagar||[]).length?(pagar).map(r=>`<tr>
-    <td>${esc(r.fornecedor)}</td><td>${esc(r.categoria)}</td><td>${formatData(r.data_vencimento)}</td>
-    <td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join('')
-    :'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+// realizado no período: receita/despesa/resultado + fluxo de caixa mensal
+async function _loadDashRealizado(de,ate,tok){
+  const gr=id=>document.getElementById(id);
+  let qt=sb.from('fin_transacoes_bancarias').select('data,valor,tipo,competencia');
+  let qc=sb.from('fin_livro_caixa_cofre').select('data,valor,tipo,descricao');
+  if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
+  if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
+  let tx=[],cf=[];
+  try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }catch(e){}
+  if(tok!=null && tok!==_dashTok) return;    // período mudou — descarta resultado obsoleto
+  const all=tx.concat(_cofreComoTxns(cf));   // tudo em REAIS
+  const rec=all.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor||0),0);
+  const desp=all.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor||0),0);
+  const result=rec-desp, margem=rec?Math.round(result/rec*100):0;
+  if(gr('kpi-bi-receita'))gr('kpi-bi-receita').textContent=_fmtR(rec);
+  if(gr('kpi-bi-despesa'))gr('kpi-bi-despesa').textContent=_fmtR(desp);
+  if(gr('kpi-bi-resultado')){gr('kpi-bi-resultado').textContent=_fmtR(result);gr('kpi-bi-resultado').style.color=result<0?'var(--red)':'var(--green)';}
+  if(gr('kpi-bi-resultado-sub'))gr('kpi-bi-resultado-sub').innerHTML='margem <b style="color:'+(result<0?'var(--red)':'var(--green)')+'">'+margem+'%</b>';
+  const meses=[...new Set(all.map(_txComp).filter(Boolean))].sort();
+  const ent=meses.map(m=>all.filter(t=>_txComp(t)===m&&t.tipo==='credito').reduce((s,t)=>s+(+t.valor||0),0));
+  const sai=meses.map(m=>all.filter(t=>_txComp(t)===m&&t.tipo==='debito').reduce((s,t)=>s+(+t.valor||0),0));
+  const cap=gr('dash-fluxo-cap'); if(cap)cap.textContent='entradas × saídas + resultado acumulado — '+meses.length+(meses.length===1?' mês':' meses');
+  const cv=gr('dash-fluxo-chart'),emp=gr('dash-fluxo-empty');
+  if(!cv||typeof Chart==='undefined')return;
+  if(_dashCharts.fluxo){_dashCharts.fluxo.destroy();_dashCharts.fluxo=null;}
+  if(!meses.length){ cv.style.display='none'; if(emp)emp.style.display=''; return; }
+  cv.style.display=''; if(emp)emp.style.display='none';
+  // linha = resultado acumulado no período (entradas−saídas acumuladas), a partir de 0
+  const net=ent.map((e,i)=>e-sai[i]);
+  let acc=0; const resLine=net.map(n=>acc+=n);
+  _dashCharts.fluxo=new Chart(cv,{data:{labels:meses.map(_compLabel),datasets:[
+    {type:'bar',label:'Entradas',data:ent,backgroundColor:'#16A34A',borderRadius:4,order:2},
+    {type:'bar',label:'Saídas',data:sai,backgroundColor:'#E65100',borderRadius:4,order:2},
+    {type:'line',label:'Resultado acumulado',data:resLine,borderColor:'#155B67',backgroundColor:'#155B67',borderWidth:3,tension:.35,pointRadius:2.5,order:1}
+  ]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:7,font:{size:11},padding:9}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': '+_fmtR(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{color:'#6B7B83',font:{size:10}}},
+      y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#6B7B83',font:{size:10},callback:v=>_BRLk(v)}}}}});
 }
 
-// ── Dashboard: Receita por categoria ──────────────────────────
-let _dashCatModo='ambos', _dashCatChart=null;
+// snapshot atual: saldo, a receber vencido, donuts A Receber/A Pagar, listas
+async function _loadDashSnapshot(tok){
+  const gr=id=>document.getElementById(id);
+  let saldoCents=0,receber=[],pagar=[];
+  try{
+    const r=await Promise.all([
+      _getSaldoCaixaCents(),
+      sb.from('fin_contas_receber').select('cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento'),
+      sb.from('fin_contas_pagar').select('fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false).order('data_vencimento')
+    ]);
+    saldoCents=r[0]; receber=r[1].data||[]; pagar=r[2].data||[];
+  }catch(e){}
+  if(tok!=null && tok!==_dashTok) return;    // período mudou — descarta
+  if(gr('kpi-bi-saldo'))gr('kpi-bi-saldo').textContent=fmt(saldoCents);
+  const vencidoC=receber.filter(r=>isVencido(r.data_vencimento)).reduce((s,r)=>s+r.valor,0);
+  const avencerC=receber.filter(r=>!isVencido(r.data_vencimento)).reduce((s,r)=>s+r.valor,0);
+  const totalAR=vencidoC+avencerC;
+  if(gr('kpi-bi-vencido'))gr('kpi-bi-vencido').textContent=fmt(vencidoC);
+  if(gr('kpi-bi-vencido-sub'))gr('kpi-bi-vencido-sub').textContent='de '+fmt(totalAR)+' a receber';
+  _dashDonut('dash-ar-chart','dash-ar-empty',['A vencer','Vencido'],[avencerC/100,vencidoC/100],['#1565C0','#C0392B'],_BRLk(totalAR/100),'a receber');
+  const apAcc={}; pagar.forEach(r=>{const c=(r.categoria||'Outros');apAcc[c]=(apAcc[c]||0)+r.valor;});
+  const apK=Object.keys(apAcc).sort((a,b)=>apAcc[b]-apAcc[a]);
+  const totalAP=pagar.reduce((s,r)=>s+r.valor,0);
+  const AP_CORES=['#B7600A','#6D5BD0','#E65100','#1565C0','#16A34A','#6B7B83'];
+  _dashDonut('dash-ap-chart','dash-ap-empty',apK,apK.map(k=>apAcc[k]/100),apK.map((k,i)=>AP_CORES[i%AP_CORES.length]),_BRLk(totalAP/100),'a pagar');
+  const r5=receber.slice(0,5);
+  if(gr('dash-receber'))gr('dash-receber').innerHTML=r5.length?r5.map(r=>`<tr><td>${esc(r.cliente)}</td><td>${esc(catCanonica(r.categoria))}</td><td>${formatData(r.data_vencimento)}</td><td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+  const p5=pagar.slice(0,5);
+  if(gr('dash-pagar'))gr('dash-pagar').innerHTML=p5.length?p5.map(r=>`<tr><td>${esc(r.fornecedor)}</td><td>${esc(r.categoria)}</td><td>${formatData(r.data_vencimento)}</td><td>${fmt(r.valor)}</td><td>${badgeSt(r.status,r.data_vencimento)}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nenhuma conta pendente</td></tr>';
+}
+
+// ── Receita por categoria (período) ──
+let _dashCatModo='ambos';
 const _DASH_CAT_CORES={'ART':'#155B67','Assessoria':'#00B4AC','Projeto':'#16A34A','Vistoria':'#1565C0','Laudo/Parecer':'#E65100','Outros':'#6B7B83'};
 function _setDashCat(m){
   _dashCatModo=m;
-  document.querySelectorAll('#dashcat-seg button').forEach(b=>{
-    const on=b.dataset.m===m;
-    b.style.background=on?'var(--turq)':'#fff';
-    b.style.color=on?'#fff':'var(--text2)';
-  });
+  document.querySelectorAll('#dashcat-seg button').forEach(b=>{const on=b.dataset.m===m;b.style.background=on?'var(--turq)':'#fff';b.style.color=on?'#fff':'var(--text2)';});
   loadDashCategorias();
 }
+let _catTok=0;
 async function loadDashCategorias(){
+  const myTok=++_catTok;             // token próprio: clique/período mais recente vence
   const canvas=document.getElementById('dash-cat-chart'), empty=document.getElementById('dash-cat-empty');
   if(!canvas) return;
   if(typeof Chart==='undefined'){ if(empty){empty.style.display='';empty.textContent='Biblioteca de gráficos não carregou.';} return; }
-  const de=document.getElementById('dash-de')?.value, ate=document.getElementById('dash-ate')?.value;
-  let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,estornado').eq('estornado',false);
-  if(_dashCatModo==='realizado') q=q.eq('status','Recebido');
+  const {de,ate}=_biRange();
+  // Realizado = recebido (filtra por data_recebimento); Previsto/Ambos = por data_vencimento
+  const dCol=_dashCatModo==='realizado'?'data_recebimento':'data_vencimento';
+  let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,data_recebimento,estornado').eq('estornado',false);
+  if(_dashCatModo==='realizado') q=q.eq('status','Recebido').not('data_recebimento','is',null);
   else if(_dashCatModo==='previsto') q=q.eq('status','Pendente');
-  if(de) q=q.gte('data_vencimento',de);
-  if(ate) q=q.lte('data_vencimento',ate);
-  const{data,error}=await q;
-  if(error){ if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
-  // agrupa pela categoria canônica (une variantes históricas)
+  if(de) q=q.gte(dCol,de);
+  if(ate) q=q.lte(dCol,ate);
+  let data=[];
+  try{ const r=await q; if(r.error)throw r.error; data=r.data||[]; }
+  catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
+  if(myTok!==_catTok) return;        // clique/período mais recente já disparou
   const acc={};
-  (data||[]).forEach(r=>{ const c=catCanonica(r.categoria); acc[c]=(acc[c]||0)+(r.valor||0); });
+  data.forEach(r=>{ const c=catCanonica(r.categoria); acc[c]=(acc[c]||0)+(r.valor||0); });
   const cats=Object.keys(acc).filter(k=>acc[k]>0).sort((a,b)=>acc[b]-acc[a]);
-  if(!cats.length){
-    if(_dashCatChart){_dashCatChart.destroy();_dashCatChart=null;}
-    canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Sem receitas no período/critério selecionado.';}
-    return;
-  }
+  if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;}
+  if(!cats.length){ canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Sem receitas no período.';} return; }
   canvas.style.display=''; if(empty)empty.style.display='none';
   const valores=cats.map(c=>acc[c]/100), cores=cats.map(c=>_DASH_CAT_CORES[c]||'#6B7B83');
   const total=valores.reduce((s,v)=>s+v,0);
-  if(_dashCatChart)_dashCatChart.destroy();
-  _dashCatChart=new Chart(canvas,{type:'doughnut',
+  _dashCharts['dash-cat-chart']=new Chart(canvas,{type:'doughnut',
     data:{labels:cats,datasets:[{data:valores,backgroundColor:cores,borderWidth:2,borderColor:'#fff'}]},
-    options:{maintainAspectRatio:false,cutout:'58%',
-      plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:12},padding:10}},
-        tooltip:{callbacks:{label:c=>{const v=c.raw,pct=total?Math.round(v/total*100):0;return ` ${c.label}: R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})} (${pct}%)`;}}}}}});
+    options:{maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:11},padding:8}},
+        centerText:{text:_BRLk(total),sub:'receita'},
+        tooltip:{callbacks:{label:c=>{const v=c.raw,pct=total?Math.round(v/total*100):0;return ' '+c.label+': R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2})+' ('+pct+'%)';}}}}}});
 }
 
 function badgeSt(status,venc){
@@ -5499,7 +5614,7 @@ function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.disp
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260702-155110';
+const APP_BUILD='20260703-013611';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
