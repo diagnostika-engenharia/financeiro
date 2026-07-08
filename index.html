@@ -1541,7 +1541,7 @@ body.capturing .rel-acao{display:none!important}
     </div>
     <div class="modal-ft">
       <button class="btn btn-outline" onclick="closeModal('modal-pago')">Cancelar</button>
-      <button class="btn btn-green" onclick="confirmarPago()">Confirmar Pagamento</button>
+      <button class="btn btn-green" id="mpag-confirmar" onclick="confirmarPago()">Confirmar Pagamento</button>
     </div>
   </div>
 </div>
@@ -2568,7 +2568,9 @@ function _mpagFonteMudou(){
   if(ci)ci.style.display=isCofre?'block':'none';
 }
 
+let _pagoEmAndamento=false;
 async function confirmarPago(){
+  if(_pagoEmAndamento)return;                       // trava contra duplo-clique
   const id=document.getElementById('mpag-id').value;
   const data=document.getElementById('mpag-data').value;
   const valorCents=parseInt(document.getElementById('mpag-valor').value)||0;
@@ -2577,47 +2579,60 @@ async function confirmarPago(){
   const fonte=raw==='cofre'?'cofre':'banco';
   const contaBancariaId=(fonte==='banco'&&raw.indexOf('banco:')===0)?parseInt(raw.slice(6)):null;
   if(!data){toast('Informe a data de pagamento',true);return;}
+  _pagoEmAndamento=true;
+  const _btn=document.getElementById('mpag-confirmar'); if(_btn)_btn.disabled=true;
+  try{
+    // Busca dados + status atual da conta
+    const{data:conta}=await sb.from('fin_contas_pagar')
+      .select('competencia,tipo_reembolso,valor,fornecedor,num_controle,status,estornado')
+      .eq('id',id).single();
 
-  // Busca dados da conta antes de atualizar
-  const{data:conta}=await sb.from('fin_contas_pagar')
-    .select('competencia,tipo_reembolso,valor,fornecedor,num_controle')
-    .eq('id',id).single();
+    // Idempotência: se já está paga (e não estornada), NÃO paga de novo (evita débito duplicado no cofre)
+    if(conta&&conta.status==='Pago'&&!conta.estornado){
+      toast('Esta conta já está paga.',true);
+      closeModal('modal-pago');loadPagar();
+      return;
+    }
 
-  const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte,conta_bancaria_id:contaBancariaId,estornado:false,data_estorno:null,motivo_estorno:null};
-  const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
-  if(error){toast('Erro ao registrar pagamento: '+error.message,true);console.error('confirmarPago:',error);return;}
+    const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte,conta_bancaria_id:contaBancariaId,estornado:false,data_estorno:null,motivo_estorno:null};
+    const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
+    if(error){toast('Erro ao registrar pagamento: '+error.message,true);console.error('confirmarPago:',error);return;}
 
-  // Cascata: marca reembolsos do mês como Pagos
-  if(conta?.competencia&&conta?.tipo_reembolso){
-    const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
-    const colMes=conta.tipo_reembolso==='digital'?'mes_referencia':'mes';
-    await sb.from(tabela).update({status:'Pago'}).eq(colMes,conta.competencia);
-  }
+    // Cascata: marca reembolsos do mês como Pagos
+    if(conta?.competencia&&conta?.tipo_reembolso){
+      const tabela=conta.tipo_reembolso==='digital'?'fin_reembolsos_digitais':'fin_reembolsos';
+      const colMes=conta.tipo_reembolso==='digital'?'mes_referencia':'mes';
+      await sb.from(tabela).update({status:'Pago'}).eq(colMes,conta.competencia);
+    }
 
-  // Se pagamento pelo Cofre: lança saída automática
-  if(fonte==='cofre'&&valorCents>0){
-    const{data:{user}}=await sb.auth.getUser();
-    const numCtrl=conta?.num_controle||'';
-    const descCofre=conta?.fornecedor||(desc||'Pagamento');
-    await sb.from('fin_livro_caixa_cofre').insert({
-      user_id:user.id, data, tipo:'Saída',
-      descricao:descCofre+(numCtrl?` [${numCtrl}]`:''),
-      valor:valorCents, saldo_anterior:0, saldo_atual:0,
-      origem:'Automático', observacao:`Pagamento via cofre — ${data}`
-    });
-    await recalcularTodosSaldosCofre();
-    loadCofre();
-    toast('Pago! Saída lançada no Cofre automaticamente.');
-  }else{
-    toast('Pago! Aguardando conciliação com extrato Sicoob.');
-  }
+    // Se pagamento pelo Cofre: lança saída automática
+    if(fonte==='cofre'&&valorCents>0){
+      const{data:{user}}=await sb.auth.getUser();
+      const numCtrl=conta?.num_controle||'';
+      const descCofre=conta?.fornecedor||(desc||'Pagamento');
+      await sb.from('fin_livro_caixa_cofre').insert({
+        user_id:user.id, data, tipo:'Saída',
+        descricao:descCofre+(numCtrl?` [${numCtrl}]`:''),
+        valor:valorCents, saldo_anterior:0, saldo_atual:0,
+        origem:'Automático', observacao:`Pagamento via cofre — ${data}`
+      });
+      await recalcularTodosSaldosCofre();
+      loadCofre();
+      toast('Pago! Saída lançada no Cofre automaticamente.');
+    }else{
+      toast('Pago! Aguardando conciliação com extrato Sicoob.');
+    }
 
-  closeModal('modal-pago');
-  loadPagar();loadDash();
-  // Atualizar histórico de reembolsos se for reembolso
-  if(conta?.tipo_reembolso){
-    if(conta.tipo_reembolso==='digital') carregarHistoricoDigital();
-    else carregarHistoricoRem();
+    closeModal('modal-pago');
+    loadPagar();loadDash();
+    // Atualizar histórico de reembolsos se for reembolso
+    if(conta?.tipo_reembolso){
+      if(conta.tipo_reembolso==='digital') carregarHistoricoDigital();
+      else carregarHistoricoRem();
+    }
+  }finally{
+    _pagoEmAndamento=false;
+    const b=document.getElementById('mpag-confirmar'); if(b)b.disabled=false;
   }
 }
 
@@ -6804,7 +6819,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-131859';
+const APP_BUILD='20260708-132414';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
