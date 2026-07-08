@@ -139,6 +139,18 @@ table.tbl{width:100%;border-collapse:collapse}
 
 /* ── MODAL ── */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;align-items:center;justify-content:center}
+#modal-calc{background:transparent;pointer-events:none}
+#modal-calc #calc-window{pointer-events:auto;position:fixed;top:120px;left:calc(50vw - 150px);width:300px;height:420px;overflow:hidden;min-width:260px;min-height:340px;max-width:96vw;max-height:90vh}
+#modal-calc #calc-hd{cursor:move;user-select:none}
+#modal-calc.calc-max #calc-window{width:520px!important;height:640px!important;top:60px!important;left:calc(50vw - 260px)!important}
+.calc-rz{position:absolute;z-index:20}
+.calc-rz-n,.calc-rz-s{left:6px;right:6px;height:6px}
+.calc-rz-n{top:0;cursor:ns-resize} .calc-rz-s{bottom:0;cursor:ns-resize}
+.calc-rz-e,.calc-rz-w{top:6px;bottom:6px;width:6px}
+.calc-rz-e{right:0;cursor:ew-resize} .calc-rz-w{left:0;cursor:ew-resize}
+.calc-rz-ne,.calc-rz-nw,.calc-rz-se,.calc-rz-sw{width:10px;height:10px}
+.calc-rz-ne{top:0;right:0;cursor:nesw-resize} .calc-rz-nw{top:0;left:0;cursor:nwse-resize}
+.calc-rz-se{bottom:0;right:0;cursor:nwse-resize} .calc-rz-sw{bottom:0;left:0;cursor:nesw-resize}
 .modal-bg.open{display:flex}
 body.capturing .rel-acao{display:none!important}
 .modal{background:var(--white);border-radius:14px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.22)}
@@ -501,6 +513,7 @@ body.capturing .rel-acao{display:none!important}
       <button class="sn-btn" id="sn-extrato" onclick="nav('extrato')"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Extratos &amp; Conciliação</button>
       <button class="sn-btn" id="sn-dre" onclick="nav('dre')"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16l4-6 3 4 4-7"/></svg>DRE</button>
       <button class="sn-btn" id="sn-cofre" onclick="nav('cofre')"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Cofre</button>
+      <button class="sn-btn" onclick="abrirCalculadora()"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11.01"/><line x1="12" y1="11" x2="12" y2="11.01"/><line x1="16" y1="11" x2="16" y2="11.01"/><line x1="8" y1="15" x2="8" y2="15.01"/><line x1="12" y1="15" x2="12" y2="15.01"/><line x1="16" y1="15" x2="16" y2="15.01"/><line x1="8" y1="19" x2="8" y2="19.01"/><line x1="12" y1="19" x2="12" y2="19.01"/></svg>Calculadora</button>
 
       <div class="sn-footer">
         <div class="sn-user">
@@ -605,16 +618,17 @@ body.capturing .rel-acao{display:none!important}
             <option>ART</option><option>Assessoria</option><option>Projeto</option>
             <option>Vistoria</option><option>Laudo/Parecer</option><option>Outros</option>
           </select>
+          <select id="fr-mes" onchange="_receberSelecionarMes()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)"></select>
           <span style="font-size:12px;color:var(--text2);font-weight:600">Venc. de:</span>
-          <input type="date" id="fr-de" onchange="loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <input type="date" id="fr-de" onchange="document.getElementById('fr-mes').value='';loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
           <span style="font-size:12px;color:var(--text2);font-weight:600">até:</span>
-          <input type="date" id="fr-ate" onchange="loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('fr-de').value='';document.getElementById('fr-ate').value='';loadReceber()">Limpar período</button>
+          <input type="date" id="fr-ate" onchange="document.getElementById('fr-mes').value='';loadReceber()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('fr-de').value='';document.getElementById('fr-ate').value='';document.getElementById('fr-mes').value='';loadReceber()">Limpar período</button>
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
-            <th class="sortable" data-rcol="cliente">Cliente</th><th class="sortable" data-rcol="categoria">Categoria</th><th class="sortable" data-rcol="data_vencimento">Vencimento</th><th class="sortable" data-rcol="valor">Valor</th><th class="sortable" data-rcol="status">Status</th><th class="sortable" data-rcol="nf">NF</th><th></th>
-          </tr></thead><tbody id="tbl-receber"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div>
+            <th class="sortable" data-rcol="cliente">Cliente</th><th class="sortable" data-rcol="categoria">Categoria</th><th class="sortable" data-rcol="data_vencimento">Vencimento</th><th class="sortable" data-rcol="data_recebimento">Pagamento</th><th class="sortable" data-rcol="valor">Valor</th><th class="sortable" data-rcol="status">Status</th><th class="sortable" data-rcol="nf">NF</th><th></th>
+          </tr></thead><tbody id="tbl-receber"><tr><td colspan="8" class="empty">Carregando…</td></tr></tbody></table></div>
         </div>
       </div>
 
@@ -635,13 +649,16 @@ body.capturing .rel-acao{display:none!important}
             <option value="">Todas as categorias</option>
             <option>Aluguel</option><option>Energia</option><option>Internet</option>
             <option>Telefone</option><option>Água</option><option>Fornecedor</option>
-            <option>Serviços</option><option>Impostos</option><option>Reembolsos</option><option>Outros</option>
+            <option>Serviços</option><option>Impostos</option><option>Reembolsos</option><option>Pró-Labore</option><option>Outros</option>
           </select>
           <span style="font-size:12px;color:var(--text2);font-weight:600">Venc. de:</span>
           <input type="date" id="fp-de" onchange="loadPagar()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
           <span style="font-size:12px;color:var(--text2);font-weight:600">até:</span>
           <input type="date" id="fp-ate" onchange="loadPagar()" style="padding:4px 6px;border-radius:8px;border:1px solid var(--gray3)">
           <button class="btn btn-outline btn-sm" onclick="document.getElementById('fp-de').value='';document.getElementById('fp-ate').value='';loadPagar()">Limpar período</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);font-weight:600;margin-left:6px">
+            <input type="checkbox" id="fp-incl-pl" onchange="loadPagar()"> Incluir Pró-Labore
+          </label>
         </div>
         <div class="card">
           <div class="card-bd"><table class="tbl"><thead><tr>
@@ -777,6 +794,12 @@ body.capturing .rel-acao{display:none!important}
         <label>Funcionário</label>
         <select id="rem-funcionario">
           <option value="">— carregando —</option>
+        </select>
+      </div>
+      <div class="func-col">
+        <label>Agenda (Google)</label>
+        <select id="rem-calendar" onchange="_remCalendarId=this.value">
+          <option value="primary">— conecte o Google —</option>
         </select>
       </div>
       <div class="mes-grid-col">
@@ -1164,7 +1187,11 @@ body.capturing .rel-acao{display:none!important}
       <div class="page" id="page-prolabore">
         <div class="page-header">
           <div><h2>Pró-Labore</h2><p>Retiradas mensais dos sócios</p></div>
-          <button class="btn btn-primary" onclick="openModalPL()">+ Novo Lançamento</button>
+          <div style="display:flex;gap:8px">
+            <input id="pl-comp-gerar" type="month" style="height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:13px" title="Competência">
+            <button class="btn btn-outline" onclick="gerarPLMes(document.getElementById('pl-comp-gerar').value,document.getElementById('fpl-socio').value)" title="Gera rascunhos com varredura automática do banco e cofre (respeita o filtro de sócio selecionado)">⚡ Gerar Mês</button>
+            <button class="btn btn-primary" onclick="openModalPL()">+ Novo Lançamento</button>
+          </div>
         </div>
 
         <!-- Filtros -->
@@ -1179,13 +1206,10 @@ body.capturing .rel-acao{display:none!important}
           <select id="fpl-ano" onchange="loadProLabore()"></select>
         </div>
 
-        <!-- KPIs -->
-        <div class="kpi-row">
-          <div class="kpi blue"><label>Bruto no Período</label><div class="val" id="kpl-bruto">—</div></div>
-          <div class="kpi red"><label>Descontos</label><div class="val" id="kpl-desc">—</div></div>
-          <div class="kpi green"><label>Líquido a Receber</label><div class="val" id="kpl-liq">—</div></div>
-          <div class="kpi gray"><label>Pago</label><div class="val" id="kpl-pago">—</div></div>
-        </div>
+        <!-- Resumo por sócio -->
+        <div id="kpl-socios" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"></div>
+        <!-- Pendências -->
+        <div id="kpl-pendencias" style="margin-bottom:16px"></div>
 
         <!-- Tabela -->
         <div class="card">
@@ -1224,10 +1248,11 @@ body.capturing .rel-acao{display:none!important}
 
 <!-- MODAL: PRÓ-LABORE -->
 <div class="modal-bg" id="modal-prolabore">
-  <div class="modal" style="width:540px">
+  <div class="modal" style="width:580px;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-hd"><h3 id="mpl-title">Novo Lançamento de Pró-Labore</h3><button onclick="closeModal('modal-prolabore')">×</button></div>
-    <div class="modal-bd">
+    <div class="modal-bd" style="overflow-y:auto;flex:1">
       <input type="hidden" id="mpl-id">
+      <input type="hidden" id="mpl-forma" value="">
       <div class="form-2col">
         <div class="form-row"><label>Sócio *</label>
           <select id="mpl-socio"></select>
@@ -1236,15 +1261,8 @@ body.capturing .rel-acao{display:none!important}
           <input id="mpl-comp" type="month">
         </div>
       </div>
-      <div class="form-2col">
-        <div class="form-row"><label>Valor Bruto (R$) *</label>
-          <input id="mpl-valor" type="number" min="0" step="0.01" placeholder="0,00">
-        </div>
-        <div class="form-row"><label>Forma de Pagamento</label>
-          <select id="mpl-forma">
-            <option value="">—</option><option>Pix</option><option>Espécie</option><option>Transferência</option><option>Misto</option>
-          </select>
-        </div>
+      <div class="form-row"><label>Valor Bruto (R$) *</label>
+        <input id="mpl-valor" type="number" min="0" step="0.01" placeholder="0,00" oninput="_plRecalcModal()">
       </div>
       <div class="form-row"><label>Observação</label><input id="mpl-obs" placeholder="Opcional"></div>
 
@@ -1256,10 +1274,38 @@ body.capturing .rel-acao{display:none!important}
         </div>
         <div id="mpl-itens"></div>
       </div>
+
+      <!-- Totalização em tempo real -->
+      <div id="mpl-resumo" style="margin-top:16px;background:var(--gray1);border-radius:10px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span style="color:var(--green);font-weight:600">Total Créditos</span>
+          <span id="mpl-tot-cred" style="color:var(--green);font-weight:700">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span style="color:var(--red);font-weight:600">Total Débitos</span>
+          <span id="mpl-tot-deb" style="color:var(--red);font-weight:700">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:16px;border-top:2px solid var(--teal);padding-top:8px;margin-top:8px">
+          <span style="color:var(--teal);font-weight:800">LÍQUIDO A RECEBER</span>
+          <span id="mpl-tot-liq" style="color:var(--teal);font-weight:800">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Seção de pagamento (estilo banco) -->
+      <div id="mpl-pagamento" style="margin-top:16px;border-top:1px solid var(--gray2);padding-top:14px;display:none">
+        <label style="font-size:13px;font-weight:700;color:var(--teal);display:block;margin-bottom:10px">De onde sai o pagamento?</label>
+        <div id="mpl-contas" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div id="mpl-pag-total" style="margin-top:12px;background:var(--teal);color:#fff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:700">
+          <span>Total alocado</span>
+          <span id="mpl-pag-alocado">R$ 0,00 / R$ 0,00</span>
+        </div>
+        <div id="mpl-pag-aviso" style="color:var(--red);font-size:12px;margin-top:6px;display:none"></div>
+      </div>
     </div>
-    <div class="modal-ft">
+    <div class="modal-ft" style="flex-wrap:wrap;gap:8px">
       <button class="btn btn-outline" onclick="closeModal('modal-prolabore')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveProLabore()">Salvar</button>
+      <button class="btn btn-primary" onclick="saveProLabore()">Salvar Rascunho</button>
+      <button class="btn" id="mpl-btn-pagar" style="background:var(--green);color:#fff;display:none" onclick="confirmarPagamentoPL()">💰 Confirmar Pagamento</button>
     </div>
   </div>
 </div>
@@ -1520,6 +1566,49 @@ body.capturing .rel-acao{display:none!important}
 </div>
 
 <!-- MODAL: COFRE ENTRADA/SAÍDA -->
+<div class="modal-bg" id="modal-calc">
+  <div class="modal" id="calc-window" style="display:flex;flex-direction:column">
+    <div class="modal-hd" id="calc-hd" onmousedown="_calcDragStart(event)">
+      <h3>Calculadora</h3>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button onclick="_calcToggleMax()" title="Expandir/Restaurar" style="font-size:15px">⛶</button>
+        <button onclick="closeModal('modal-calc')">×</button>
+      </div>
+    </div>
+    <div class="modal-bd" style="flex:1;display:flex;flex-direction:column">
+      <input id="calc-visor" readonly style="width:100%;box-sizing:border-box;height:48px;font-size:24px;text-align:right;padding:0 10px;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;background:var(--gray)" value="0">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex:1">
+        <button class="btn btn-outline" onclick="calcClear()">C</button>
+        <button class="btn btn-outline" onclick="calcBack()">⌫</button>
+        <button class="btn btn-outline" onclick="calcOp('%')">%</button>
+        <button class="btn btn-primary" onclick="calcOp('/')">÷</button>
+        <button class="btn btn-outline" onclick="calcNum('7')">7</button>
+        <button class="btn btn-outline" onclick="calcNum('8')">8</button>
+        <button class="btn btn-outline" onclick="calcNum('9')">9</button>
+        <button class="btn btn-primary" onclick="calcOp('*')">×</button>
+        <button class="btn btn-outline" onclick="calcNum('4')">4</button>
+        <button class="btn btn-outline" onclick="calcNum('5')">5</button>
+        <button class="btn btn-outline" onclick="calcNum('6')">6</button>
+        <button class="btn btn-primary" onclick="calcOp('-')">−</button>
+        <button class="btn btn-outline" onclick="calcNum('1')">1</button>
+        <button class="btn btn-outline" onclick="calcNum('2')">2</button>
+        <button class="btn btn-outline" onclick="calcNum('3')">3</button>
+        <button class="btn btn-primary" onclick="calcOp('+')">+</button>
+        <button class="btn btn-outline" onclick="calcNum('0')" style="grid-column:span 2">0</button>
+        <button class="btn btn-outline" onclick="calcNum('.')">,</button>
+        <button class="btn btn-primary" onclick="calcEquals()">=</button>
+      </div>
+    </div>
+    <div class="calc-rz calc-rz-n" onmousedown="_calcResizeStart(event,'n')"></div>
+    <div class="calc-rz calc-rz-s" onmousedown="_calcResizeStart(event,'s')"></div>
+    <div class="calc-rz calc-rz-e" onmousedown="_calcResizeStart(event,'e')"></div>
+    <div class="calc-rz calc-rz-w" onmousedown="_calcResizeStart(event,'w')"></div>
+    <div class="calc-rz calc-rz-ne" onmousedown="_calcResizeStart(event,'ne')"></div>
+    <div class="calc-rz calc-rz-nw" onmousedown="_calcResizeStart(event,'nw')"></div>
+    <div class="calc-rz calc-rz-se" onmousedown="_calcResizeStart(event,'se')"></div>
+    <div class="calc-rz calc-rz-sw" onmousedown="_calcResizeStart(event,'sw')"></div>
+  </div>
+</div>
 <div class="modal-bg" id="modal-cofre">
   <div class="modal">
     <div class="modal-hd"><h3 id="mcf-title">Registrar Entrada</h3><button onclick="closeModal('modal-cofre')">×</button></div>
@@ -1967,10 +2056,16 @@ async function loadDash(){
   loadDashCategorias();              // receita por categoria (guarda própria _catTok)
 }
 
+// Natureza contábil de uma transação: usa tipo_categoria (um crédito pode ser Despesa=estorno);
+// só cai no campo tipo (credito/debito) quando tipo_categoria está ausente.
+function _txNat(t){ return (t&&t.tipo_categoria==='Despesa')?'Despesa':(t&&t.tipo_categoria==='Receita')?'Receita':((t&&t.tipo==='credito')?'Receita':'Despesa'); }
+// Valor com sinal contábil: estorno (crédito marcado Despesa) REDUZ a despesa; refund (débito marcado Receita) REDUZ a receita.
+function _txSig(t){ const nat=_txNat(t); const natural=(nat==='Receita')?'credito':'debito'; return ((t&&t.tipo===natural)?1:-1)*(+((t&&t.valor)||0)); }
+
 // realizado no período: receita/despesa/resultado + fluxo de caixa mensal
 async function _loadDashRealizado(de,ate,tok){
   const gr=id=>document.getElementById(id);
-  let qt=sb.from('fin_transacoes_bancarias').select('data,valor,tipo,competencia');
+  let qt=sb.from('fin_transacoes_bancarias').select('data,valor,tipo,competencia,tipo_categoria,categoria');
   let qc=sb.from('fin_livro_caixa_cofre').select('data,valor,tipo,descricao');
   if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
   if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
@@ -1978,8 +2073,8 @@ async function _loadDashRealizado(de,ate,tok){
   try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }catch(e){}
   if(tok!=null && tok!==_dashTok) return;    // período mudou — descarta resultado obsoleto
   const all=tx.concat(_cofreComoTxns(cf));   // tudo em REAIS
-  const rec=all.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor||0),0);
-  const desp=all.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor||0),0);
+  const rec=all.filter(t=>_txNat(t)==='Receita').reduce((s,t)=>s+_txSig(t),0);
+  const desp=all.filter(t=>_txNat(t)==='Despesa').reduce((s,t)=>s+_txSig(t),0);
   const result=rec-desp, margem=rec?Math.round(result/rec*100):0;
   if(gr('kpi-bi-receita'))gr('kpi-bi-receita').textContent=_fmtR(rec);
   if(gr('kpi-bi-despesa'))gr('kpi-bi-despesa').textContent=_fmtR(desp);
@@ -2054,19 +2149,31 @@ async function loadDashCategorias(){
   if(!canvas) return;
   if(typeof Chart==='undefined'){ if(empty){empty.style.display='';empty.textContent='Biblioteca de gráficos não carregou.';} return; }
   const {de,ate}=_biRange();
-  // Realizado = recebido (filtra por data_recebimento); Previsto/Ambos = por data_vencimento
-  const dCol=_dashCatModo==='realizado'?'data_recebimento':'data_vencimento';
-  let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,data_recebimento,estornado').eq('estornado',false);
-  if(_dashCatModo==='realizado') q=q.eq('status','Recebido').not('data_recebimento','is',null);
-  else if(_dashCatModo==='previsto') q=q.eq('status','Pendente');
-  if(de) q=q.gte(dCol,de);
-  if(ate) q=q.lte(dCol,ate);
-  let data=[];
-  try{ const r=await q; if(r.error)throw r.error; data=r.data||[]; }
-  catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
-  if(myTok!==_catTok) return;        // clique/período mais recente já disparou
   const acc={};
-  data.forEach(r=>{ const c=catCanonica(r.categoria); acc[c]=(acc[c]||0)+(r.valor||0); });
+  if(_dashCatModo==='realizado'){
+    // Realizado = mesma fonte do KPI "Receita no período" (banco + cofre), não só contas a receber formais
+    let qt=sb.from('fin_transacoes_bancarias').select('valor,tipo,categoria,data,tipo_categoria');
+    let qc=sb.from('fin_livro_caixa_cofre').select('valor,tipo,descricao,data');
+    if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
+    if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
+    let tx=[],cf=[];
+    try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }
+    catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
+    if(myTok!==_catTok) return;
+    const all=tx.concat(_cofreComoTxns(cf)).filter(t=>_txNat(t)==='Receita');
+    all.forEach(t=>{ const c=catCanonica(t.categoria); acc[c]=(acc[c]||0)+Math.round(_txSig(t)*100); });
+  } else {
+    // Previsto/Ambos = contas a receber (por data de vencimento)
+    let q=sb.from('fin_contas_receber').select('categoria,valor,status,data_vencimento,data_recebimento,estornado').eq('estornado',false);
+    if(_dashCatModo==='previsto') q=q.eq('status','Pendente');
+    if(de) q=q.gte('data_vencimento',de);
+    if(ate) q=q.lte('data_vencimento',ate);
+    let data=[];
+    try{ const r=await q; if(r.error)throw r.error; data=r.data||[]; }
+    catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
+    if(myTok!==_catTok) return;
+    data.forEach(r=>{ const c=catCanonica(r.categoria); acc[c]=(acc[c]||0)+(r.valor||0); });
+  }
   const cats=Object.keys(acc).filter(k=>acc[k]>0).sort((a,b)=>acc[b]-acc[a]);
   if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;}
   if(!cats.length){ canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Sem receitas no período.';} return; }
@@ -2098,7 +2205,33 @@ async function loadContasBancarias(){
 }
 
 // ── Contas a Receber ──────────────────────────────────────────
+function _receberPopularMeses(){
+  const sel=document.getElementById('fr-mes');
+  if(!sel||sel.options.length)return; // já populado
+  const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const hoje=new Date();
+  let html='<option value="">Todos os meses</option>';
+  for(let i=-6;i<=6;i++){
+    const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);
+    const ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    html+=`<option value="${ym}">${MESES[d.getMonth()]}/${d.getFullYear()}</option>`;
+  }
+  sel.innerHTML=html;
+}
+function _receberSelecionarMes(){
+  const ym=document.getElementById('fr-mes').value;
+  if(ym){
+    const[a,m]=ym.split('-').map(Number);
+    const de=`${ym}-01`;
+    const ultimoDia=new Date(a,m,0).getDate();
+    const ate=`${ym}-${String(ultimoDia).padStart(2,'0')}`;
+    document.getElementById('fr-de').value=de;
+    document.getElementById('fr-ate').value=ate;
+  }
+  loadReceber();
+}
 async function loadReceber(){
+  _receberPopularMeses();
   let q=sb.from('fin_contas_receber').select('*').order('data_vencimento');
   const st=document.getElementById('fr-status').value;
   const cat=document.getElementById('fr-cat').value;
@@ -2110,11 +2243,16 @@ async function loadReceber(){
   const{data,error}=await q;
   if(error){toast('Erro ao carregar',true);return;}
   const rows=data||[];
-  // KPIs
+  // KPIs — refletem exatamente o resultado do filtro aplicado (status/categoria/período)
   const mesAtual=new Date().toISOString().slice(0,7);
-  const pend=rows.filter(r=>r.status==='Pendente'&&!r.estornado).reduce((s,r)=>s+r.valor,0);
-  const mes=rows.filter(r=>r.status==='Recebido'&&r.data_recebimento&&r.data_recebimento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
-  document.getElementById('kr-total').textContent=fmt(pend);
+  // "Total a Receber" (filtro Todos) = só o que está Pendente (o que de fato falta receber).
+  // Com um status específico selecionado, soma o que está filtrado (ex.: Total Recebido).
+  const totalFiltro=(st?rows.filter(r=>!r.estornado):rows.filter(r=>!r.estornado&&r.status==='Pendente')).reduce((s,r)=>s+r.valor,0);
+  // "Recebido no Mês" = KPI FIXO: total efetivamente recebido no mês atual, independente do filtro da lista.
+  const{data:_recMes}=await sb.from('fin_contas_receber').select('valor,data_recebimento,estornado').eq('status','Recebido').gte('data_recebimento',mesAtual+'-01');
+  const mes=(_recMes||[]).filter(r=>!r.estornado&&(r.data_recebimento||'').startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
+  document.getElementById('kr-total').previousElementSibling.textContent=st?`Total ${st}`:'Total a Receber';
+  document.getElementById('kr-total').textContent=fmt(totalFiltro);
   document.getElementById('kr-mes').textContent=fmt(mes);
   _receberRows=rows;
   renderReceber();
@@ -2137,16 +2275,17 @@ function renderReceber(){
       <td>${esc(r.cliente)}</td>
       <td>${esc(r.categoria)}</td>
       <td>${formatData(r.data_vencimento)}</td>
+      <td>${r.data_recebimento?'<span style="color:var(--green)">'+formatData(r.data_recebimento)+'</span>':'<span style="color:var(--text2)">—</span>'}</td>
       <td>${fmt(r.valor)}</td>
       <td>${badgeSt(r.status,r.data_vencimento)}</td>
-      <td>${r.nota_fiscal_emitida?'<span style="color:var(--green);font-size:12px">✓ Emitida</span>':r.lembrete_nota_fiscal?'<span style="color:var(--warn);font-size:12px">⚠ Pendente</span>':'—'}</td>
+      <td>${r.nota_fiscal_emitida?`<span style="color:var(--green);font-size:12px">✓ ${esc(r.numero_nfse||'Emitida')}</span>${r.codigo_verificacao?'<br><small style="color:var(--text2)">'+esc(r.codigo_verificacao)+'</small>':''}`:r.lembrete_nota_fiscal?'<span style="color:var(--warn);font-size:12px">⚠ Pendente</span>':'—'}</td>
       <td style="white-space:nowrap">
         ${r.status==='Pendente'&&!r.estornado?`<button class="btn btn-green btn-sm" onclick="openMarcarRecebido(${r.id})">Receber</button> `:''}
         ${r.status==='Recebido'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="openEstornoR(${r.id})">Estornar</button> `:''}
         <button class="btn btn-outline btn-sm" onclick="editReceber(${r.id})">✎</button>
         <button class="btn btn-danger btn-sm" onclick="delReceber(${r.id})">✕</button>
       </td>
-    </tr>`).join(''):'<tr><td colspan="7" class="empty">Nenhum registro encontrado</td></tr>';
+    </tr>`).join(''):'<tr><td colspan="8" class="empty">Nenhum registro encontrado</td></tr>';
 }
 
 function openModalReceber(item=null){
@@ -2239,19 +2378,50 @@ async function loadPagar(){
   const st=document.getElementById('fp-status').value;
   const cat=document.getElementById('fp-cat').value;
   const de=document.getElementById('fp-de')?.value, ate=document.getElementById('fp-ate')?.value;
+  const inclPL=document.getElementById('fp-incl-pl')?.checked&&cat!=='Pró-Labore';
   if(st)q=q.eq('status',st);
-  if(cat)q=q.eq('categoria',cat);
+  if(cat&&cat!=='Pró-Labore')q=q.eq('categoria',cat);
   if(de)q=q.gte('data_vencimento',de);
   if(ate)q=q.lte('data_vencimento',ate);
-  const{data,error}=await q;
-  if(error){toast('Erro ao carregar',true);return;}
-  const rows=data||[];
+  let rows=[];
+  if(cat!=='Pró-Labore'){
+    const{data,error}=await q;
+    if(error){toast('Erro ao carregar',true);return;}
+    rows=data||[];
+  }
+
+  // Mescla pagamentos de Pró-Labore (retiradas de sócios), quando habilitado
+  if((inclPL||cat==='Pró-Labore')&&st!=='Pendente'){
+    let qpl=sb.from('fin_pro_labore').select('*').eq('status','Pago');
+    if(de)qpl=qpl.gte('data_pagamento',de);
+    if(ate)qpl=qpl.lte('data_pagamento',ate);
+    const{data:plData}=await qpl;
+    const ids=(plData||[]).map(r=>r.id);
+    let itensPL={};
+    if(ids.length){
+      const{data:itens}=await sb.from('fin_pro_labore_itens').select('*').in('pro_labore_id',ids);
+      (itens||[]).forEach(it=>{
+        if(!itensPL[it.pro_labore_id])itensPL[it.pro_labore_id]={c:0,d:0};
+        if(it.tipo==='credito')itensPL[it.pro_labore_id].c+=it.valor;else itensPL[it.pro_labore_id].d+=it.valor;
+      });
+    }
+    const plRows=(plData||[]).map(r=>{
+      const t=itensPL[r.id]||{c:r.valor_bruto,d:0};
+      return{
+        id:'pl-'+r.id,plId:r.id,fornecedor:'Pró-Labore — '+r.socio_nome,categoria:'Pró-Labore',
+        data_vencimento:r.data_pagamento,data_pagamento:r.data_pagamento,valor:t.c-t.d,
+        status:'Pago',estornado:r.estornado||false,num_controle:r.nr_controle,_isPL:true,
+      };
+    });
+    rows=rows.concat(plRows);
+  }
+
   // KPIs
   const mesAtual=new Date().toISOString().slice(0,7);
   const hj=hoje();
   const venc=rows.filter(r=>r.status==='Pendente'&&!r.estornado&&r.data_vencimento<hj).reduce((s,r)=>s+r.valor,0);
   const avenc=rows.filter(r=>r.status==='Pendente'&&!r.estornado&&r.data_vencimento>=hj).reduce((s,r)=>s+r.valor,0);
-  const mes=rows.filter(r=>r.status==='Pago'&&r.data_pagamento&&r.data_pagamento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
+  const mes=rows.filter(r=>r.status==='Pago'&&!r.estornado&&r.data_pagamento&&r.data_pagamento.startsWith(mesAtual)).reduce((s,r)=>s+r.valor,0);
   document.getElementById('kp-venc').textContent=fmt(venc);
   document.getElementById('kp-avenc').textContent=fmt(avenc);
   document.getElementById('kp-mes').textContent=fmt(mes);
@@ -2270,7 +2440,18 @@ _sortRegistry['tbl-pagar']={state:_sortPagar,render:()=>renderPagar()};
 function renderPagar(){
   const rows=_sortRows(_pagarRows,_sortPagar,_accPagar);
   _applySortHeaders('tbl-pagar','pcol',_sortPagar);
-  document.getElementById('tbl-pagar').innerHTML=rows.length?rows.map(r=>`
+  document.getElementById('tbl-pagar').innerHTML=rows.length?rows.map(r=>r._isPL?`
+    <tr>
+      <td>${esc(r.fornecedor)}${r.num_controle?`<span style="font-size:10px;font-family:monospace;color:var(--teal);margin-left:6px">[${r.num_controle}]</span>`:''}</td>
+      <td>${esc(r.categoria)}</td>
+      <td>${formatData(r.data_vencimento)}</td>
+      <td>${fmt(r.valor)}</td>
+      <td>${r.estornado?'<span class="badge venc">Estornado</span>':badgeSt(r.status,r.data_vencimento)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorioPL(${r.plId})">👁</button>
+        ${!r.estornado?`<button class="btn btn-danger btn-sm" onclick="estornarPL(${r.plId})">Estornar</button>`:''}
+      </td>
+    </tr>`:`
     <tr>
       <td>${esc(r.fornecedor)}${r.num_controle?`<span style="font-size:10px;font-family:monospace;color:var(--teal);margin-left:6px">[${r.num_controle}]</span>`:''}</td>
       <td>${esc(r.categoria)}</td>
@@ -2362,7 +2543,7 @@ async function confirmarPago(){
 
   const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte};
   const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
-  if(error){toast('Erro ao registrar pagamento',true);return;}
+  if(error){toast('Erro ao registrar pagamento: '+error.message,true);console.error('confirmarPago:',error);return;}
 
   // Cascata: marca reembolsos do mês como Pagos
   if(conta?.competencia&&conta?.tipo_reembolso){
@@ -2422,6 +2603,107 @@ async function confirmarEstornoP(){
 
 // ── Utilitários ───────────────────────────────────────────────
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ── CALCULADORA ─────────────────────────
+let _calcExpr='';
+function abrirCalculadora(){
+  _calcExpr='';
+  document.getElementById('calc-visor').value='0';
+  document.getElementById('modal-calc').classList.add('open');
+}
+let _calcDrag=null;
+function _calcDragStart(e){
+  if(e.target.tagName==='BUTTON')return;
+  const win=document.getElementById('calc-window');
+  const rect=win.getBoundingClientRect();
+  _calcDrag={dx:e.clientX-rect.left,dy:e.clientY-rect.top};
+  document.addEventListener('mousemove',_calcDragMove);
+  document.addEventListener('mouseup',_calcDragEnd);
+}
+function _calcDragMove(e){
+  if(!_calcDrag)return;
+  const win=document.getElementById('calc-window');
+  win.style.left=Math.max(0,e.clientX-_calcDrag.dx)+'px';
+  win.style.top=Math.max(0,e.clientY-_calcDrag.dy)+'px';
+}
+function _calcDragEnd(){
+  _calcDrag=null;
+  document.removeEventListener('mousemove',_calcDragMove);
+  document.removeEventListener('mouseup',_calcDragEnd);
+}
+function _calcToggleMax(){
+  document.getElementById('modal-calc').classList.toggle('calc-max');
+}
+let _calcRz=null;
+function _calcResizeStart(e,dir){
+  e.stopPropagation();e.preventDefault();
+  const win=document.getElementById('calc-window');
+  const rect=win.getBoundingClientRect();
+  _calcRz={dir,x:e.clientX,y:e.clientY,w:rect.width,h:rect.height,l:rect.left,t:rect.top};
+  document.addEventListener('mousemove',_calcResizeMove);
+  document.addEventListener('mouseup',_calcResizeEnd);
+}
+function _calcResizeMove(e){
+  if(!_calcRz)return;
+  const win=document.getElementById('calc-window');
+  const {dir,x,y,w,h,l,t}=_calcRz;
+  const dx=e.clientX-x, dy=e.clientY-y;
+  const minW=260,minH=340;
+  if(dir.includes('e')){ win.style.width=Math.max(minW,w+dx)+'px'; }
+  if(dir.includes('s')){ win.style.height=Math.max(minH,h+dy)+'px'; }
+  if(dir.includes('w')){
+    const nw=Math.max(minW,w-dx);
+    win.style.width=nw+'px'; win.style.left=(l+(w-nw))+'px';
+  }
+  if(dir.includes('n')){
+    const nh=Math.max(minH,h-dy);
+    win.style.height=nh+'px'; win.style.top=(t+(h-nh))+'px';
+  }
+}
+function _calcResizeEnd(){
+  _calcRz=null;
+  document.removeEventListener('mousemove',_calcResizeMove);
+  document.removeEventListener('mouseup',_calcResizeEnd);
+}
+document.addEventListener('keydown',e=>{
+  const modal=document.getElementById('modal-calc');
+  if(!modal||!modal.classList.contains('open'))return;
+  if(/^[0-9]$/.test(e.key)){calcNum(e.key);e.preventDefault();}
+  else if(e.key==='.'||e.key===','){calcNum('.');e.preventDefault();}
+  else if(['+','-','*','/','%'].includes(e.key)){calcOp(e.key);e.preventDefault();}
+  else if(e.key==='Enter'||e.key==='='){calcEquals();e.preventDefault();}
+  else if(e.key==='Backspace'){calcBack();e.preventDefault();}
+  else if(e.key==='Escape'){closeModal('modal-calc');e.preventDefault();}
+});
+function _calcUpdate(){document.getElementById('calc-visor').value=_calcExpr||'0';}
+function calcClear(){_calcExpr='';_calcUpdate();}
+function calcBack(){_calcExpr=_calcExpr.slice(0,-1);_calcUpdate();}
+function calcNum(n){
+  if(n==='.'){
+    const partes=_calcExpr.split(/[-+*/%]/);
+    if(partes[partes.length-1].includes('.'))return;
+  }
+  _calcExpr+=n;_calcUpdate();
+}
+function calcOp(op){
+  if(!_calcExpr){if(op!=='-')return;}
+  const ultimo=_calcExpr.slice(-1);
+  if(['+','-','*','/','%'].includes(ultimo))_calcExpr=_calcExpr.slice(0,-1);
+  _calcExpr+=op;_calcUpdate();
+}
+function calcEquals(){
+  if(!_calcExpr)return;
+  try{
+    if(!/^[0-9.+\-*/%]+$/.test(_calcExpr))throw new Error('inválido');
+    const resultado=Function('"use strict";return('+_calcExpr+')')();
+    if(!isFinite(resultado))throw new Error('inválido');
+    _calcExpr=String(Math.round(resultado*100)/100);
+    _calcUpdate();
+  }catch(e){
+    document.getElementById('calc-visor').value='Erro';
+    _calcExpr='';
+  }
+}
 function toggleRecorrente(pfx){
   const checked=document.getElementById(pfx+'-rec').checked;
   document.getElementById(pfx+'-fim-row').style.display=checked?'block':'none';
@@ -2461,6 +2743,8 @@ const EXCLUDE_RE=/reuni[aã]o|enviar|liberar|ligar|e-?mail|whatsapp|mensagem|lem
 
 let _remVisitas=[];       // visitas do mês atual
 let _remGoogleToken=null; // access token Google
+let _remCalendarId='primary'; // agenda Google de onde importar as visitas
+let _remCalendars=[];     // lista de agendas disponíveis na conta conectada
 let _remAprendizado=[];   // cache fin_cidade_aprendizado
 let _relatorio=null;      // relatório gerado
 let _relatorioDig=null;   // relatório digital gerado
@@ -2565,6 +2849,36 @@ function aplicarAgrupamento(visitas){
   }
 }
 
+// ─── Listar agendas da conta conectada ───────────────────────
+// As visitas ficam numa agenda separada ("Diagnóstika 2026"), não na primary.
+// Busca a lista de agendas e seleciona automaticamente a que casa com "Diagnóstika" + ano.
+async function carregarCalendarios(){
+  if(!_remGoogleToken)return false;
+  try{
+    const r=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',{headers:{Authorization:'Bearer '+_remGoogleToken}});
+    if(r.status===401){
+      localStorage.removeItem('gcal_token');_remGoogleToken=null;
+      atualizarStatusGcal(false);toast('Token expirado. Reconecte o Google Calendar.',true);return false;
+    }
+    const j=await r.json();
+    _remCalendars=(j.items||[]).map(c=>({id:c.id,nome:c.summaryOverride||c.summary||c.id}));
+  }catch(e){_remCalendars=[];}
+  const sel=document.getElementById('rem-calendar');
+  const ano=String(_remAnoN||'');
+  // Prioridade: "Diagnóstika"+ano → "Diagnóstika" qualquer → primary
+  const best=_remCalendars.find(c=>/diagn[oó]stika/i.test(c.nome)&&c.nome.includes(ano))
+          || _remCalendars.find(c=>/diagn[oó]stika/i.test(c.nome))
+          || null;
+  _remCalendarId=best?best.id:'primary';
+  if(sel){
+    sel.innerHTML=_remCalendars.length
+      ? _remCalendars.map(c=>`<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')
+      : '<option value="primary">Agenda principal</option>';
+    sel.value=_remCalendarId;
+  }
+  return true;
+}
+
 // ─── Importar do Google Calendar ─────────────────────────────
 async function importarCalendario(){
   if(!_remGoogleToken){
@@ -2572,6 +2886,8 @@ async function importarCalendario(){
   }
   const mes=getMesISO();
   if(!mes){toast('Selecione um mês.',true);return;}
+  // Garante que a agenda correta ("Diagnóstika <ano>") esteja resolvida
+  if(!_remCalendars.length) await carregarCalendarios();
   document.getElementById('rem-loading').style.display='inline';
   document.getElementById('btn-gerar-rel').style.display='none';
   document.getElementById('card-relatorio-gerado').style.display='none';
@@ -2585,7 +2901,8 @@ async function importarCalendario(){
   const{data:aprendizado}=await sb.from('fin_cidade_aprendizado').select('*').eq('user_id',(await sb.auth.getUser()).data.user.id);
   _remAprendizado=aprendizado||[];
 
-  const url=`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&singleEvents=true&orderBy=startTime&maxResults=500`;
+  const calId=_remCalendarId||'primary';
+  const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&singleEvents=true&orderBy=startTime&maxResults=500`;
   let resp;
   try{
     const r=await fetch(url,{headers:{Authorization:'Bearer '+_remGoogleToken}});
@@ -2634,6 +2951,16 @@ async function importarCalendario(){
   renderTabelaVisitas();
   atualizarKPIsRem();
   await carregarHistoricoRem();
+
+  // Feedback claro quando não veio nada (ajuda a distinguir agenda errada x mês vazio x filtro)
+  const nomeAgenda=(_remCalendars.find(c=>c.id===calId)||{}).nome||'agenda selecionada';
+  if(!events.length){
+    toast(`Nenhum evento em ${mes} na agenda "${nomeAgenda}". Confira se a agenda e o mês estão certos.`,true);
+  }else if(!_remVisitas.length){
+    toast(`${events.length} evento(s) lido(s), mas nenhum reconhecido como visita. Verifique o texto dos eventos.`,true);
+  }else{
+    toast(`${_remVisitas.length} visita(s) importada(s) de "${nomeAgenda}".`);
+  }
 }
 
 // ─── Render tabela de visitas ─────────────────────────────────
@@ -2785,6 +3112,12 @@ function adicionarVisitaManual(){
 async function gerarRelatorio(){
   const mes=getMesISO();
   if(!mes){toast('Selecione o mês',true);return;}
+  // Sem visitas importadas → orienta em vez de gerar relatório vazio ("Sem dados para este mês")
+  if(!_remVisitas.length){
+    if(!_remGoogleToken)toast('Conecte o Google Agenda e importe as visitas antes de gerar o relatório.',true);
+    else toast('Importe as visitas do mês primeiro (botão "✓ Calendar").',true);
+    return;
+  }
   const visitasFin=_remVisitas.filter(v=>v.cidade!=='PENDENTE_CIDADE');
   const total=visitasFin.reduce((s,v)=>s+(v.valorFinal||0),0);
 
@@ -3240,6 +3573,7 @@ function imprimirPreviewRel(){
 }
 function downloadPDFPreview(){
   if(_previewModo==='digital'){if(_relatorioDig)downloadPDFDigitalMes(_relatorioDig.mes);else toast('Nenhum relatório carregado',true);return;}
+  if(_previewModo==='prolabore'){downloadPDFProLabore();return;}
   if(_relatorio)downloadPDF();else toast('Nenhum relatório carregado',true);
 }
 async function criarContaPagarPreview(){
@@ -3269,6 +3603,8 @@ async function excluirVisitaDoRelatorio(id,mes){
 
 // ── Compartilhamento por imagem ──
 function compartilharRelatorio(){
+  if(_previewModo==='prolabore'){if(!_relatorioPL){toast('Nenhum relatório carregado',true);return;}document.getElementById('modal-share').classList.add('open');return;}
+  if(_previewModo==='digital'){if(!_relatorioDig){toast('Nenhum relatório carregado',true);return;}document.getElementById('modal-share').classList.add('open');return;}
   if(!_relatorio){toast('Nenhum relatório carregado',true);return;}
   document.getElementById('modal-share').classList.add('open');
 }
@@ -3284,6 +3620,8 @@ async function _gerarImagemRel(){
   }
 }
 function _nomeArquivoRel(){
+  if(_previewModo==='prolabore'&&_relatorioPL)return `pro-labore-${_relatorioPL.socioNome.split(' ')[0]}-${_relatorioPL.competencia}.png`;
+  if(_previewModo==='digital'&&_relatorioDig)return `reembolso-digital-${_relatorioDig.mes.replace('/','-')}.png`;
   const m=(_relatorio?.mes||'relatorio').replace('/','-');
   return `reembolso-${m}.png`;
 }
@@ -3292,7 +3630,9 @@ async function shareWhatsAppImagem(){
     toast('Gerando imagem…');
     const blob=await _gerarImagemRel();
     const file=new File([blob],_nomeArquivoRel(),{type:'image/png'});
-    const txt=`Relatório de Reembolso — ${_relatorio.mes}\nTotal: ${fmt(_relatorio.total)}`;
+    const txt=_previewModo==='prolabore'&&_relatorioPL?`Recibo de Pró-Labore — ${_relatorioPL.socioNome} — ${fmtComp(_relatorioPL.competencia)}\nLíquido: ${fmt(_relatorioPL.liquido)}`
+      :_previewModo==='digital'&&_relatorioDig?`Relatório de Reembolso Digital — ${_relatorioDig.mes}\nTotal: ${fmt(_relatorioDig.total)}`
+      :`Relatório de Reembolso — ${_relatorio.mes}\nTotal: ${fmt(_relatorio.total)}`;
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       await navigator.share({files:[file],title:'Relatório de Reembolso',text:txt});
       closeModal('modal-share');
@@ -3676,6 +4016,8 @@ function remTab(tab){
 async function loadReembolsos(){
   const tokOk=carregarTokenGoogle();
   atualizarStatusGcal(tokOk);
+  // Se já conectado, pré-carrega a lista de agendas e resolve "Diagnóstika <ano>"
+  if(tokOk) carregarCalendarios();
 
   // Popular dropdown de ano
   const anoSel=document.getElementById('rem-ano');
@@ -4167,6 +4509,21 @@ async function _nfseCarregarUltimas(){
   }catch(e){ console.warn('nfse ultimas load',e); }
 }
 const _MESES_NF=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// Conjunto "condominio_id|Competência" das notas de PRODUÇÃO já emitidas — base do alerta de pendências.
+let _nfseEmitidasSet=new Set();
+async function _nfseCarregarEmitidas(){
+  try{
+    const{data,error}=await sb.from('fin_nfse_emitidas')
+      .select('condominio_id,competencia').eq('ambiente','producao').eq('status','emitida');
+    if(error){ console.warn('nfse emitidas',error.message); return; }
+    _nfseEmitidasSet=new Set((data||[]).filter(n=>n.condominio_id).map(n=>n.condominio_id+'|'+n.competencia));
+  }catch(e){ console.warn('nfse emitidas load',e); }
+}
+function _nfseCompSel(){
+  return _MESES_NF[(+document.getElementById('nfse-mes').value)-1]+'/'+document.getElementById('nfse-ano').value;
+}
+
 let _nfseAmbiente='homologacao';
 let _nfseInit=false;
 // estado de edição por condomínio: {id:{sel,valor,descricao,parcela}}
@@ -4178,7 +4535,7 @@ const _nfseEstado={};
 async function initNfse(){
   if(_nfseInit){ renderNfse(); return; }
   _nfseInit=true;
-  await Promise.all([_nfseCarregarClientes(),_nfseCarregarUltimas()]);
+  await Promise.all([_nfseCarregarClientes(),_nfseCarregarUltimas(),_nfseCarregarEmitidas()]);
   // popular mês/ano
   const ms=document.getElementById('nfse-mes'); ms.innerHTML='';
   _MESES_NF.forEach((m,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=m;ms.appendChild(o);});
@@ -4234,10 +4591,24 @@ function renderNfse(){
     document.getElementById('nfse-amb-desc').textContent='As notas geradas aqui são de TESTE, sem valor fiscal. Use para conferir a tela. A emissão real (produção) só é liberada manualmente.';
     document.getElementById('nfse-emitir-btn').className='btn btn-primary';
   }
-  const cont=document.getElementById('nfse-lista'); cont.innerHTML='';
+  const cont=document.getElementById('nfse-lista');
+  // Alerta de pendências: condomínios ativos sem nota emitida na competência selecionada
+  const _comp=_nfseCompSel();
+  const _ativos=NFSE_CONDOS.filter(c=>c.faturamento_ativo!==false);
+  const _pend=_ativos.filter(c=>!_nfseEmitidasSet.has(c.id+'|'+_comp));
+  let _pendHtml='';
+  if(_ativos.length){
+    if(_pend.length){
+      _pendHtml=`<div class="nfse-amb" style="background:#fff4e5;border-left:4px solid #f0a500;margin-bottom:12px;display:block"><div><strong>⏳ ${_pend.length} nota(s) pendente(s) em ${esc(_comp)}</strong><br><span>Condomínios ativos sem nota emitida nesta competência: <b>${_pend.map(c=>esc(c.nome)).join(', ')}</b></span></div></div>`;
+    }else{
+      _pendHtml=`<div class="nfse-amb" style="background:#e8f7ee;border-left:4px solid #2ea44f;margin-bottom:12px;display:block"><div><strong>✅ Tudo em dia em ${esc(_comp)}</strong><br><span>Todos os ${_ativos.length} condomínios ativos já têm nota emitida nesta competência.</span></div></div>`;
+    }
+  }
+  cont.innerHTML=_pendHtml;
   NFSE_CONDOS.forEach(c=>{
     const st=_nfseEstado[c.id];
     const issRet=c.iss_retido==='1';
+    const jaEmitida=_nfseEmitidasSet.has(c.id+'|'+_comp);
     const card=document.createElement('div');
     const fatDesab=c.faturamento_ativo===false;
     card.className='nfse-card'+(st.sel&&!fatDesab?' sel':'')+(st.resultado?.ok?' emitida':'')+(fatDesab?' fat-desab':'');
@@ -4246,7 +4617,7 @@ function renderNfse(){
       <div class="nfse-card-hd" onclick="if(event.target.tagName!=='INPUT')this.parentNode.classList.toggle('open')">
         <input type="checkbox" class="nfse-chk" ${st.sel&&!fatDesab?'checked':''} ${fatDesab?'disabled':''} onclick="event.stopPropagation();toggleNfseSel('${c.id}',this.checked)">
         <div class="nfse-nome">
-          <b>${esc(c.nome)}${c.megazap?'<span class="nfse-flag">📲 MegaZap</span>':''}${fatDesab?'<span class="nfse-flag" style="background:#dc3545;color:#fff">Faturamento inativo</span>':''}</b>
+          <b>${esc(c.nome)}${c.megazap?'<span class="nfse-flag">📲 MegaZap</span>':''}${fatDesab?'<span class="nfse-flag" style="background:#dc3545;color:#fff">Faturamento inativo</span>':(jaEmitida?'<span class="nfse-flag" style="background:#e8f7ee;color:#1a7f37">✅ emitida</span>':'<span class="nfse-flag" style="background:#fff4e5;color:#b26a00">⏳ pendente</span>')}</b>
           <small>${esc(t.municipio)} · CNPJ ${esc(t.cnpj)}${c.parcelamento?' · Parcela '+st.parcela+'/'+c.parcelamento.total:''}</small>
         </div>
         <span class="nfse-iss ${issRet?'ret':'nret'}">${issRet?'ISS retido':'ISS não retido'}</span>
@@ -4310,14 +4681,17 @@ function _nfseVencISO(){
 }
 
 // Cria a Conta a Receber (PRODUÇÃO) e devolve o id, ou null.
-async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria){
+// Já grava o número da nota emitida — garante rastreabilidade (nota ↔ conta a receber ↔ extrato).
+async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria,numeroNfse,codigoVerificacao){
   try{
     const payload={
       cliente:nome, categoria:categoria||'Outros',
       valor:Math.round((+valorNum)*100),
       descricao:(descricao||'').slice(0,500),
       data_vencimento:vencISO, dia_vencimento:NFSE_PRESTADOR.vencimento_dia,
-      recorrente:false, lembrete_nota_fiscal:false
+      recorrente:false, lembrete_nota_fiscal:false,
+      nota_fiscal_emitida:!!numeroNfse, numero_nfse:numeroNfse?String(numeroNfse):null,
+      codigo_verificacao:codigoVerificacao||null
     };
     const{data,error}=await sb.from('fin_contas_receber').insert(payload).select('id').single();
     if(error){ console.warn('contas_receber',error.message); return null; }
@@ -4328,25 +4702,10 @@ async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria)
 // Grava o histórico da nota emitida. Falha NÃO pode ser silenciosa:
 // a nota já saiu na Prefeitura; se o registro local falhar, o usuário precisa saber.
 async function _nfseGravarHistorico(row){
-  // limita o tamanho do XML gravado em raw (defensivo)
-  try{ var _r=row&&row.raw; if(_r&&typeof _r.raw==='string') _r.raw=_r.raw.slice(0,4000); }catch(e){}
-  const tentar=async r=> (await sb.from('fin_nfse_emitidas').insert(r)).error;
-  try{
-    let error=await tentar(row);
-    if(error){ // sessão longa pode ter expirado o token — renova e tenta de novo
-      try{ await sb.auth.refreshSession(); }catch(_){}
-      error=await tentar(row);
-    }
-    if(error){ // isola eventual problema no campo raw: grava sem ele
-      const{raw,...semRaw}=row;
-      const e2=await tentar(semRaw);
-      if(!e2){ console.warn('hist nfse: gravado sem raw',error); return; }
-      console.warn('hist nfse FALHOU',error,e2);
-      toast('⚠ Nota emitida na Prefeitura, mas FALHOU ao registrar no histórico: '+(error.message||error.code||JSON.stringify(error)),true);
-    }
-  }catch(e){ console.warn('hist nfse exceção',e);
-    toast('⚠ Nota emitida, mas erro ao registrar no histórico: '+(e.message||e),true);
-  }
+  // O histórico agora é gravado pelo MOTOR n8n (server-side), no momento da emissão,
+  // antes de responder ao painel — 100% confiável, independente do navegador.
+  // Mantido como no-op para NÃO duplicar o registro. A leitura continua via loadNfseHist().
+  return;
 }
 
 async function emitirNfse(){
@@ -4383,7 +4742,7 @@ async function emitirNfse(){
       if(r.ok && j.ok && j.numero_nfse){
         // PRODUÇÃO → lança no Contas a Receber
         let crId=null;
-        if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO()); }
+        if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO(),null,j.numero_nfse,j.codigo_verificacao); }
         // grava histórico (sempre)
         await _nfseGravarHistorico({
           condominio_id:c.id, nome:c.nome,
@@ -4414,7 +4773,7 @@ async function emitirNfse(){
   statusEl.textContent=`Concluído: ${ok} emitida(s)${fail?', '+fail+' com erro':''}.`;
   toast(`${ok} nota(s) emitida(s)${fail?', '+fail+' falha(s)':''}`, fail>0);
   if(prod){ loadReceber&&loadReceber(); loadDash&&loadDash(); }
-  await _nfseCarregarUltimas();
+  await Promise.all([_nfseCarregarUltimas(),_nfseCarregarEmitidas()]);
   renderNfse(); loadNfseHist();
 }
 
@@ -4497,7 +4856,7 @@ async function emitirAvulsa(){
     const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(e){}
     if(r.ok && j.ok && j.numero_nfse){
       let crId=null;
-      if(prod){ crId=await _nfseCriarContaReceber(razao,valor,(servico?servico+' — ':'')+desc,_nfseVencISO(),catCanonica(servico)); }
+      if(prod){ crId=await _nfseCriarContaReceber(razao,valor,(servico?servico+' — ':'')+desc,_nfseVencISO(),catCanonica(servico),j.numero_nfse,j.codigo_verificacao); }
       await _nfseGravarHistorico({
         condominio_id:'avulsa', nome:razao, tomador_doc:doc, tomador_tipo:tipo, tomador_razao:razao,
         competencia:comp, valor:valor, iss_retido:iss, descricao:payload.descricao, parcela:null,
@@ -4835,19 +5194,25 @@ function _fcParseFatura(pages){
   return {txns,competencia:comp};
 }
 async function fcProcessarArquivo(files){if(!window.pdfjsLib){toast('PDF.js carregando...',true);return;}const arr=[...files].filter(f=>/\.pdf$/i.test(f.name));if(!arr.length){toast('Selecione um ou mais PDFs.',true);return;}const st=document.getElementById('fc-status');st.innerHTML='<span style="color:var(--turq)">⏳ Lendo '+arr.length+' fatura(s)...</span>';try{const servicos=await _fcCarregarServicos();let allItens=[],totalFatura=0,comps=[],nomes=[],hashParts=[],semTx=[];for(const f of arr){const pages=await _exLerPdf(f);const{txns,competencia}=_fcParseFatura(pages);if(!txns.length){semTx.push(f.name);continue;}comps.push(competencia);nomes.push(f.name);hashParts.push(f.name+'|'+txns.map(t=>t.data+t.descricao+t.valorCentavos).join('|'));totalFatura+=txns.reduce((s,t)=>s+t.valorCentavos,0);txns.forEach(t=>{const svc=_fcMatchServico(t.descricao,servicos);allItens.push({...t,arquivo:f.name,servicoId:svc?svc.id:null,servicoNome:svc?svc.nome:null,categoria:svc?svc.categoria:null,reembolsavel:!!svc,checked:!!svc});});}if(!allItens.length){st.innerHTML='<span style="color:var(--red)">Nenhuma transação encontrada nos arquivos. Se for PDF escaneado (imagem), não dá para ler o texto.</span>';return;}allItens.forEach((it,i)=>it.idx=i);const comp=comps[0];const compsDistintas=[...new Set(comps)];const hash=_fcHash(hashParts.join('||'));const{data:existe}=await sb.from('fin_faturas_cartao').select('id').eq('hash',hash).maybeSingle();if(existe){st.innerHTML='<span style="color:var(--warn)">⚠ Esta(s) fatura(s) já foram importadas.</span>';return;}const multi=nomes.length>1;_fcItensPreview=allItens;_fcFaturaTemp={competencia:comp,arquivoNome:multi?(nomes.length+' arquivos: '+nomes.join(', ')):nomes[0],totalFaturaCentavos:totalFatura,hash,multi};let msg='✓ '+allItens.length+' transações de '+nomes.length+' fatura(s) · '+allItens.filter(t=>t.reembolsavel).length+' reconhecidos';if(compsDistintas.length>1)msg+=' ⚠ competências diferentes ('+compsDistintas.join(', ')+') — usando '+comp;if(semTx.length)msg+=' · sem transações: '+semTx.join(', ');st.innerHTML='<span style="color:var(--green)">'+esc(msg)+'</span>';fcAbrirPreview();}catch(e){st.innerHTML='<span style="color:var(--red)">Erro: '+esc(e.message)+'</span>';}}
-function fcAbrirPreview(){const r=document.getElementById('fc-preview-resumo');const total=_fcItensPreview.reduce((s,t)=>s+t.valorCentavos,0);const reemb=_fcItensPreview.filter(t=>t.checked).reduce((s,t)=>s+t.valorCentavos,0);r.innerHTML='<div style="flex:1;min-width:120px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Competência</span><br><b style="font-size:18px;color:var(--teal)">'+esc(_fcFaturaTemp.competencia)+'</b></div><div style="flex:1;min-width:120px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Total Fatura</span><br><b style="font-size:18px">'+fmt(total)+'</b></div><div style="flex:1;min-width:120px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Reembolso</span><br><b style="font-size:18px;color:var(--green)">'+fmt(reemb)+'</b></div><div style="flex:1;min-width:120px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Arquivo</span><br><span style="font-size:13px">'+esc(_fcFaturaTemp.arquivoNome)+'</span></div>';document.getElementById('fc-preview-title').textContent='Fatura — '+_fcFaturaTemp.competencia;
+const _FC_MESES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function fcAbrirPreview(){const r=document.getElementById('fc-preview-resumo');const total=_fcItensPreview.reduce((s,t)=>s+t.valorCentavos,0);const reemb=_fcItensPreview.filter(t=>t.checked).reduce((s,t)=>s+t.valorCentavos,0);
+  const[cm,cy]=(_fcFaturaTemp.competencia||'').toLowerCase().split('/');
+  const selMes='<select id="fc-comp-mes" onchange="fcCompMudou()" style="font-size:16px;font-weight:800;color:var(--teal);border:1px solid var(--gray3,#cbd5e1);border-radius:6px;padding:2px 4px">'+_FC_MESES.map(m=>'<option value="'+m+'"'+(m===cm?' selected':'')+'>'+m+'</option>').join('')+'</select>';
+  const selAno='<input id="fc-comp-ano" type="text" maxlength="2" value="'+esc(cy||'')+'" onchange="fcCompMudou()" style="width:32px;font-size:16px;font-weight:800;color:var(--teal);border:1px solid var(--gray3,#cbd5e1);border-radius:6px;padding:2px 4px;text-align:center">';
+  r.innerHTML='<div style="flex:1;min-width:150px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Competência</span><br>'+selMes+'/'+selAno+'</div><div style="flex:1;min-width:120px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Total Fatura</span><br><b style="font-size:18px">'+fmt(total)+'</b></div><div style="flex:1;min-width:120px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Reembolso</span><br><b style="font-size:18px;color:var(--green)">'+fmt(reemb)+'</b></div><div style="flex:1;min-width:120px"><span style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700">Arquivo</span><br><span style="font-size:13px">'+esc(_fcFaturaTemp.arquivoNome)+'</span></div>';document.getElementById('fc-preview-title').textContent='Fatura — '+_fcFaturaTemp.competencia;
   // default do vencimento = último dia do mês de competência (editável pelo usuário)
   try{const M={jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};const p=(_fcFaturaTemp.competencia||'').toLowerCase().split('/');const mi=M[p[0]]??new Date().getMonth();const an=p[1]?2000+parseInt(p[1]):new Date().getFullYear();const ld=new Date(an,mi+1,0);document.getElementById('fc-venc').value=`${an}-${String(mi+1).padStart(2,'0')}-${String(ld.getDate()).padStart(2,'0')}`;}catch(e){}
   document.getElementById('fc-btn-aprovar').textContent=_fcFaturaTemp.editId?'💾 Salvar alterações':'💳 Aprovar Reembolso';
   fcRenderPreviewTable();document.getElementById('modal-fatura-preview').classList.add('open');}
 function fcRenderPreviewTable(){const tb=document.getElementById('fc-preview-body');tb.innerHTML=_fcItensPreview.map((it,i)=>{const svc=it.servicoNome?'<span style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--green-lt);color:#1B5E20">'+esc(it.servicoNome)+'</span>':'<span style="font-size:11px;color:var(--gray4)">—</span>';const fonte=(_fcFaturaTemp.multi&&it.arquivo)?'<br><span style="font-size:10px;color:var(--gray4)">📄 '+esc(it.arquivo)+'</span>':'';return'<tr style="background:'+(it.checked?'var(--green-lt)':'inherit')+'"><td><input type="checkbox" '+(it.checked?'checked':'')+' onchange="fcToggleItem('+i+',this.checked)" style="width:16px;height:16px;accent-color:var(--teal);cursor:pointer"></td><td style="white-space:nowrap">'+esc(it.dataBR)+'</td><td>'+esc(it.descricao)+fonte+'</td><td>'+svc+'</td><td style="text-align:right;white-space:nowrap;font-weight:600">'+fmt(it.valorCentavos)+'</td></tr>';}).join('');const sel=_fcItensPreview.filter(t=>t.checked);document.getElementById('fc-preview-sel').textContent=sel.length+' selecionados · '+fmt(sel.reduce((s,t)=>s+t.valorCentavos,0));}
+function fcCompMudou(){const mes=document.getElementById('fc-comp-mes').value;let ano=document.getElementById('fc-comp-ano').value.trim().replace(/\D/g,'').slice(-2);if(!ano)ano=String(new Date().getFullYear()).slice(-2);document.getElementById('fc-comp-ano').value=ano;_fcFaturaTemp.competencia=mes+'/'+ano;document.getElementById('fc-preview-title').textContent='Fatura — '+_fcFaturaTemp.competencia;}
 function fcToggleItem(idx,val){_fcItensPreview[idx].checked=val;fcRenderPreviewTable();}
 function fcToggleAll(val){_fcItensPreview.forEach(it=>it.checked=val);fcRenderPreviewTable();}
 // Recalcula a conta a pagar do mês = SOMA de TODAS as faturas/reembolsos da competência (vários cartões agrupados).
 async function _fcRecalcContaMes(comp,venc){const{data}=await sb.from('fin_reembolsos_digitais').select('valor_total').eq('mes_referencia',comp);const qtd=(data||[]).length;const soma=(data||[]).reduce((s,r)=>s+(r.valor_total||0),0);if(!qtd){await sb.from('fin_contas_pagar').delete().eq('competencia',comp).eq('tipo_reembolso','digital').neq('status','Pago');return;}await upsertContaReembolso('digital',comp,soma,qtd,venc||null);}
-async function fcAprovarFatura(){const sel=_fcItensPreview.filter(t=>t.checked);if(!sel.length){toast('Selecione ao menos um item.',true);return;}const btn=document.getElementById('fc-btn-aprovar');btn.disabled=true;btn.textContent='Salvando...';try{const totalReemb=sel.reduce((s,t)=>s+t.valorCentavos,0);const uid=(await sb.auth.getUser()).data.user.id;const comp=_fcFaturaTemp.competencia;const editId=_fcFaturaTemp.editId||null;let faturaId;if(editId){faturaId=editId;const{error:eu}=await sb.from('fin_faturas_cartao').update({total_reembolso_centavos:totalReemb,status:'aprovado'}).eq('id',faturaId);if(eu)throw eu;await sb.from('fin_fatura_itens').delete().eq('fatura_id',faturaId);await sb.from('fin_reembolsos_digitais').delete().eq('fatura_id',faturaId);await sb.from('fin_reembolsos_digitais').delete().is('fatura_id',null).eq('mes_referencia',comp);}else{const{data:fat,error:e1}=await sb.from('fin_faturas_cartao').insert({competencia:comp,arquivo_nome:_fcFaturaTemp.arquivoNome,total_fatura_centavos:_fcFaturaTemp.totalFaturaCentavos,total_reembolso_centavos:totalReemb,hash:_fcFaturaTemp.hash,status:'aprovado'}).select('id').single();if(e1)throw e1;faturaId=fat.id;}const payload=_fcItensPreview.map(it=>({fatura_id:faturaId,data:it.data,descricao:it.descricao,valor_centavos:it.valorCentavos,servico_id:it.servicoId,reembolsavel:it.checked,editado_manual:!!editId}));const{error:e2}=await sb.from('fin_fatura_itens').insert(payload);if(e2)throw e2;for(const it of sel){await sb.from('fin_reembolsos_digitais').insert({user_id:uid,fatura_id:faturaId,data:it.data,servico:it.categoria||it.servicoNome||'Outros',descricao:it.descricao,valor:it.valorCentavos,iof:0,valor_total:it.valorCentavos,status:'Pendente',mes_referencia:comp});}const vencEscolhido=document.getElementById('fc-venc')?.value||null;try{await _fcRecalcContaMes(comp,vencEscolhido);}catch(e){console.warn('Falha ao lançar conta a pagar do reembolso:',e.message);}closeModal('modal-fatura-preview');toast(editId?('Fatura atualizada! '+sel.length+' itens.'):('Fatura importada! '+sel.length+' itens lançados.'));document.getElementById('fc-status').innerHTML='';_fcFaturaTemp={};await carregarHistoricoDigital();await fcCarregarFaturas();}catch(e){toast('Erro: '+esc(e.message),true);}finally{btn.disabled=false;btn.textContent='💳 Aprovar Reembolso';}}
+async function fcAprovarFatura(){const sel=_fcItensPreview.filter(t=>t.checked);if(!sel.length){toast('Selecione ao menos um item.',true);return;}const btn=document.getElementById('fc-btn-aprovar');btn.disabled=true;btn.textContent='Salvando...';try{const totalReemb=sel.reduce((s,t)=>s+t.valorCentavos,0);const uid=(await sb.auth.getUser()).data.user.id;const comp=_fcFaturaTemp.competencia;const compOriginal=_fcFaturaTemp.competenciaOriginal||comp;const editId=_fcFaturaTemp.editId||null;let faturaId;if(editId){faturaId=editId;const{error:eu}=await sb.from('fin_faturas_cartao').update({competencia:comp,total_reembolso_centavos:totalReemb,status:'aprovado'}).eq('id',faturaId);if(eu)throw eu;await sb.from('fin_fatura_itens').delete().eq('fatura_id',faturaId);await sb.from('fin_reembolsos_digitais').delete().eq('fatura_id',faturaId);await sb.from('fin_reembolsos_digitais').delete().is('fatura_id',null).eq('mes_referencia',comp);}else{const{data:fat,error:e1}=await sb.from('fin_faturas_cartao').insert({competencia:comp,arquivo_nome:_fcFaturaTemp.arquivoNome,total_fatura_centavos:_fcFaturaTemp.totalFaturaCentavos,total_reembolso_centavos:totalReemb,hash:_fcFaturaTemp.hash,status:'aprovado'}).select('id').single();if(e1)throw e1;faturaId=fat.id;}const payload=_fcItensPreview.map(it=>({fatura_id:faturaId,data:it.data,descricao:it.descricao,valor_centavos:it.valorCentavos,servico_id:it.servicoId,reembolsavel:it.checked,editado_manual:!!editId}));const{error:e2}=await sb.from('fin_fatura_itens').insert(payload);if(e2)throw e2;for(const it of sel){await sb.from('fin_reembolsos_digitais').insert({user_id:uid,fatura_id:faturaId,data:it.data,servico:it.categoria||it.servicoNome||'Outros',descricao:it.descricao,valor:it.valorCentavos,iof:0,valor_total:it.valorCentavos,status:'Pendente',mes_referencia:comp});}const vencEscolhido=document.getElementById('fc-venc')?.value||null;try{await _fcRecalcContaMes(comp,vencEscolhido);if(compOriginal!==comp)await _fcRecalcContaMes(compOriginal,null);}catch(e){console.warn('Falha ao lançar conta a pagar do reembolso:',e.message);}closeModal('modal-fatura-preview');toast(editId?('Fatura atualizada! '+sel.length+' itens.'):('Fatura importada! '+sel.length+' itens lançados.'));document.getElementById('fc-status').innerHTML='';_fcFaturaTemp={};await carregarHistoricoDigital();await fcCarregarFaturas();}catch(e){toast('Erro: '+esc(e.message),true);}finally{btn.disabled=false;btn.textContent='💳 Aprovar Reembolso';}}
 async function fcCarregarFaturas(){const{data}=await sb.from('fin_faturas_cartao').select('*').order('data_import',{ascending:false}).limit(20);const card=document.getElementById('fc-faturas-card');const tb=document.getElementById('tbl-faturas-cartao');if(!data||!data.length){card.style.display='none';return;}card.style.display='block';tb.innerHTML=data.map(f=>{const badge=f.status==='aprovado'?'<span class="badge-pago">✓ Aprovado</span>':'<span class="badge-gerado">Pendente</span>';return'<tr><td>'+esc(f.competencia)+'</td><td style="font-size:12px">'+esc(f.arquivo_nome||'—')+'</td><td>'+fmt(f.total_fatura_centavos)+'</td><td><span class="val-green">'+fmt(f.total_reembolso_centavos)+'</span></td><td>'+badge+'</td><td style="text-align:right;white-space:nowrap"><button class="btn-icon" title="Editar" onclick="fcEditarFatura('+f.id+')">✏️</button> <button class="btn-icon del" title="Excluir" onclick="fcExcluirFatura('+f.id+')">🗑</button></td></tr>';}).join('');}
-async function fcEditarFatura(id){try{const{data:fat,error}=await sb.from('fin_faturas_cartao').select('*').eq('id',id).single();if(error)throw error;const{data:itens}=await sb.from('fin_fatura_itens').select('*').eq('fatura_id',id).order('data');const servicos=await _fcCarregarServicos();_fcItensPreview=(itens||[]).map((it,i)=>{const svc=_fcMatchServico(it.descricao,servicos);return{idx:i,data:it.data,dataBR:String(it.data).slice(8,10)+'/'+String(it.data).slice(5,7),descricao:it.descricao,valorCentavos:it.valor_centavos,servicoId:it.servico_id||(svc&&svc.id)||null,servicoNome:svc?svc.nome:null,categoria:svc?svc.categoria:null,checked:!!it.reembolsavel};});_fcFaturaTemp={competencia:fat.competencia,arquivoNome:fat.arquivo_nome,totalFaturaCentavos:fat.total_fatura_centavos,hash:fat.hash,editId:id};fcAbrirPreview();document.getElementById('fc-preview-title').textContent='Editar Fatura — '+fat.competencia;document.getElementById('fc-btn-aprovar').textContent='💾 Salvar alterações';const{data:conta}=await sb.from('fin_contas_pagar').select('data_vencimento').eq('competencia',fat.competencia).eq('tipo_reembolso','digital').maybeSingle();if(conta&&conta.data_vencimento)document.getElementById('fc-venc').value=conta.data_vencimento;}catch(e){toast('Erro ao abrir edição: '+esc(e.message),true);}}
+async function fcEditarFatura(id){try{const{data:fat,error}=await sb.from('fin_faturas_cartao').select('*').eq('id',id).single();if(error)throw error;const{data:itens}=await sb.from('fin_fatura_itens').select('*').eq('fatura_id',id).order('data');const servicos=await _fcCarregarServicos();_fcItensPreview=(itens||[]).map((it,i)=>{const svc=_fcMatchServico(it.descricao,servicos);return{idx:i,data:it.data,dataBR:String(it.data).slice(8,10)+'/'+String(it.data).slice(5,7),descricao:it.descricao,valorCentavos:it.valor_centavos,servicoId:it.servico_id||(svc&&svc.id)||null,servicoNome:svc?svc.nome:null,categoria:svc?svc.categoria:null,checked:!!it.reembolsavel};});_fcFaturaTemp={competencia:fat.competencia,competenciaOriginal:fat.competencia,arquivoNome:fat.arquivo_nome,totalFaturaCentavos:fat.total_fatura_centavos,hash:fat.hash,editId:id};fcAbrirPreview();document.getElementById('fc-preview-title').textContent='Editar Fatura — '+fat.competencia;document.getElementById('fc-btn-aprovar').textContent='💾 Salvar alterações';const{data:conta}=await sb.from('fin_contas_pagar').select('data_vencimento').eq('competencia',fat.competencia).eq('tipo_reembolso','digital').maybeSingle();if(conta&&conta.data_vencimento)document.getElementById('fc-venc').value=conta.data_vencimento;}catch(e){toast('Erro ao abrir edição: '+esc(e.message),true);}}
 async function fcExcluirFatura(id){if(!confirm('Excluir esta fatura e seus itens?'))return;const{data:fat}=await sb.from('fin_faturas_cartao').select('competencia').eq('id',id).maybeSingle();await sb.from('fin_reembolsos_digitais').delete().eq('fatura_id',id);await sb.from('fin_faturas_cartao').delete().eq('id',id);if(fat?.competencia){try{await _fcRecalcContaMes(fat.competencia,null);}catch(e){console.warn('Recalc conta mês:',e.message);}}toast('Fatura excluída.');await carregarHistoricoDigital();await fcCarregarFaturas();}
 
 async function extratoArquivos(files){
@@ -4890,8 +5255,80 @@ function _exTabela(txns,preview){
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${_saldoOculto?'••••':((t.tipo==='C'?'+':'−')+' R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</td>
       ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${t._cofre?'<span style="color:#8A7100;font-weight:700">'+COFRE_ICO+' cofre</span>':(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
-      ${preview?'':`<td style="text-align:right">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}</td>`}
+      ${preview?'':`<td style="text-align:right;white-space:nowrap">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}${(t.id&&!t._cofre)?'<button title="Dividir lançamento em categorias" onclick="dividirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✂️</button>':''}${(t.id&&!t._cofre)?'<button title="Excluir / estornar transação" onclick="excluirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">🗑️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
+}
+
+// Divide um único lançamento bancário em 2+ linhas categorizadas, mantendo o valor total
+// (ex: fatura de cartão que mistura despesa da empresa + desconto pessoal do sócio) — sem gerar dinheiro novo.
+async function dividirTransacaoBancaria(id){
+  const {data:t,error:e1}=await sb.from('fin_transacoes_bancarias').select('*').eq('id',id).single();
+  if(e1||!t){toast('Erro ao localizar transação',true);return;}
+  const valorTotal=+t.valor;
+  const descOrig=t.historico||t.descricao||'';
+  const parcelamentos=await _carregarParcelamentos();
+  const regraAtiva=parcelamentos.find(p=>_parcelamentoMatch(p,descOrig)&&p.parcela_atual<=p.total_parcelas);
+  const partes=[];
+  let restante=valorTotal;
+  let n=1;
+  while(true){
+    let sugestaoVal=n===1?'':restante.toFixed(2).replace('.',',');
+    let sugestaoDesc=descOrig, sugestaoCat=t.categoria||'';
+    if(n===1&&regraAtiva){
+      sugestaoVal=regraAtiva.valor_parcela.toFixed(2).replace('.',',');
+      sugestaoDesc=`${regraAtiva.descricao} — parcela ${regraAtiva.parcela_atual}/${regraAtiva.total_parcelas}`;
+      sugestaoCat=regraAtiva.categoria;
+    }
+    const entrada=prompt(`Lançamento original: ${descOrig} — R$ ${valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n\nParte ${n} — informe o VALOR desta parte (restante: R$ ${restante.toLocaleString('pt-BR',{minimumFractionDigits:2})}).${regraAtiva&&n===1?`\n💡 Parcelamento ativo detectado: "${regraAtiva.descricao}" (${regraAtiva.parcela_atual}/${regraAtiva.total_parcelas}) — valor sugerido preenchido.`:''}\nDeixe em branco para encerrar e usar o restante na última parte já lançada.`,sugestaoVal);
+    if(entrada===null) return;
+    if(entrada.trim()===''){ if(partes.length===0){toast('Informe ao menos uma parte',true);return;} break; }
+    const val=parseFloat(entrada.replace(/\./g,'').replace(',','.'));
+    if(!val||val<=0||val>restante+0.001){ toast('Valor inválido',true); return; }
+    const desc=prompt(`Parte ${n} (R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})}) — descrição:`, sugestaoDesc);
+    if(desc===null) return;
+    const cat=prompt(`Parte ${n} — categoria (plano de contas):`, sugestaoCat);
+    if(cat===null) return;
+    partes.push({valor:Math.round(val*100)/100, descricao:desc, categoria:cat, _regra:(n===1?regraAtiva:null)});
+    restante=Math.round((restante-val)*100)/100;
+    n++;
+    if(restante<=0.009) break;
+    if(!confirm(`Restam R$ ${restante.toLocaleString('pt-BR',{minimumFractionDigits:2})}. Adicionar mais uma parte?`)) { partes.push({valor:restante,descricao:descOrig,categoria:t.categoria||''}); restante=0; break; }
+  }
+  const somaPartes=partes.reduce((s,p)=>s+p.valor,0);
+  if(Math.abs(somaPartes-valorTotal)>0.01){ toast(`Erro: soma das partes (R$ ${somaPartes.toFixed(2)}) não bate com o total (R$ ${valorTotal.toFixed(2)})`,true); return; }
+  if(!confirm(`Confirma dividir em ${partes.length} parte(s)?\n\n`+partes.map((p,i)=>`${i+1}. ${p.descricao} — ${p.categoria||'sem categoria'} — R$ ${p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')+'\n\nO saldo bancário NÃO muda (mesmo total, só reclassificado).')) return;
+  const novasLinhas=partes.map(p=>({...t,id:undefined,historico:p.descricao,descricao:p.descricao,categoria:p.categoria,valor:p.valor}));
+  const {error:e2}=await sb.from('fin_transacoes_bancarias').insert(novasLinhas);
+  if(e2){toast('Erro ao criar partes: '+e2.message,true);return;}
+  const {error:e3}=await sb.from('fin_transacoes_bancarias').delete().eq('id',id);
+  if(e3){toast('Erro ao remover original: '+e3.message,true);return;}
+  toast('Lançamento dividido com sucesso!');
+  if(typeof renderExtratoDRE==='function') renderExtratoDRE();
+  if(typeof carregarExtrato==='function') carregarExtrato();
+}
+
+async function excluirTransacaoBancaria(id){
+  const {data:t,error:e1}=await sb.from('fin_transacoes_bancarias').select('*').eq('id',id).single();
+  if(e1||!t){toast('Erro ao localizar transação',true);return;}
+  const desc=t.historico||t.descricao||'';
+  const valorFmt=(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const vinculo=t.conta_receber_id?'\n\n⚠ Vinculada a uma Conta a Receber — ela voltará para "Pendente".':t.conta_pagar_id?'\n\n⚠ Vinculada a uma Conta a Pagar — ela voltará para "Pendente".':'';
+  if(!confirm(`Excluir esta transação bancária?\n\n${desc}\n${t.tipo==='credito'||t.tipo==='C'?'Crédito':'Débito'} R$ ${valorFmt}\n\nO saldo da conta será estornado (devolvido/removido) automaticamente.${vinculo}`)) return;
+  if(t.conta_receber_id){ await sb.from('fin_contas_receber').update({status:'Pendente',data_recebimento:null,forma_pagamento:null}).eq('id',t.conta_receber_id); }
+  if(t.conta_pagar_id){ await sb.from('fin_contas_pagar').update({status:'Pendente',data_pagamento:null}).eq('id',t.conta_pagar_id); }
+  const {error:e2}=await sb.from('fin_transacoes_bancarias').delete().eq('id',id);
+  if(e2){toast('Erro ao excluir: '+e2.message,true);return;}
+  if(t.conta_bancaria_id){
+    const {data:conta}=await sb.from('fin_contas_bancarias').select('saldo').eq('id',t.conta_bancaria_id).single();
+    if(conta){
+      const isCredito=(t.tipo==='credito'||t.tipo==='C');
+      const novoSaldo=isCredito?(conta.saldo-t.valor):(conta.saldo+t.valor);
+      await sb.from('fin_contas_bancarias').update({saldo:novoSaldo}).eq('id',t.conta_bancaria_id);
+    }
+  }
+  toast('Transação excluída e saldo estornado!');
+  if(typeof renderExtratoDRE==='function') renderExtratoDRE();
+  if(typeof carregarExtrato==='function') carregarExtrato();
 }
 function cancelarExtrato(){ _exPendentes=null; document.getElementById('ex-preview-card').style.display='none'; document.getElementById('ex-status').textContent=''; }
 
@@ -5085,8 +5522,8 @@ async function renderExtratoDRE(force){
       return naoClass||!!temConta;
     });
   }
-  const rec=txns.filter(t=>t.tipo==='credito').reduce((s,t)=>s+(+t.valor),0);
-  const desp=txns.filter(t=>t.tipo==='debito').reduce((s,t)=>s+(+t.valor),0);
+  const rec=txns.filter(t=>_txNat(t)==='Receita').reduce((s,t)=>s+_txSig(t),0);
+  const desp=txns.filter(t=>_txNat(t)==='Despesa').reduce((s,t)=>s+_txSig(t),0);
   document.getElementById('ex-kpi-rec').textContent='R$ '+rec.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('ex-kpi-desp').textContent='R$ '+desp.toLocaleString('pt-BR',{minimumFractionDigits:2});
   const res=rec-desp; const resEl=document.getElementById('ex-kpi-res');
@@ -5190,6 +5627,22 @@ async function salvarClassificacao(){
   finally{ btn.disabled=false; btn.textContent='Salvar'; }
 }
 
+function _dreDetailHtml(lista){
+  if(!lista.length) return '<div style="padding:10px 16px;color:var(--text2);font-size:12px">Nenhum lançamento.</div>';
+  const linhas=lista.map(t=>{
+    const desc=t.historico||t.descricao||'—';
+    const dt=t.data?String(t.data).split('-').reverse().join('/'):'—';
+    const cofreTag=t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">COFRE</span>':'';
+    return `<tr><td style="padding:6px 10px;white-space:nowrap;font-size:12px;color:var(--text2)">${dt}</td><td style="padding:6px 10px;font-size:12px">${cofreTag}${esc(desc)}</td><td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse">${linhas}</table>`;
+}
+function _dreToggleDetail(idx){
+  const row=document.getElementById('dre-det-'+idx);
+  if(!row)return;
+  row.style.display=row.style.display==='none'?'table-row':'none';
+}
+
 // rótulo de competência 'AAAA-MM' → 'mar/26'
 const _MES_ABR=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 function _compLabel(c){ if(!c||c.length<7) return c||'—'; const [y,m]=c.split('-'); return _MES_ABR[(+m||1)-1]+'/'+y.slice(2); }
@@ -5202,11 +5655,13 @@ function _dreRender(txns){
   if(!txns.length) return '<p class="empty">Sem dados ainda. Importe um extrato.</p>';
   const meses=[...new Set(txns.map(_txComp).filter(Boolean))].sort();
   const sec={Receita:{}, Despesa:{}};
+  const catTxns={Receita:{}, Despesa:{}};
   txns.forEach(t=>{
-    const nat=t.tipo==='credito'?'Receita':'Despesa';
+    const nat=_txNat(t);
     const cat=t.categoria||'Não classificado';
     const m=_txComp(t)||'—';
-    (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+(+t.valor);
+    (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+_txSig(t);
+    (catTxns[nat][cat]=catTxns[nat][cat]||[]).push(t);
   });
   const somaMes=obj=>meses.map(m=>obj[m]||0);
   const totLinha=obj=>meses.reduce((s,m)=>s+(obj[m]||0),0);
@@ -5230,8 +5685,11 @@ function _dreRender(txns){
     return `<td>${v?_dreR(v):'<span class="dre-av">—</span>'}${pct}</td>`;
   }).join('');
 
+  const ncols=meses.length+3;
   const head=`<thead><tr><th>Conta</th>${meses.map(m=>`<th>${_compLabel(m)}</th>`).join('')}<th>Total</th><th>AV%</th><th>AH%</th></tr></thead>`;
   let body='<tbody>';
+  let _dreRowIdx=0;
+  window._dreDetailTxns=window._dreDetailTxns||{};
   // seções
   [['Receita','RECEITAS'],['Despesa','DESPESAS']].forEach(([nat,titulo])=>{
     const cats=Object.entries(sec[nat]).sort((a,b)=>totLinha(b[1])-totLinha(a[1]));
@@ -5242,7 +5700,11 @@ function _dreRender(txns){
     if(!cats.length){ body+=`<tr class="dre-cat"><td>—</td>${meses.map(()=>'<td><span class="dre-av">—</span></td>').join('')}<td><span class="dre-av">—</span></td><td></td><td></td></tr>`; }
     cats.forEach(([cat,obj])=>{
       const arr=somaMes(obj), tot=totLinha(obj);
-      body+=`<tr class="dre-cat"><td>${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
+      const idx=_dreRowIdx++;
+      const lista=(catTxns[nat][cat]||[]).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+      window._dreDetailTxns[idx]=lista;
+      body+=`<tr class="dre-cat" style="cursor:pointer" onclick="_dreToggleDetail(${idx})"><td>▸ ${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
+      body+=`<tr class="dre-detail" id="dre-det-${idx}" style="display:none"><td colspan="${ncols}" style="padding:0;background:var(--gray)">${_dreDetailHtml(lista)}</td></tr>`;
     });
   });
   // resultado líquido
@@ -5382,7 +5844,7 @@ function _plCalc(r){
   const itens=_plItensCache[r.id]||[];
   const creditos=itens.filter(i=>i.tipo==='credito').reduce((s,i)=>s+i.valor,0);
   const debitos=itens.filter(i=>i.tipo==='debito').reduce((s,i)=>s+i.valor,0);
-  return{creditos,debitos,liquido:r.valor_bruto+creditos-debitos};
+  return{creditos,debitos,liquido:creditos-debitos};
 }
 
 const _sortPL={col:null,asc:true};
@@ -5399,21 +5861,53 @@ function renderProLabore(){
   const rows=typeof _sortRows==='function'?_sortRows(_plRows,_sortPL,_accPL):_plRows;
   if(typeof _applySortHeaders==='function')_applySortHeaders('tbl-prolabore','plcol',_sortPL);
 
-  let totBruto=0,totDesc=0,totLiq=0,totPago=0;
-  _plRows.forEach(r=>{
-    const c=_plCalc(r);
-    totBruto+=r.valor_bruto+c.creditos;
-    totDesc+=c.debitos;
-    totLiq+=c.liquido;
-    if(r.status==='Pago')totPago+=c.liquido;
-  });
-  document.getElementById('kpl-bruto').textContent=fmt(totBruto);
-  document.getElementById('kpl-desc').textContent=fmt(totDesc);
-  document.getElementById('kpl-liq').textContent=fmt(totLiq);
-  document.getElementById('kpl-pago').textContent=fmt(totPago);
-
   const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
+
+  // Resumo por sócio — só status, sem valores (bruto é igual para ambos; o que muda é a forma de desconto)
+  const porSocio={};
+  _plRows.forEach(r=>{
+    if(!porSocio[r.socio_nome])porSocio[r.socio_nome]={meses:0,ultimo:null,ultimoStatus:''};
+    const s=porSocio[r.socio_nome];
+    s.meses++;
+    if(!s.ultimo||r.competencia>s.ultimo){s.ultimo=r.competencia;s.ultimoStatus=r.status;}
+  });
+
+  let socioHtml='';
+  PL_SOCIOS.forEach(ps=>{
+    const s=porSocio[ps.nome];
+    if(!s)return;
+    const nome=ps.nome.split(' ')[0];
+    const statusBadge=s.ultimoStatus==='Pago'?'<span style="background:#E8F5E9;color:#2E7D32;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Pago</span>'
+      :s.ultimoStatus==='Estornado'?'<span style="background:#FFEBEE;color:#C62828;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Estornado</span>'
+      :'<span style="background:#FFF3E0;color:#E65100;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">Pendente</span>';
+    socioHtml+=`<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid var(--gray2);box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:var(--teal)">${esc(nome)}</div>
+        <div style="font-size:12px;color:var(--text2)">Referência: ${fmtComp(s.ultimo)} · ${s.meses} mês(es) no período</div>
+      </div>
+      ${statusBadge}
+    </div>`;
+  });
+  document.getElementById('kpl-socios').innerHTML=socioHtml;
+
+  // Pendências
+  const pendentes=_plRows.filter(r=>r.status!=='Pago'&&r.status!=='Estornado');
+  if(pendentes.length){
+    let pendHtml=`<div style="background:#FFF3E0;border:1px solid #FFB74D;border-radius:10px;padding:12px 16px">
+      <div style="font-weight:700;color:#E65100;font-size:13px;margin-bottom:6px">⚠ ${pendentes.length} pagamento(s) pendente(s)</div>`;
+    pendentes.forEach(r=>{
+      const c=_plCalc(r);
+      pendHtml+=`<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+        <span>${esc(r.socio_nome.split(' ')[0])} — ${fmtComp(r.competencia)} <span class="badge pend" style="font-size:10px">${r.status}</span></span>
+        <b>${fmt(c.liquido)}</b>
+      </div>`;
+    });
+    pendHtml+='</div>';
+    document.getElementById('kpl-pendencias').innerHTML=pendHtml;
+  } else {
+    document.getElementById('kpl-pendencias').innerHTML='';
+  }
 
   const badgePL=s=>{
     if(s==='Pago')return'<span class="badge ok">Pago</span>';
@@ -5433,6 +5927,7 @@ function renderProLabore(){
       <td style="font-weight:700">${fmt(c.liquido)}</td>
       <td>${badgePL(r.status)}</td>
       <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        <button class="btn-icon" title="Visualizar relatório" onclick="visualizarRelatorioPL(${r.id})">👁</button>
         ${r.status==='Rascunho'?`<button class="btn btn-sm" style="background:#1565C0;color:#fff" onclick="aprovarPL(${r.id})">✓ Aprovar</button> `:''}
         ${r.status==='Aprovado'?`<button class="btn btn-green btn-sm" onclick="pagarPL(${r.id})">💰 Pagar</button> `:''}
         ${r.status==='Pago'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="estornarPL(${r.id})">Estornar</button> `:''}
@@ -5440,6 +5935,122 @@ function renderProLabore(){
         <button class="btn btn-danger btn-sm" onclick="delPL(${r.id})">✕</button>`:''}
       </td>
     </tr>`}).join(''):'<tr><td colspan="8" class="empty">Nenhum lançamento encontrado</td></tr>';
+}
+
+// ── Preview do relatório de Pró-Labore (espelha visualizarRelatorioDigital) ──
+let _relatorioPL=null;
+function visualizarRelatorioPL(id){
+try{
+  const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
+  const r=_plRows.find(x=>x.id===id);
+  if(!r){toast('Lançamento não encontrado',true);return;}
+  const itens=(_plItensCache[r.id]||[]).slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  const c=_plCalc(r);
+  _relatorioPL={id:r.id,socioNome:r.socio_nome,competencia:r.competencia,nrControle:r.nr_controle,liquido:c.liquido,bruto:c.creditos||r.valor_bruto};
+
+  const linhas=itens.map((it,i)=>`
+    <tr style="background:${i%2?'#F4F8FA':'#fff'}">
+      <td style="white-space:nowrap;padding:9px 12px;border:1px solid #E2EAEF">${it.data?formatData(it.data):'—'}</td>
+      <td style="padding:9px 12px;border:1px solid #E2EAEF">${esc(it.descricao||'')}</td>
+      <td style="padding:9px 12px;border:1px solid #E2EAEF;text-align:center">${it.tipo==='credito'?'<span style="color:#16A34A;font-weight:700">Crédito</span>':'<span style="color:#C62828;font-weight:700">Débito</span>'}</td>
+      <td style="padding:9px 12px;border:1px solid #E2EAEF;text-align:right;font-weight:700;white-space:nowrap;color:${it.tipo==='credito'?'#16A34A':'#C62828'}">${it.tipo==='credito'?'':'-'}${fmt(it.valor)}</td>
+    </tr>`).join('');
+
+  const statusLabel=r.status==='Pago'?'Data do Pagamento':'Status';
+  const statusVal=r.status==='Pago'&&r.data_pagamento?new Date(r.data_pagamento+'T00:00:00').toLocaleDateString('pt-BR'):r.status;
+  const dtGer=new Date().toLocaleString('pt-BR');
+
+  document.getElementById('preview-rel-body').innerHTML=`
+   <div id="rel-capture" style="background:#fff">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;border-bottom:2px solid #E2EAEF;padding-bottom:14px">
+      <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" style="height:74px;width:auto" crossorigin="anonymous">
+      <div style="text-align:right">
+        <div style="font-size:21px;font-weight:900;color:#1F4E63;letter-spacing:.5px">RECIBO DE PRÓ-LABORE</div>
+        <div style="font-size:12px;color:#6B7B83;margin-top:3px">Competência: ${fmtComp(r.competencia)}${r.nr_controle?' · Controle '+esc(r.nr_controle):''}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:22px">
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Sócio</div>
+        <div style="font-size:15px;font-weight:700;color:#1F3A42">${esc(r.socio_nome)}</div>
+      </div>
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Valor Bruto</div>
+        <div style="font-size:15px;font-weight:700;color:#1F3A42">${fmt(r.valor_bruto)}</div>
+      </div>
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${statusLabel}</div>
+        <div style="font-size:15px;font-weight:700;color:#16A34A">${esc(statusVal)}</div>
+      </div>
+      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
+        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Conta de Pagamento</div>
+        <div style="font-size:15px;font-weight:700;color:#1F3A42">${esc(r.conta_pagamento||r.forma_pagamento||'—')}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:18px">
+      <div style="font-size:13px;font-weight:700;color:#2B3A42;margin-bottom:11px">Detalhamento</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #E2EAEF">
+        <thead>
+          <tr style="background:#2D5E72;color:#fff">
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Data</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Descrição</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:700;border:1px solid #244B5B">Tipo</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:700;border:1px solid #244B5B">Valor</th>
+          </tr>
+        </thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+    <div style="background:#2D5E72;color:#fff;display:flex;justify-content:space-between;padding:13px 18px;border-radius:6px;font-size:15px;font-weight:800;margin-bottom:16px">
+      <span>LÍQUIDO A RECEBER</span>
+      <span>${fmt(c.liquido)}</span>
+    </div>
+    <div style="text-align:center;font-size:11px;color:#6B7B83;border-top:1px solid #E2EAEF;padding-top:11px">
+      Gerado em ${dtGer} | DIAGNÓSTIKA Engenharia
+    </div>
+   </div>
+  `;
+  _previewModo='prolabore';
+  document.getElementById('prev-rel-title').textContent='Preview do Recibo de Pró-Labore';
+  document.getElementById('prev-btn-addvis').style.display='none';
+  document.getElementById('prev-btn-cpagar').style.display='none';
+  document.getElementById('modal-preview-rel').classList.add('open');
+}catch(e){console.error('[rel-pl]',e);toast('Erro ao abrir preview: '+e.message,true);}
+}
+
+function downloadPDFProLabore(){
+  if(!_relatorioPL){toast('Nenhum relatório carregado',true);return;}
+  const MESES=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
+  const r=_plRows.find(x=>x.id===_relatorioPL.id);
+  const itens=(_plItensCache[_relatorioPL.id]||[]).slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  doc.setFillColor(45,94,114);doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('Recibo de Pró-Labore — Diagnóstika Engenharia',14,12);
+  doc.setFontSize(11);doc.setFont('helvetica','normal');
+  doc.text(`Sócio: ${r.socio_nome} | Competência: ${fmtComp(r.competencia)} | Conta: ${r.conta_pagamento||r.forma_pagamento||'—'}`,14,20);
+  doc.setTextColor(30,30,30);doc.setFontSize(11);doc.setFont('helvetica','bold');
+  doc.text('Detalhamento',14,38);
+  let y=44;
+  doc.setFillColor(240,242,245);doc.rect(14,y-4,182,7,'F');
+  doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('Data',16,y);doc.text('Descrição',40,y);doc.text('Tipo',140,y);doc.text('Valor',185,y,'right');
+  y+=6;doc.setFont('helvetica','normal');
+  for(const it of itens){
+    if(y>270){doc.addPage();y=20;}
+    doc.text(it.data?formatData(it.data):'—',16,y);
+    doc.text(String(it.descricao||'').slice(0,42),40,y);
+    doc.text(it.tipo==='credito'?'Crédito':'Débito',140,y);
+    doc.text((it.tipo==='credito'?'':'-')+fmt(it.valor),185,y,'right');
+    y+=6;doc.setDrawColor(220,220,220);doc.line(14,y-2,196,y-2);
+  }
+  y+=4;doc.setDrawColor(21,91,103);doc.line(14,y,196,y);y+=6;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.text('LÍQUIDO A RECEBER',14,y);doc.text(fmt(_relatorioPL.liquido),185,y,'right');
+  doc.save(`pro-labore_${r.socio_nome.split(' ')[0]}_${r.competencia}.pdf`);
 }
 
 function openModalPL(item=null){
@@ -5458,10 +6069,144 @@ function openModalPL(item=null){
     _plItensCache[item.id].forEach(it=>_addItemRow(box,it));
   }
   document.getElementById('modal-prolabore').classList.add('open');
+  _plRecalcModal();
+
+  // Mostrar seção de pagamento e botão apenas se o registro já existe e não está pago
+  const status=item?.status||'';
+  const podeP=item&&status!=='Pago';
+  document.getElementById('mpl-btn-pagar').style.display=podeP?'':'none';
+  document.getElementById('mpl-pagamento').style.display=podeP?'block':'none';
+  if(podeP)_plLoadContas();
+}
+
+function _plGetModalTotals(){
+  const box=document.getElementById('mpl-itens');
+  let creditos=0,debitos=0;
+  for(const div of box.children){
+    const sel=div.querySelector('select');
+    if(!sel)continue;
+    const idx=sel.id.split('-').pop();
+    const tipo=sel.value;
+    const val=Math.round(parseFloat(document.getElementById('pli-val-'+idx)?.value||0)*100);
+    if(tipo==='credito')creditos+=val;
+    else debitos+=val;
+  }
+  const liquido=creditos-debitos;
+  return{creditos,debitos,liquido};
+}
+
+function _plRecalcModal(){
+  const t=_plGetModalTotals();
+  document.getElementById('mpl-tot-cred').textContent=fmt(t.creditos);
+  document.getElementById('mpl-tot-deb').textContent=t.debitos?'-'+fmt(t.debitos):'R$ 0,00';
+  document.getElementById('mpl-tot-liq').textContent=fmt(t.liquido);
+  document.getElementById('mpl-tot-liq').style.color=t.liquido>=0?'var(--teal)':'var(--red)';
+  // Atualizar total alocado na seção de pagamento
+  _plRecalcPagamento();
+}
+
+function _plRecalcPagamento(){
+  const t=_plGetModalTotals();
+  const inputs=document.querySelectorAll('.mpl-conta-val');
+  let alocado=0;
+  inputs.forEach(inp=>{alocado+=Math.round(parseFloat(inp.value||0)*100);});
+  const el=document.getElementById('mpl-pag-alocado');
+  if(el)el.textContent=`${fmt(alocado)} / ${fmt(t.liquido)}`;
+  const aviso=document.getElementById('mpl-pag-aviso');
+  if(aviso){
+    if(alocado>t.liquido){aviso.textContent='Valor alocado excede o líquido!';aviso.style.display='block';}
+    else if(alocado>0&&alocado<t.liquido){aviso.textContent=`Falta alocar ${fmt(t.liquido-alocado)}`;aviso.style.display='block';aviso.style.color='var(--orange)';}
+    else{aviso.style.display='none';}
+  }
+}
+
+async function _plLoadContas(){
+  const box=document.getElementById('mpl-contas');
+  box.innerHTML='<div style="color:var(--text2);font-size:12px">Carregando saldos…</div>';
+  document.getElementById('mpl-pagamento').style.display='block';
+
+  // Buscar saldo do cofre
+  const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
+  const saldoCofre=ultCofre?.saldo_atual||0;
+
+  // Buscar contas bancárias com saldo (da própria tabela), só as que têm saldo ou transações
+  const{data:contas}=await sb.from('fin_contas_bancarias').select('id,nome,banco,saldo').eq('ativa',true).order('id');
+  const contasList=(contas||[]).filter(c=>c.saldo&&c.saldo!==0);
+  const saldos={cofre:saldoCofre};
+  contasList.forEach(c=>{saldos[c.id]=c.saldo;});
+  _plContasSaldo=saldos;
+
+  let html='';
+  const _contaCard=(key,icon,nome,saldo)=>`<label class="mpl-conta-card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:2px solid var(--gray2);border-radius:10px;cursor:pointer;transition:border-color .2s">
+    <input type="checkbox" class="mpl-conta-chk" data-conta="${key}" onchange="_plToggleConta(this)" style="width:18px;height:18px;accent-color:var(--teal)">
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:14px">${icon} ${esc(nome)}</div>
+      <div style="font-size:12px;color:var(--text2)">Saldo: <b style="color:${saldo>=0?'var(--green)':'var(--red)'}">${fmt(saldo)}</b></div>
+    </div>
+    <input type="number" class="mpl-conta-val" data-conta="${key}" min="0" step="0.01" placeholder="0,00" disabled
+      style="width:120px;height:34px;border:1px solid var(--border);border-radius:6px;padding:0 8px;text-align:right;font-weight:700;font-size:14px"
+      oninput="_plRecalcPagamento()">
+  </label>`;
+
+  html+=_contaCard('cofre','🔐','Cofre (Espécie)',saldoCofre);
+  for(const c of contasList){
+    const icon=c.banco==='Sicoob'?'🏛️':'🏦';
+    html+=_contaCard(c.id,icon,c.nome,c.saldo);
+  }
+  box.innerHTML=html;
+}
+
+function _plToggleConta(chk){
+  const card=chk.closest('.mpl-conta-card');
+  const valInput=card.querySelector('.mpl-conta-val');
+  if(chk.checked){
+    card.style.borderColor='var(--teal)';
+    card.style.background='var(--teal-lt,rgba(0,128,128,0.05))';
+    valInput.disabled=false;
+    // Se é a única selecionada, preencher com o líquido total
+    const allChk=document.querySelectorAll('.mpl-conta-chk:checked');
+    if(allChk.length===1){
+      const t=_plGetModalTotals();
+      valInput.value=(t.liquido/100).toFixed(2);
+    }
+    valInput.focus();
+  } else {
+    card.style.borderColor='var(--gray2)';
+    card.style.background='';
+    valInput.disabled=true;
+    valInput.value='';
+  }
+  _plRecalcPagamento();
+  // Atualizar forma_pagamento hidden
+  const selecionadas=document.querySelectorAll('.mpl-conta-chk:checked');
+  let forma='';
+  if(selecionadas.length===1){
+    forma=selecionadas[0].dataset.conta==='cofre'?'Espécie':'Transferência';
+  } else if(selecionadas.length>1){
+    forma='Misto';
+  }
+  document.getElementById('mpl-forma').value=forma;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PARCELAMENTOS ATIVOS (ex: drone comprado no cartão corporativo,
+//  que não pode ser descontado do sócio — precisa virar despesa da PJ)
+//  Tabela fin_parcelamentos criada via migração — ver instruções.
+// ══════════════════════════════════════════════════════════════
+let _parcelamentosCache=null;
+async function _carregarParcelamentos(force){
+  if(_parcelamentosCache&&!force) return _parcelamentosCache;
+  const {data,error}=await sb.from('fin_parcelamentos').select('*').eq('ativo',true);
+  _parcelamentosCache=error?[]:(data||[]);
+  return _parcelamentosCache;
+}
+function _parcelamentoMatch(regra,descricao){
+  try{ return new RegExp(regra.match_regex||'cart[ãa]o','i').test(descricao||''); }catch(e){ return false; }
 }
 
 let _plItemIdx=0;
-function addItemPL(){_addItemRow(document.getElementById('mpl-itens'));}
+let _plContasSaldo={}; // {cofre: saldo, 1: saldo, 2: saldo, 3: saldo}
+function addItemPL(){_addItemRow(document.getElementById('mpl-itens'));_plRecalcModal();}
 function _addItemRow(box,it=null){
   const idx=_plItemIdx++;
   const div=document.createElement('div');
@@ -5469,16 +6214,17 @@ function _addItemRow(box,it=null){
   div.style.cssText='align-items:end;gap:6px;margin-bottom:8px';
   div.innerHTML=`
     <div class="form-row" style="margin-bottom:0;flex:0 0 100px"><label>Tipo</label>
-      <select id="pli-tipo-${idx}"><option value="debito" ${it?.tipo==='debito'||!it?'selected':''}>Débito</option><option value="credito" ${it?.tipo==='credito'?'selected':''}>Crédito</option></select>
+      <select id="pli-tipo-${idx}" onchange="_plRecalcModal()"><option value="debito" ${it?.tipo==='debito'||!it?'selected':''}>Débito</option><option value="credito" ${it?.tipo==='credito'?'selected':''}>Crédito</option></select>
     </div>
     <div class="form-row" style="margin-bottom:0;flex:1"><label>Descrição</label><input id="pli-desc-${idx}" value="${esc(it?.descricao||'')}" placeholder="Cartão, INSS, adiantamento…"></div>
-    <div class="form-row" style="margin-bottom:0;flex:0 0 110px"><label>Valor (R$)</label><input id="pli-val-${idx}" type="number" min="0" step="0.01" value="${it?it.valor/100:''}"></div>
+    <div class="form-row" style="margin-bottom:0;flex:0 0 110px"><label>Valor (R$)</label><input id="pli-val-${idx}" type="number" min="0" step="0.01" value="${it?it.valor/100:''}" oninput="_plRecalcModal()"></div>
     <div class="form-row" style="margin-bottom:0;flex:0 0 130px"><label>Data</label><input id="pli-data-${idx}" type="date" value="${it?.data||''}"></div>
-    <button class="btn btn-danger btn-sm" style="margin-bottom:0;height:34px" onclick="this.parentElement.remove()">✕</button>`;
+    <button class="btn btn-danger btn-sm" style="margin-bottom:0;height:34px" onclick="this.parentElement.remove();_plRecalcModal()">✕</button>`;
   div.dataset.itemId=it?.id||'';
   box.appendChild(div);
 }
 
+let _plSaveKeepOpen=false;
 async function saveProLabore(){
   const id=document.getElementById('mpl-id').value;
   const socioId=document.getElementById('mpl-socio').value;
@@ -5523,13 +6269,41 @@ async function saveProLabore(){
     const data=document.getElementById('pli-data-'+idx)?.value||null;
     if(desc&&val)novosItens.push({pro_labore_id:plId,tipo,descricao:desc,valor:val,data});
   }
+
+  // Aplica automaticamente parcelamentos ativos (ex: drone) — reduz o desconto do sócio
+  // e marca a parcela como aplicada, sem intervenção manual.
+  const parcelamentos=await _carregarParcelamentos();
+  const ajustesAplicados=[];
+  for(const item of novosItens){
+    if(item.tipo!=='debito')continue;
+    const regra=parcelamentos.find(p=>p.socio_nome===socioNome && _parcelamentoMatch(p,item.descricao) &&
+      !(p.competencias_aplicadas||[]).includes(comp) && p.parcela_atual<=p.total_parcelas);
+    if(!regra)continue;
+    const valorParcelaCent=Math.round(regra.valor_parcela*100);
+    if(item.valor<valorParcelaCent)continue; // segurança: não deixar o item negativo
+    item.valor-=valorParcelaCent;
+    item.descricao+=` (déd. R$ ${regra.valor_parcela.toFixed(2).replace('.',',')} parcela ${regra.parcela_atual}/${regra.total_parcelas} "${regra.descricao}" — despesa PJ, não onera o sócio)`;
+    ajustesAplicados.push(regra);
+  }
+
   if(novosItens.length){
     const{error:e2}=await sb.from('fin_pro_labore_itens').insert(novosItens);
     if(e2)toast('Itens salvos com aviso: '+e2.message,true);
   }
 
-  closeModal('modal-prolabore');
-  toast(id?'Pró-labore atualizado!':'Pró-labore criado!');
+  for(const regra of ajustesAplicados){
+    const novasComps=[...(regra.competencias_aplicadas||[]),comp];
+    const novaParcela=regra.parcela_atual+1;
+    const aindaAtivo=novaParcela<=regra.total_parcelas;
+    await sb.from('fin_parcelamentos').update({parcela_atual:novaParcela,competencias_aplicadas:novasComps,ativo:aindaAtivo}).eq('id',regra.id);
+    toast(`Parcelamento "${regra.descricao}" aplicado automaticamente: parcela ${regra.parcela_atual}/${regra.total_parcelas} (R$ ${regra.valor_parcela.toFixed(2).replace('.',',')})`);
+  }
+  if(ajustesAplicados.length) await _carregarParcelamentos(true);
+
+  if(!_plSaveKeepOpen){
+    closeModal('modal-prolabore');
+    toast(id?'Pró-labore atualizado!':'Pró-labore criado!');
+  }
   loadProLabore();
 }
 
@@ -5555,17 +6329,116 @@ async function aprovarPL(id){
 }
 
 async function pagarPL(id){
-  const dt=prompt('Data do pagamento (AAAA-MM-DD):',hoje());
-  if(!dt)return;
-  const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt}).eq('id',id);
-  if(error){toast('Erro',true);return;}
-  toast('Pagamento registrado!');loadProLabore();
+  // Abre o modal em modo edição para o usuário escolher de onde sai o pagamento
+  await editPL(id);
+}
+
+async function confirmarPagamentoPL(){
+  const id=parseInt(document.getElementById('mpl-id').value);
+  if(!id){toast('Salve o lançamento antes de pagar',true);return;}
+
+  const t=_plGetModalTotals();
+  const liquido=t.liquido;
+
+  // Verificar alocação
+  const inputs=document.querySelectorAll('.mpl-conta-val');
+  let alocado=0;
+  const alocacoes=[];
+  inputs.forEach(inp=>{
+    const val=Math.round(parseFloat(inp.value||0)*100);
+    if(val>0)alocacoes.push({conta:inp.dataset.conta,valor:val});
+    alocado+=val;
+  });
+
+  if(alocacoes.length===0){toast('Selecione pelo menos uma conta para pagamento',true);return;}
+  if(Math.abs(alocado-liquido)>1){toast(`Valor alocado (${fmt(alocado)}) difere do líquido (${fmt(liquido)})`,true);return;}
+
+  // Salvar itens primeiro (sem fechar modal)
+  _plSaveKeepOpen=true;
+  await saveProLabore();
+  _plSaveKeepOpen=false;
+
+  const dt=hoje();
+  const forma=document.getElementById('mpl-forma').value||'Espécie';
+
+  // Buscar dados do PL para descrição
+  const{data:pl}=await sb.from('fin_pro_labore').select('socio_nome,socio_id,competencia').eq('id',id).single();
+  const descPL=`Pró labore ${pl.socio_nome} ref ${pl.competencia}`;
+
+  const contaResumo=alocacoes.map(a=>{
+    const nome=a.conta==='cofre'?'Cofre (Espécie)':document.querySelector(`.mpl-conta-chk[data-conta="${a.conta}"]`)?.closest('.mpl-conta-card')?.querySelector('div div')?.textContent?.trim()||'Banco';
+    return alocacoes.length>1?`${nome}: ${fmt(a.valor)}`:nome;
+  }).join(' + ');
+
+  // Atualizar status
+  const{error}=await sb.from('fin_pro_labore').update({status:'Pago',data_pagamento:dt,forma_pagamento:forma,conta_pagamento:contaResumo}).eq('id',id);
+  if(error){toast('Erro ao pagar: '+error.message,true);return;}
+
+  // Debitar de cada conta selecionada
+  for(const a of alocacoes){
+    if(a.conta==='cofre'){
+      const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
+      const saldoAnt=ultCofre?.saldo_atual||0;
+      await sb.from('fin_livro_caixa_cofre').insert({
+        data:dt,tipo:'Saída',descricao:descPL,valor:a.valor,
+        saldo_anterior:saldoAnt,saldo_atual:saldoAnt-a.valor,
+        user_id:pl.socio_id,origem:'Automático',
+      });
+    } else {
+      // Conta bancária — registrar transação de débito e atualizar saldo
+      const contaId=parseInt(a.conta);
+      const{error:eTx}=await sb.from('fin_transacoes_bancarias').insert({
+        conta_bancaria_id:contaId,data:dt,tipo:'debito',
+        descricao:descPL,valor:a.valor/100,
+        categoria:'Pró-Labore',tipo_categoria:'Despesa',
+        status:'Conciliado',
+      });
+      if(eTx)toast('Aviso banco: '+eTx.message,true);
+      // Atualizar saldo da conta
+      const{data:ctDados}=await sb.from('fin_contas_bancarias').select('saldo').eq('id',contaId).single();
+      if(ctDados){
+        await sb.from('fin_contas_bancarias').update({saldo:ctDados.saldo-a.valor}).eq('id',contaId);
+      }
+    }
+  }
+
+  const resumo=alocacoes.map(a=>{
+    const nome=a.conta==='cofre'?'Cofre':document.querySelector(`.mpl-conta-chk[data-conta="${a.conta}"]`)?.closest('.mpl-conta-card')?.querySelector('div div')?.textContent?.trim()||'Banco';
+    return `${nome}: ${fmt(a.valor)}`;
+  }).join(' + ');
+
+  closeModal('modal-prolabore');
+  toast(`Pagamento registrado! ${resumo}`);
+  loadProLabore();
 }
 
 async function estornarPL(id){
-  if(!confirm('Estornar este pagamento?'))return;
+  const{data:pl}=await sb.from('fin_pro_labore').select('*').eq('id',id).single();
+  if(!pl)return;
+
   const{error}=await sb.from('fin_pro_labore').update({status:'Estornado',data_pagamento:null}).eq('id',id);
   if(error){toast('Erro',true);return;}
+
+  // Se era espécie, reverter saída no cofre
+  if(pl.forma_pagamento==='Espécie'){
+    const descPL=`Pró labore ${pl.socio_nome} ref ${pl.competencia}`;
+    const{data:lancCofre}=await sb.from('fin_livro_caixa_cofre').select('id,valor').eq('descricao',descPL).eq('tipo','Saída').limit(1);
+    if(lancCofre&&lancCofre.length){
+      const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
+      const saldoAnt=ultCofre?.saldo_atual||0;
+      await sb.from('fin_livro_caixa_cofre').insert({
+        data:hoje(),
+        tipo:'Entrada',
+        descricao:`Estorno: ${descPL}`,
+        valor:lancCofre[0].valor,
+        saldo_anterior:saldoAnt,
+        saldo_atual:saldoAnt+lancCofre[0].valor,
+        user_id:pl.socio_id,
+        origem:'Automático',
+      });
+    }
+  }
+
   toast('Pagamento estornado');loadProLabore();
 }
 
@@ -5583,7 +6456,8 @@ function verDetalhePL(id){
     <div><span style="font-size:11px;color:var(--text2);font-weight:600">STATUS</span><div style="margin-top:4px">${r.status}</div></div>
     <div><span style="font-size:11px;color:var(--text2);font-weight:600">FORMA</span><div style="margin-top:4px">${r.forma_pagamento||'—'}</div></div>
     <div><span style="font-size:11px;color:var(--text2);font-weight:600">DATA PAGAMENTO</span><div style="margin-top:4px">${r.data_pagamento?formatData(r.data_pagamento):'—'}</div></div>
-    <div><span style="font-size:11px;color:var(--text2);font-weight:600">OBSERVAÇÃO</span><div style="margin-top:4px">${esc(r.observacao||'—')}</div></div>
+    <div><span style="font-size:11px;color:var(--text2);font-weight:600">CONTA DE PAGAMENTO</span><div style="margin-top:4px">${esc(r.conta_pagamento||'—')}</div></div>
+    <div style="grid-column:1/-1"><span style="font-size:11px;color:var(--text2);font-weight:600">OBSERVAÇÃO</span><div style="margin-top:4px">${esc(r.observacao||'—')}</div></div>
   </div>`;
 
   html+=`<table class="tbl" style="margin-bottom:12px"><thead><tr><th>Tipo</th><th>Descrição</th><th>Data</th><th style="text-align:right">Valor</th></tr></thead><tbody>`;
@@ -5603,6 +6477,192 @@ function verDetalhePL(id){
 
 function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.display='none';}
 
+// ── GERAÇÃO AUTOMÁTICA DE PRÓ-LABORE ─────────────────────────
+const PL_BRUTO=750000; // R$7.500 em centavos
+const PL_CLAUDEMIR=PL_SOCIOS.find(s=>s.nome.startsWith('Claudemir'));
+const PL_ROGERIO=PL_SOCIOS.find(s=>s.nome.startsWith('Rogério'));
+
+async function gerarPLMes(compDefault,socioIdFiltro){
+  const comp=compDefault||prompt('Competência (AAAA-MM):',new Date().toISOString().slice(0,7));
+  if(!comp||!/^\d{4}-\d{2}$/.test(comp))return;
+  const sociosAlvo=socioIdFiltro?PL_SOCIOS.filter(s=>s.id===socioIdFiltro):PL_SOCIOS;
+
+  const[ano,mes]=comp.split('-').map(Number);
+  // Pagamentos ocorrem no mês SEGUINTE à competência (~dia 21)
+  const mesPag=mes+1>12?1:mes+1;
+  const anoPag=mes+1>12?ano+1:ano;
+  const mesIni=`${anoPag}-${String(mesPag).padStart(2,'0')}-01`;
+  const diaFimMes=new Date(anoPag,mesPag,0).getDate();
+  const mesFimStr=`${anoPag}-${String(mesPag).padStart(2,'0')}-${diaFimMes}`;
+
+  // Verificar se já existe para essa competência
+  const{data:existe}=await sb.from('fin_pro_labore').select('id,socio_nome,status').eq('competencia',comp).neq('status','Estornado');
+  if(existe&&existe.length){
+    const nomes=existe.map(e=>e.socio_nome).join(', ');
+    toast(`Competência ${comp} já tem lançamento(s): ${nomes}. Sócios com registro existente serão pulados.`);
+  }
+
+  toast('Varrendo banco e cofre…');
+
+  // Buscar transações do banco no mês (apenas débitos)
+  const{data:txBanco}=await sb.from('fin_transacoes_bancarias')
+    .select('*')
+    .gte('data',mesIni)
+    .lte('data',mesFimStr)
+    .eq('tipo','debito')
+    .order('data');
+
+  // Buscar movimentações do cofre no mês (saídas)
+  const{data:txCofre}=await sb.from('fin_livro_caixa_cofre')
+    .select('*')
+    .gte('data',mesIni)
+    .lte('data',mesFimStr)
+    .eq('tipo','Saída')
+    .order('data');
+
+  const banco=txBanco||[];
+  const cofre=txCofre||[];
+
+  const resultados=[];
+
+  for(const socio of sociosAlvo){
+    // Verificar se já existe para este sócio nesta competência
+    if(existe&&existe.find(e=>e.socio_nome===socio.nome))continue;
+
+    const itens=[];
+    const alertas=[];
+
+    // Crédito: bruto fixo
+    itens.push({tipo:'credito',descricao:`Pró labore ref ${String(mes).padStart(2,'0')}/${ano}`,valor:PL_BRUTO,data:null});
+
+    if(socio.id===PL_CLAUDEMIR.id){
+      // === CLAUDEMIR: padrões conhecidos ===
+
+      // 1. Depósito R$1.621 (dia ~10, PIX)
+      const dep=banco.find(t=>Math.round(t.valor*100)===162100&&t.descricao&&t.descricao.toUpperCase().includes('PIX'));
+      if(dep){
+        itens.push({tipo:'debito',descricao:'Depósito em conta',valor:162100,data:dep.data});
+      } else {
+        alertas.push('Depósito R$1.621 NÃO encontrado no banco');
+      }
+
+      // 2. Cartão de crédito (DÉB.CONV, valor variável)
+      const cartao=banco.find(t=>t.descricao&&(t.descricao.toUpperCase().includes('DÉB.CONV')||t.descricao.toUpperCase().includes('DEB.CONV')));
+      if(cartao){
+        const valCartao=Math.round(cartao.valor*100);
+        itens.push({tipo:'debito',descricao:'Cartão de crédito',valor:valCartao,data:cartao.data});
+      } else {
+        alertas.push('Fatura do cartão NÃO encontrada no banco');
+      }
+
+      // 3. Financiamento carro R$1.985,81 (dia ~23, DÉB.TIT)
+      const financ=banco.find(t=>Math.round(t.valor*100)===198581);
+      if(financ){
+        itens.push({tipo:'debito',descricao:'Financiamento carro (confirmar)',valor:198581,data:financ.data});
+        alertas.push('Financiamento carro R$1.985,81 encontrado em '+financ.data+' — CONFIRMAR desconto');
+      } else {
+        alertas.push('Financiamento carro R$1.985,81 NÃO localizado no banco');
+      }
+
+      // Cofre: SOMENTE pró-labore/adiantamento do Claudemir (nunca reembolsos)
+      const cofreClaud=cofre.filter(t=>{
+        if(!t.descricao)return false;
+        const d=t.descricao.toLowerCase();
+        if(d.includes('reembolso'))return false;
+        const ehPL=d.includes('pro labore')&&d.includes('claudemir');
+        const ehAdiant=d.includes('adiantamento')&&d.includes('claudemir');
+        return ehPL||ehAdiant;
+      });
+      cofreClaud.forEach(t=>{
+        const val=Math.abs(t.valor);
+        itens.push({tipo:'debito',descricao:`Cofre: ${t.descricao}`,valor:val,data:t.data});
+      });
+
+    } else if(socio.id===PL_ROGERIO.id){
+      // === ROGÉRIO: buscar adiantamentos/pagamentos no cofre e banco ===
+
+      // Cofre: SOMENTE adiantamentos/pró-labore do Rogério (nunca reembolsos)
+      const cofreRog=cofre.filter(t=>{
+        if(!t.descricao)return false;
+        const d=t.descricao.toLowerCase();
+        if(d.includes('reembolso'))return false;
+        const ehPL=d.includes('pro labore')&&(d.includes('rogério')||d.includes('rogerio'));
+        const ehAdiant=d.includes('adiantamento')&&(d.includes('rogério')||d.includes('rogerio')||d.includes('pro labore'));
+        return ehPL||ehAdiant;
+      });
+      cofreRog.forEach(t=>{
+        const val=Math.abs(t.valor);
+        itens.push({tipo:'debito',descricao:`Cofre: ${t.descricao}`,valor:val,data:t.data});
+      });
+
+      // Banco: transações com observação contendo "ROG" ou classificadas como dele (nunca reembolsos)
+      const bancoRog=banco.filter(t=>{
+        if(!t.observacao)return false;
+        const o=t.observacao.toUpperCase();
+        const descU=(t.descricao||'').toUpperCase();
+        if(o.includes('REEMBOLSO')||descU.includes('REEMBOLSO'))return false;
+        return o.includes('ROG')||o.includes('ROGÉRIO')||o.includes('ROGERIO');
+      });
+      bancoRog.forEach(t=>{
+        const val=Math.round(t.valor*100);
+        itens.push({tipo:'debito',descricao:`Banco: ${t.descricao} (${t.observacao||''})`,valor:val,data:t.data});
+      });
+
+      // Cartão do Rogério (se houver DÉB.TIT que não seja financiamento do Claudemir)
+      const cartaoRog=banco.filter(t=>{
+        if(!t.descricao)return false;
+        const d=t.descricao.toUpperCase();
+        return d.includes('DÉB.TIT')&&Math.round(t.valor*100)!==198581;
+      });
+      // Não adicionar automaticamente — pode ser de outra coisa
+      if(cartaoRog.length){
+        alertas.push(`${cartaoRog.length} débito(s) de título encontrado(s) no banco — verificar se algum é do Rogério`);
+      }
+
+      if(itens.filter(i=>i.tipo==='debito').length===0){
+        alertas.push('Nenhum adiantamento ou desconto encontrado para Rogério neste mês');
+      }
+    }
+
+    // Criar o registro no banco
+    const{data:seqD}=await sb.rpc('nextval',{seq_name:'fin_pro_labore_nr_seq'}).single();
+    let nrCtrl;
+    if(seqD!==null&&seqD!==undefined){nrCtrl=String(typeof seqD==='object'?Object.values(seqD)[0]:seqD);}
+    else{nrCtrl=Date.now().toString().slice(-6);}
+
+    const payload={
+      socio_id:socio.id,
+      socio_nome:socio.nome,
+      competencia:comp,
+      valor_bruto:PL_BRUTO,
+      status:'Rascunho',
+      nr_controle:nrCtrl,
+      observacao:alertas.length?'⚠ '+alertas.join(' | '):null,
+    };
+
+    const{data:plData,error}=await sb.from('fin_pro_labore').insert(payload).select('id').single();
+    if(error){toast(`Erro ao criar pró-labore ${socio.nome}: ${error.message}`,true);continue;}
+
+    const plId=plData.id;
+    const itensDB=itens.map(i=>({pro_labore_id:plId,tipo:i.tipo,descricao:i.descricao,valor:i.valor,data:i.data}));
+    await sb.from('fin_pro_labore_itens').insert(itensDB);
+
+    resultados.push({socio:socio.nome,debitos:itens.filter(i=>i.tipo==='debito').length,alertas});
+  }
+
+  if(!resultados.length){toast('Nenhum novo lançamento gerado (já existem para esta competência)');return;}
+
+  // Montar resumo
+  let msg='Pró-labore gerado:\n\n';
+  resultados.forEach(r=>{
+    msg+=`${r.socio}: ${r.debitos} desconto(s) encontrado(s)\n`;
+    r.alertas.forEach(a=>msg+=`  ⚠ ${a}\n`);
+  });
+  msg+='\nStatus: Rascunho — revise e aprove.';
+  toast(msg.replace(/\n/g,' | '));
+  loadProLabore();
+}
+
 </script>
 <script>
 /* ── Auto-atualização ─────────────────────────────────────────
@@ -5614,7 +6674,7 @@ function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.disp
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260703-093436';
+const APP_BUILD='20260708-001109';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
