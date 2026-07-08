@@ -3233,8 +3233,7 @@ function downloadPDF(){
 
 // Rótulo canônico de mês "mmm/aa" (ex.: "mai/26"). NÃO usar toLocaleDateString+replace:
 // em pt-BR ele gera "mai/de 26" (com "de"), e parseInt("de 26")=NaN quebrava a data.
-const _MES_ABR=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-function mesLabel(ano,mm){ return `${_MES_ABR[(parseInt(mm)-1+12)%12]}/${String(ano).slice(-2)}`; }
+function mesLabel(ano,mm){ const M=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return `${M[(parseInt(mm)-1+12)%12]}/${String(ano).slice(-2)}`; }
 // Normaliza qualquer formato para o canônico "mmm/aa": aceita ISO "2026-05", "mai/de 26" e "mai/26".
 function mesCanon(mes){
   if(!mes)return mes;
@@ -6686,7 +6685,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-005712';
+const APP_BUILD='20260708-010134';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
