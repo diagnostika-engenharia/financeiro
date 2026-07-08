@@ -2535,9 +2535,11 @@ async function _mpagCarregarFontes(valorCents){
     saldoCofre=(cf.data&&cf.data[0])?cf.data[0].saldo_atual||0:0;
     contas=cb.data||[];
   }catch(e){}
+  // Só contas REAIS (com saldo != 0) — mesma regra do Pró-labore. Esconde contas zeradas.
+  const contasComSaldo=contas.filter(c=>c.saldo&&c.saldo!==0);
   const fontes=[];
-  contas.forEach(c=>fontes.push({val:'banco:'+c.id, icon:c.banco==='Sicoob'?'🏛️':'🏦', nome:c.nome, saldo:c.saldo||0}));
-  if(!contas.length) fontes.push({val:'banco', icon:'🏦', nome:'Banco Sicoob', saldo:null});
+  contasComSaldo.forEach(c=>fontes.push({val:'banco:'+c.id, icon:c.banco==='Sicoob'?'🏛️':'🏦', nome:c.nome, saldo:c.saldo||0}));
+  if(!contasComSaldo.length) fontes.push({val:'banco', icon:'🏦', nome:'Banco Sicoob', saldo:null});
   fontes.push({val:'cofre', icon:'🔐', nome:'Cofre (dinheiro)', saldo:saldoCofre});
   // Padrão: primeira fonte com saldo suficiente (evita marcar conta zerada)
   let defIdx=fontes.findIndex(f=>f.saldo==null||(valorCents>0&&f.saldo>=valorCents));
@@ -6802,7 +6804,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-130524';
+const APP_BUILD='20260708-131859';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
