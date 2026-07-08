@@ -3146,7 +3146,11 @@ async function gerarRelatorio(){
   const[ano,mm]=mes.split('-');
   const nomeMes=mesLabel(ano,mm);
 
-  // Upsert em fin_reembolsos (uma linha por visita que tem valor > 0)
+  // Persiste as visitas do mês (uma linha por visita com valor > 0).
+  // ATENÇÃO: o upsert antigo usava onConflict:'user_id,google_event_id', que exige
+  // um índice único inexistente → falhava EM SILÊNCIO e o mês não era salvo.
+  // Agora: apaga as linhas do mês e insere de novo (idempotente, sem depender de índice),
+  // e o erro é verificado/exibido.
   const remRows=visitasFin.filter(v=>(v.valorFinal||0)>0).map(v=>({
     user_id:user.id,
     data:v.data,
@@ -3157,8 +3161,11 @@ async function gerarRelatorio(){
     mes:nomeMes,
     google_event_id:v.google_event_id||null,
   }));
+  const{error:delErr}=await sb.from('fin_reembolsos').delete().eq('user_id',user.id).eq('mes',nomeMes);
+  if(delErr){ toast('Erro ao gravar relatório: '+delErr.message,true); throw delErr; }
   if(remRows.length){
-    await sb.from('fin_reembolsos').upsert(remRows,{onConflict:'user_id,google_event_id',ignoreDuplicates:false});
+    const{error:insErr}=await sb.from('fin_reembolsos').insert(remRows);
+    if(insErr){ toast('Erro ao gravar relatório: '+insErr.message,true); throw insErr; }
   }
 
   // Reflete automaticamente em Contas a Pagar (rascunho "Aguardando aprovação",
@@ -6685,7 +6692,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-012649';
+const APP_BUILD='20260708-100605';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
