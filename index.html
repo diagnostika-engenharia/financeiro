@@ -2728,7 +2728,7 @@ const CIDADE_VALOR={
 
 // Padrões regex de detecção
 const CIDADE_PATTERNS=[
-  {cidade:'Paulínia',   re:/santa\s*clara|sta\.?\s*clara|paulin[ií]a/i},
+  {cidade:'Paulínia',   re:/santa\s*clara|sta\.?\s*clara|paulin[ií]a|monte\s*carlo|morumbi/i},
   {cidade:'Hortolândia',re:/primavera|malta|doni|lu[ií]s|hortoland/i},
   {cidade:'Monte Mor',  re:/mont[e\s]*ville|monte\s*mor/i},
   {cidade:'Campinas',   re:/menotti|campinas/i},
@@ -6685,7 +6685,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-010134';
+const APP_BUILD='20260708-012649';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
