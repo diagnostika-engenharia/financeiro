@@ -2590,8 +2590,8 @@ async function confirmarEstornoP(){
   const id=document.getElementById('mep-id').value;
   const motivo=document.getElementById('mep-motivo').value.trim();
   if(!motivo){toast('Informe o motivo',true);return;}
-  const{data:conta}=await sb.from('fin_contas_pagar').select('competencia,tipo_reembolso').eq('id',id).single();
-  const{error}=await sb.from('fin_contas_pagar').update({status:'Pendente',estornado:true,data_estorno:hoje(),motivo_estorno:motivo,data_pagamento:null,conta_bancaria_id:null}).eq('id',id);
+  const{data:conta}=await sb.from('fin_contas_pagar').select('competencia,tipo_reembolso,fonte_pagamento,valor,fornecedor,num_controle').eq('id',id).single();
+  const{error}=await sb.from('fin_contas_pagar').update({status:'Pendente',estornado:true,data_estorno:hoje(),motivo_estorno:motivo,data_pagamento:null,conta_bancaria_id:null,fonte_pagamento:null}).eq('id',id);
   if(error){toast('Erro',true);return;}
   // Cascata: reembolsos do mês voltam a Pendente
   if(conta&&conta.competencia&&conta.tipo_reembolso){
@@ -2599,7 +2599,20 @@ async function confirmarEstornoP(){
     const colMes=conta.tipo_reembolso==='digital'?'mes_referencia':'mes';
     await sb.from(tabela).update({status:'Pendente'}).eq(colMes,conta.competencia);
   }
-  closeModal('modal-estorno-p');toast('Estornado');loadPagar();loadDash();
+  // Se o pagamento foi pelo COFRE, devolve o dinheiro (Entrada de estorno) — igual ao Pró-labore
+  if(conta&&conta.fonte_pagamento==='cofre'&&(conta.valor||0)>0){
+    const{data:{user}}=await sb.auth.getUser();
+    const numCtrl=conta.num_controle?` [${conta.num_controle}]`:'';
+    await sb.from('fin_livro_caixa_cofre').insert({
+      user_id:user.id, data:hoje(), tipo:'Entrada',
+      descricao:`Estorno: ${conta.fornecedor||'Pagamento'}${numCtrl}`,
+      valor:conta.valor, saldo_anterior:0, saldo_atual:0,
+      origem:'Automático', observacao:`Devolução ao cofre por estorno — ${hoje()}`
+    });
+    await recalcularTodosSaldosCofre();
+    loadCofre();
+  }
+  closeModal('modal-estorno-p');toast('Estornado'+(conta&&conta.fonte_pagamento==='cofre'?' — valor devolvido ao cofre':''));loadPagar();loadDash();
 }
 
 // ── Utilitários ───────────────────────────────────────────────
@@ -6750,7 +6763,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-124956';
+const APP_BUILD='20260708-125336';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
