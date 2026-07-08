@@ -2,9 +2,10 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co https://84.46.248.23.sslip.io https://www.googleapis.com; img-src 'self' data: blob: https://fimmjgdwhifsrrbreche.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://fimmjgdwhifsrrbreche.supabase.co https://84.46.248.23.sslip.io https://www.googleapis.com https://accounts.google.com; img-src 'self' data: blob: https://fimmjgdwhifsrrbreche.supabase.co; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self';">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Financeiro · Diagnóstika</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2750,13 +2751,57 @@ let _relatorio=null;      // relatório gerado
 let _relatorioDig=null;   // relatório digital gerado
 let _previewModo='visita';// modo do modal de preview: 'visita' | 'digital'
 
-// ─── Google OAuth (implicit flow) ────────────────────────────
-function iniciarGoogleAuth(){
-  const redirect=encodeURIComponent(window.location.origin+window.location.pathname);
-  const scope=encodeURIComponent(GCAL_SCOPE);
-  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GCAL_CLIENT_ID}&redirect_uri=${redirect}&response_type=token&scope=${scope}&prompt=consent`;
-  window.location.href=url;
+// ─── Google OAuth via Google Identity Services (GIS) ─────────
+// Token com RENOVAÇÃO SILENCIOSA: o usuário autoriza UMA vez e o app pega tokens
+// novos sozinho (prompt:'') enquanto estiver logado no Google — "sempre conectado".
+let _gisClient=null, _gisResolve=null, _gisRefreshTimer=null;
+
+function initGis(){
+  if(_gisClient) return _gisClient;
+  if(!(window.google&&google.accounts&&google.accounts.oauth2)) return null;
+  _gisClient=google.accounts.oauth2.initTokenClient({
+    client_id:GCAL_CLIENT_ID,
+    scope:GCAL_SCOPE,
+    callback:(resp)=>{
+      if(resp&&resp.access_token){
+        _remGoogleToken=resp.access_token;
+        const expiresAt=Date.now()+(parseInt(resp.expires_in||'3600'))*1000;
+        localStorage.setItem('gcal_token',JSON.stringify({token:resp.access_token,expiresAt}));
+        atualizarStatusGcal(true);
+        agendarRefreshGoogle(expiresAt);
+        if(_gisResolve){_gisResolve(true);_gisResolve=null;}
+      }else if(_gisResolve){_gisResolve(false);_gisResolve=null;}
+    },
+    error_callback:()=>{ if(_gisResolve){_gisResolve(false);_gisResolve=null;} }
+  });
+  return _gisClient;
 }
+
+// Renova o token ~2 min antes de expirar, em background (mantém a conexão viva)
+function agendarRefreshGoogle(expiresAt){
+  if(_gisRefreshTimer)clearTimeout(_gisRefreshTimer);
+  const ms=Math.max(30000,(expiresAt-Date.now())-120000);
+  _gisRefreshTimer=setTimeout(()=>{ garantirTokenGoogle(false); }, ms);
+}
+
+// Garante um token válido.
+//  interactive=true  → mostra o consentimento do Google (1º uso / se revogado)
+//  interactive=false → renova SEM interação (prompt:''), se já autorizado antes
+async function garantirTokenGoogle(interactive){
+  if(!interactive && carregarTokenGoogle()) return true; // token salvo ainda válido
+  const c=initGis();
+  if(!c){ if(interactive) toast('Google ainda inicializando — tente de novo em alguns segundos.',true); return false; }
+  return await new Promise((resolve)=>{
+    let done=false;
+    _gisResolve=(v)=>{ if(!done){done=true;resolve(v);} };
+    try{ c.requestAccessToken({prompt: interactive?'consent':''}); }
+    catch(e){ _gisResolve=null; if(!done){done=true;resolve(false);} }
+    setTimeout(()=>{ if(!done){done=true;_gisResolve=null;resolve(false);} }, 20000);
+  });
+}
+
+// Compat: botão "Conectar" agora usa GIS (sem redirect de página inteira)
+function iniciarGoogleAuth(){ garantirTokenGoogle(true); }
 
 function handleGoogleCallback(){
   const hash=window.location.hash;
@@ -2778,6 +2823,7 @@ function carregarTokenGoogle(){
     const saved=JSON.parse(localStorage.getItem('gcal_token')||'null');
     if(saved&&saved.expiresAt>Date.now()+60000){
       _remGoogleToken=saved.token;
+      agendarRefreshGoogle(saved.expiresAt); // garante renovação antes de expirar
       return true;
     }
   }catch{}
@@ -2853,12 +2899,13 @@ function aplicarAgrupamento(visitas){
 // As visitas ficam numa agenda separada ("Diagnóstika 2026"), não na primary.
 // Busca a lista de agendas e seleciona automaticamente a que casa com "Diagnóstika" + ano.
 async function carregarCalendarios(){
-  if(!_remGoogleToken)return false;
+  if(!_remGoogleToken && !(await garantirTokenGoogle(false))) return false;
   try{
-    const r=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',{headers:{Authorization:'Bearer '+_remGoogleToken}});
+    let r=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',{headers:{Authorization:'Bearer '+_remGoogleToken}});
     if(r.status===401){
       localStorage.removeItem('gcal_token');_remGoogleToken=null;
-      atualizarStatusGcal(false);toast('Token expirado. Reconecte o Google Calendar.',true);return false;
+      if(await garantirTokenGoogle(false)){ r=await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',{headers:{Authorization:'Bearer '+_remGoogleToken}}); }
+      if(r.status===401){ atualizarStatusGcal(false); return false; }
     }
     const j=await r.json();
     _remCalendars=(j.items||[]).map(c=>({id:c.id,nome:c.summaryOverride||c.summary||c.id}));
@@ -2881,8 +2928,10 @@ async function carregarCalendarios(){
 
 // ─── Importar do Google Calendar ─────────────────────────────
 async function importarCalendario(){
-  if(!_remGoogleToken){
-    toast('Conecte o Google Calendar primeiro.',true);return;
+  // Garante token válido: usa o salvo; se expirou, RENOVA em silêncio (sem pedir login).
+  if(!carregarTokenGoogle()){
+    const ok=await garantirTokenGoogle(false);
+    if(!ok){ toast('Conecte o Google Agenda no botão "Conectar".',true); return; }
   }
   const mes=getMesISO();
   if(!mes){toast('Selecione um mês.',true);return;}
@@ -2905,11 +2954,16 @@ async function importarCalendario(){
   const url=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?timeMin=${encodeURIComponent(tMin)}&timeMax=${encodeURIComponent(tMax)}&singleEvents=true&orderBy=startTime&maxResults=500`;
   let resp;
   try{
-    const r=await fetch(url,{headers:{Authorization:'Bearer '+_remGoogleToken}});
+    let r=await fetch(url,{headers:{Authorization:'Bearer '+_remGoogleToken}});
     if(r.status===401){
+      // Token venceu no meio → tenta RENOVAR em silêncio e refazer 1x
       localStorage.removeItem('gcal_token');_remGoogleToken=null;
-      atualizarStatusGcal(false);toast('Token expirado. Reconecte o Google Calendar.',true);
-      document.getElementById('rem-loading').style.display='none';return;
+      const ok=await garantirTokenGoogle(false);
+      if(ok){ r=await fetch(url,{headers:{Authorization:'Bearer '+_remGoogleToken}}); }
+      if(!ok||r.status===401){
+        atualizarStatusGcal(false);toast('Sessão do Google expirou. Clique em "Conectar".',true);
+        document.getElementById('rem-loading').style.display='none';return;
+      }
     }
     resp=await r.json();
   }catch(e){
@@ -3725,9 +3779,11 @@ function exportarExcelRem(){toast('Em breve: exportação para Excel');}
 function processarFatura(input){toast('Em breve: importação de fatura de cartão');}
 
 // Botão GCal: conecta se não conectado, importa se conectado
-function acaoGcalBtn(){
-  if(_remGoogleToken) importarCalendario();
-  else iniciarGoogleAuth();
+async function acaoGcalBtn(){
+  // Se já tem token válido → importa. Senão pede consentimento (1x) e importa.
+  if(carregarTokenGoogle()){ importarCalendario(); return; }
+  const ok=await garantirTokenGoogle(true);
+  if(ok){ toast('Google conectado!'); await carregarCalendarios(); importarCalendario(); }
 }
 
 // Adicionar visita direto do preview (igual ao Manus)
@@ -4032,10 +4088,12 @@ function remTab(tab){
 
 // ─── loadReembolsos (nav) ─────────────────────────────────────
 async function loadReembolsos(){
-  const tokOk=carregarTokenGoogle();
+  let tokOk=carregarTokenGoogle();
   atualizarStatusGcal(tokOk);
-  // Se já conectado, pré-carrega a lista de agendas e resolve "Diagnóstika <ano>"
-  if(tokOk) carregarCalendarios();
+  // Se já conectado, pré-carrega as agendas. Se não, tenta RENOVAR em silêncio
+  // (sem UI) — assim a conexão parece permanente: autoriza 1x e nunca mais precisa.
+  if(tokOk){ carregarCalendarios(); }
+  else{ garantirTokenGoogle(false).then(ok=>{ if(ok){ atualizarStatusGcal(true); carregarCalendarios(); } }); }
 
   // Popular dropdown de ano
   const anoSel=document.getElementById('rem-ano');
@@ -6692,7 +6750,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-100605';
+const APP_BUILD='20260708-121242';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
