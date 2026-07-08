@@ -1528,13 +1528,8 @@ body.capturing .rel-acao{display:none!important}
       <div class="form-row"><label>Data do Pagamento *</label><input id="mpag-data" type="date"></div>
       <div class="form-row">
         <label>Fonte do Pagamento *</label>
-        <div style="display:flex;gap:10px;margin-top:4px">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600">
-            <input type="radio" name="mpag-fonte" value="banco" checked> 🏦 Banco Sicoob
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600">
-            <input type="radio" name="mpag-fonte" value="cofre"> <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg> Cofre (dinheiro)
-          </label>
+        <div id="mpag-fontes" style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <div style="color:var(--text2);font-size:12px">Carregando saldos…</div>
         </div>
       </div>
       <div id="mpag-banco-info" style="font-size:12px;color:var(--text2);margin-top:4px;padding:8px 10px;background:var(--gray);border-radius:6px">
@@ -2522,11 +2517,50 @@ function openMarcarPago(id, valor, desc){
   document.getElementById('mpag-data').value=hoje();
   document.getElementById('mpag-valor').value=valor||0;
   document.getElementById('mpag-desc').value=desc||'';
-  // reset radio para banco
-  document.querySelectorAll('input[name="mpag-fonte"]').forEach(r=>r.checked=(r.value==='banco'));
-  document.getElementById('mpag-banco-info').style.display='block';
-  document.getElementById('mpag-cofre-info').style.display='none';
   document.getElementById('modal-pago').classList.add('open');
+  _mpagCarregarFontes(valor||0);
+}
+
+// Regra geral de pagamentos: mostrar TODAS as contas (banco + cofre) com o saldo de cada.
+async function _mpagCarregarFontes(valorCents){
+  const box=document.getElementById('mpag-fontes');
+  if(!box)return;
+  box.innerHTML='<div style="color:var(--text2);font-size:12px">Carregando saldos…</div>';
+  let saldoCofre=0, contas=[];
+  try{
+    const[cf,cb]=await Promise.all([
+      sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1),
+      sb.from('fin_contas_bancarias').select('id,nome,banco,saldo').eq('ativa',true).order('id')
+    ]);
+    saldoCofre=(cf.data&&cf.data[0])?cf.data[0].saldo_atual||0:0;
+    contas=cb.data||[];
+  }catch(e){}
+  const fontes=[];
+  contas.forEach(c=>fontes.push({val:'banco:'+c.id, icon:c.banco==='Sicoob'?'🏛️':'🏦', nome:c.nome, saldo:c.saldo||0}));
+  if(!contas.length) fontes.push({val:'banco', icon:'🏦', nome:'Banco Sicoob', saldo:null});
+  fontes.push({val:'cofre', icon:'🔐', nome:'Cofre (dinheiro)', saldo:saldoCofre});
+  box.innerHTML=fontes.map((f,i)=>{
+    const insuf=(f.saldo!=null && valorCents>0 && f.saldo<valorCents);
+    const saldoTxt=f.saldo!=null
+      ? `Saldo: <b style="color:${f.saldo>=0?'var(--green)':'var(--red)'}">${fmt(f.saldo)}</b>${insuf?' <span style="color:var(--orange);font-weight:700">⚠ insuficiente</span>':''}`
+      : '<span style="color:var(--text2)">saldo não cadastrado</span>';
+    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:2px solid var(--gray2);border-radius:10px;cursor:pointer">
+      <input type="radio" name="mpag-fonte" value="${f.val}" ${i===0?'checked':''} onchange="_mpagFonteMudou()" style="width:18px;height:18px;accent-color:var(--teal)">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${f.icon} ${esc(f.nome)}</div>
+        <div style="font-size:12px;color:var(--text2)">${saldoTxt}</div>
+      </div>
+    </label>`;
+  }).join('');
+  _mpagFonteMudou();
+}
+
+function _mpagFonteMudou(){
+  const v=document.querySelector('input[name="mpag-fonte"]:checked')?.value||'';
+  const isCofre=v==='cofre';
+  const bi=document.getElementById('mpag-banco-info'), ci=document.getElementById('mpag-cofre-info');
+  if(bi)bi.style.display=isCofre?'none':'block';
+  if(ci)ci.style.display=isCofre?'block':'none';
 }
 
 async function confirmarPago(){
@@ -2534,7 +2568,9 @@ async function confirmarPago(){
   const data=document.getElementById('mpag-data').value;
   const valorCents=parseInt(document.getElementById('mpag-valor').value)||0;
   const desc=document.getElementById('mpag-desc').value||'Pagamento';
-  const fonte=document.querySelector('input[name="mpag-fonte"]:checked')?.value||'banco';
+  const raw=document.querySelector('input[name="mpag-fonte"]:checked')?.value||'banco';
+  const fonte=raw==='cofre'?'cofre':'banco';
+  const contaBancariaId=(fonte==='banco'&&raw.indexOf('banco:')===0)?parseInt(raw.slice(6)):null;
   if(!data){toast('Informe a data de pagamento',true);return;}
 
   // Busca dados da conta antes de atualizar
@@ -2542,7 +2578,7 @@ async function confirmarPago(){
     .select('competencia,tipo_reembolso,valor,fornecedor,num_controle')
     .eq('id',id).single();
 
-  const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte,estornado:false,data_estorno:null,motivo_estorno:null};
+  const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte,conta_bancaria_id:contaBancariaId,estornado:false,data_estorno:null,motivo_estorno:null};
   const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
   if(error){toast('Erro ao registrar pagamento: '+error.message,true);console.error('confirmarPago:',error);return;}
 
@@ -6763,7 +6799,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-125336';
+const APP_BUILD='20260708-130234';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
