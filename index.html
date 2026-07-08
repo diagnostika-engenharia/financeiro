@@ -2461,7 +2461,7 @@ function renderPagar(){
       <td>${badgeSt(r.status,r.data_vencimento)}</td>
       <td style="white-space:nowrap">
         ${r.status===ST_AGUARDANDO?`<button class="btn btn-primary btn-sm" onclick="aprovarConta(${r.id})">✓ Aprovar e lançar</button> `:''}
-        ${r.status==='Pendente'&&!r.estornado?`<button class="btn btn-green btn-sm" onclick="openMarcarPago(${r.id},${r.valor},'${esc(r.fornecedor||'')}')">Pagar</button> `:''}
+        ${r.status==='Pendente'?`<button class="btn btn-green btn-sm" onclick="openMarcarPago(${r.id},${r.valor},'${esc(r.fornecedor||'')}')">Pagar</button> `:''}
         ${r.status==='Pago'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="openEstornoP(${r.id})">Estornar</button> `:''}
         <button class="btn btn-outline btn-sm" onclick="editPagar(${r.id})">✎</button>
         <button class="btn btn-danger btn-sm" onclick="delPagar(${r.id})">✕</button>
@@ -2542,7 +2542,7 @@ async function confirmarPago(){
     .select('competencia,tipo_reembolso,valor,fornecedor,num_controle')
     .eq('id',id).single();
 
-  const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte};
+  const upd={status:'Pago',data_pagamento:data,fonte_pagamento:fonte,estornado:false,data_estorno:null,motivo_estorno:null};
   const{error}=await sb.from('fin_contas_pagar').update(upd).eq('id',id);
   if(error){toast('Erro ao registrar pagamento: '+error.message,true);console.error('confirmarPago:',error);return;}
 
@@ -6750,7 +6750,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-121242';
+const APP_BUILD='20260708-124956';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
