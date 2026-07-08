@@ -3144,7 +3144,7 @@ async function gerarRelatorio(){
   // Salvar no Supabase
   const{data:{user}}=await sb.auth.getUser();
   const[ano,mm]=mes.split('-');
-  const nomeMes=new Date(parseInt(ano),parseInt(mm)-1,1).toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace('. ','/');
+  const nomeMes=mesLabel(ano,mm);
 
   // Upsert em fin_reembolsos (uma linha por visita que tem valor > 0)
   const remRows=visitasFin.filter(v=>(v.valorFinal||0)>0).map(v=>({
@@ -3231,10 +3231,23 @@ function downloadPDF(){
   doc.save(`reembolso_${mes}.pdf`);
 }
 
+// Rótulo canônico de mês "mmm/aa" (ex.: "mai/26"). NÃO usar toLocaleDateString+replace:
+// em pt-BR ele gera "mai/de 26" (com "de"), e parseInt("de 26")=NaN quebrava a data.
+const _MES_ABR=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function mesLabel(ano,mm){ return `${_MES_ABR[(parseInt(mm)-1+12)%12]}/${String(ano).slice(-2)}`; }
+// Normaliza qualquer formato para o canônico "mmm/aa": aceita ISO "2026-05", "mai/de 26" e "mai/26".
+function mesCanon(mes){
+  if(!mes)return mes;
+  const s=String(mes).trim();
+  if(/^\d{4}-\d{2}$/.test(s)){ const[a,m]=s.split('-'); return mesLabel(a,m); }
+  return s.toLowerCase().replace(/\/\s*de\s+/,'/');
+}
+
 // ─── Lançar reembolso em Contas a Pagar (idempotente, responsável por tipo) ──
 // tipo: 'visita' (Claudemir) | 'digital' (Rogério). status inicial = Aguardando aprovação.
 // Reaproveita 1 conta por (competência, tipo) → nunca duplica; só reconcilia o valor.
 async function upsertContaReembolso(tipo,mes,totalCent,qtd,vencOverride){
+  mes=mesCanon(mes); // tolera ISO / "mai/de 26" → sempre "mai/26"
   const MESES={'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
   const partes=mes.toLowerCase().split('/');
   const mmIdx=MESES[partes[0]]??0;
@@ -3743,8 +3756,7 @@ async function salvarReembolsoDigital(){
   if(isNaN(valor)||valor<=0){toast('Valor inválido',true);return;}
   const{data:{user}}=await sb.auth.getUser();
   const mes=data.slice(0,7);
-  const nomeMes=new Date(parseInt(mes.slice(0,4)),parseInt(mes.slice(5,7))-1,1)
-    .toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace('. ','/');
+  const nomeMes=mesLabel(mes.slice(0,4),mes.slice(5,7));
   const{error}=await sb.from('fin_reembolsos_digitais').insert({
     user_id:user.id, data, servico:cat, descricao:desc,
     valor, iof:0, valor_total:valor, status:'Pendente', mes_referencia:nomeMes,
@@ -6674,7 +6686,7 @@ async function gerarPLMes(compDefault,socioIdFiltro){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260708-004556';
+const APP_BUILD='20260708-005712';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
