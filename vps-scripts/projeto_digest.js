@@ -62,7 +62,25 @@ const ST = { levantamento: 'Levantamento', aguardando_doc: 'Aguardando doc', ela
 const ATIVO = p => p.status !== 'entregue';
 const rotulo = p => (p.codigo ? p.codigo : (TIPOS[p.tipo] || 'Projeto'));
 
+// data no calendário BRT (YYYY-MM-DD), independente do fuso do host
+const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
 (async () => {
+  // ── AGENDAMENTO (SCHEDULED=1): o cron do SO ignora CRON_TZ nesta máquina
+  //    (roda em CEST e ainda muda no horário de verão europeu). Então o cron
+  //    dispara com frequência e é ESTE guard, no relógio BRT do container, que
+  //    decide a hora certa — 1x por dia útil na 1ª passagem a partir das 07:30 BRT.
+  if (process.env.SCHEDULED === '1') {
+    const now = new Date();                 // container TZ = America/Sao_Paulo
+    const dow = now.getDay(), hh = now.getHours(), mm = now.getMinutes();
+    const naJanela = dow >= 1 && dow <= 5 && (hh > 7 || (hh === 7 && mm >= 30)) && hh < 12;
+    if (!naJanela) { console.log('Fora da janela (BRT ' + now.toTimeString().slice(0, 5) + ', dow ' + dow + '). Nada a fazer.'); return; }
+    const ja = await sbGet('projeto_digest_log', 'select=gerado_em&order=gerado_em.desc&limit=1');
+    if (ja.length && dateBRT(new Date(ja[0].gerado_em)) === dateBRT(now)) {
+      console.log('Digest de hoje (' + dateBRT(now) + ' BRT) ja existe. Nada a fazer.'); return;
+    }
+  }
+
   const [clientes, projetos, docs] = await Promise.all([
     sbGet('fin_projeto_clientes', 'select=id,nome'),
     sbGet('fin_projetos', 'select=id,cliente_id,codigo,tipo,status,proximo_passo,proximo_passo_prazo,last_movement_at,receita_total_centavos,receita_recebida_centavos'),
