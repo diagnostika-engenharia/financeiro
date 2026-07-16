@@ -7056,8 +7056,10 @@ function _pjConta(p){
   return {receitaExtrato:rec,custoExtrato:custo};
 }
 const _pjAtivo=p=>!['entregue'].includes(p.status);
-// "parado" = ativo e sem próximo passo OU com prazo do passo vencido (furo nº 2)
-const _pjParado=p=>_pjAtivo(p)&&(!(p.proximo_passo||'').trim()||(p.proximo_passo_prazo&&p.proximo_passo_prazo<hoje()));
+const PJ_PARADO_DIAS=10;  // limiar do "parado há X dias" (selo, KPI, filtro e futuro digest)
+// "parado" (furo nº 2): ativo e SEM próximo passo, OU prazo do passo vencido,
+// OU sem movimento há >= PJ_PARADO_DIAS dias
+const _pjParado=p=>_pjAtivo(p)&&(!(p.proximo_passo||'').trim()||(p.proximo_passo_prazo&&p.proximo_passo_prazo<hoje())||_pjParadoDias(p)>=PJ_PARADO_DIAS);
 const _pjAReceber=p=>Math.max(0,(+p.receita_total_centavos||0)-(+p.receita_recebida_centavos||0));
 const _pjEventosDe=pid=>_pjEventos.filter(e=>e.projeto_id===pid);
 // dias parado desde o último movimento (só conta p/ projetos ativos)
@@ -7139,7 +7141,7 @@ function _pjCardHtml(p){
       ${docs.length?`<span>📄 ${rec}/${docs.length} docs</span>`:''}
       ${aRec>0?`<span>💰 receber R$ ${_pjBrl(aRec)}</span>`:''}
       ${conta.custoExtrato>0?`<span>🔻 custo R$ ${_pjBrl(Math.round(conta.custoExtrato*100))}</span>`:''}
-      ${_pjAtivo(p)&&_pjParadoDias(p)>=7?`<span style="background:#FDECEA;border-color:#F5C6C0;color:#B71C1C">⏳ parado ${_pjParadoDias(p)}d</span>`:''}
+      ${_pjAtivo(p)&&_pjParadoDias(p)>=PJ_PARADO_DIAS?`<span style="background:#FDECEA;border-color:#F5C6C0;color:#B71C1C">⏳ parado ${_pjParadoDias(p)}d</span>`:''}
     </div>
   </div>`;
 }
@@ -7168,7 +7170,7 @@ function _pjRenderLista(){
       <td><b>${esc(c.nome)}</b></td>
       <td>${esc(p.codigo||'—')}<br><small style="color:var(--text2)">${esc(PJ_TIPOS[p.tipo]||p.tipo)}</small></td>
       <td><span class="badge" style="background:${st.c}22;color:${st.c}">${esc(st.l)}</span></td>
-      <td style="${late?'color:var(--red);font-weight:600':''}">${esc(p.proximo_passo||'⚠️ indefinido')}${p.proximo_passo_prazo?'<br><small>'+formatData(p.proximo_passo_prazo)+'</small>':''}${_pjAtivo(p)&&_pjParadoDias(p)>=7?'<br><small style="color:#B71C1C">⏳ parado '+_pjParadoDias(p)+'d</small>':''}</td>
+      <td style="${late?'color:var(--red);font-weight:600':''}">${esc(p.proximo_passo||'⚠️ indefinido')}${p.proximo_passo_prazo?'<br><small>'+formatData(p.proximo_passo_prazo)+'</small>':''}${_pjAtivo(p)&&_pjParadoDias(p)>=PJ_PARADO_DIAS?'<br><small style="color:#B71C1C">⏳ parado '+_pjParadoDias(p)+'d</small>':''}</td>
       <td>${aRec>0?'R$ '+_pjBrl(aRec):'—'}</td>
       <td>${conta.custoExtrato>0?'R$ '+_pjBrl(Math.round(conta.custoExtrato*100)):'—'}</td>
     </tr>`;
@@ -7269,7 +7271,7 @@ function pjAbrir(id){
   // aviso "parado há X dias" no topo do modal
   const t=document.getElementById('mpj-title'), dias=_pjParadoDias(p);
   t.innerHTML=esc((p.codigo?p.codigo+' — ':'')+_pjCliente(p.cliente_id).nome)
-    +(_pjAtivo(p)&&dias>=7?` <span style="font-size:11px;font-weight:700;background:#FDECEA;color:#B71C1C;border-radius:10px;padding:2px 8px">⏳ parado ${dias}d</span>`:'');
+    +(_pjAtivo(p)&&dias>=PJ_PARADO_DIAS?` <span style="font-size:11px;font-weight:700;background:#FDECEA;color:#B71C1C;border-radius:10px;padding:2px 8px">⏳ parado ${dias}d</span>`:'');
   document.getElementById('mpj-tl-wrap').style.display='';
   document.getElementById('mpj-excluir').style.display='';
   document.getElementById('modal-projeto').classList.add('open');
@@ -7458,7 +7460,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260716-153602';
+const APP_BUILD='20260716-153924';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
