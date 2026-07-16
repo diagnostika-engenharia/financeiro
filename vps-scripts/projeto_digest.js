@@ -18,6 +18,7 @@
  * Rodar manual:  docker exec n8n-n8n-1 node /home/node/.n8n/projeto_digest.js
  * =================================================================== */
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 
 const CFG = JSON.parse(fs.readFileSync('/home/node/.n8n/sicoob_config.json', 'utf8'));
@@ -46,6 +47,26 @@ async function sbGet(table, query) {
   const r = await sbREST('GET', '/rest/v1/' + table + (query ? '?' + query : ''));
   if (r.status >= 300) throw new Error(table + ' GET ' + r.status + ': ' + r.body.slice(0, 200));
   return JSON.parse(r.body);
+}
+
+// ── Evolution (envio ao grupo Projetos — só quando MODO_SOMBRA=false) ──
+// DESTINO É SEMPRE a constante GRUPO_PROJETOS. O texto vai para a EQUIPE,
+// nunca para um cliente e nunca para um destino recebido de fora.
+const EVO_HOST = (CFG.evo_url || '').replace(/^https?:\/\//, '');
+const EVO_INSTANCE = CFG.evo_instance;
+const EVO_KEY = CFG.evo_apikey;
+const EVO_EP = EVO_HOST.split(':');
+function evoSendGrupoProjetos(texto) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({ number: GRUPO_PROJETOS, text: texto });
+    const r = http.request({
+      hostname: EVO_EP[0], port: parseInt(EVO_EP[1] || '8080'),
+      path: '/message/sendText/' + EVO_INSTANCE, method: 'POST',
+      headers: { apikey: EVO_KEY, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+    }, res => { let b = ''; res.on('data', c => b += c); res.on('end', () => resolve({ status: res.statusCode, body: b })); });
+    r.on('error', reject); r.setTimeout(30000, () => { r.destroy(); reject(new Error('timeout evolution')); });
+    r.write(data); r.end();
+  });
 }
 
 // ── datas ───────────────────────────────────────────────────────────
@@ -161,20 +182,29 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
   console.log(conteudo);
   console.log('=====================================');
 
-  // ── grava sempre no log de auditoria (enviado=false em sombra) ─────
+  // ── grava sempre no log de auditoria ──────────────────────────────
   const ins = await sbREST('POST', '/rest/v1/projeto_digest_log', {
-    conteudo, resumo, destino_jid: GRUPO_PROJETOS, enviado: false, origem: 'digest_sombra'
+    conteudo, resumo, destino_jid: GRUPO_PROJETOS, enviado: false,
+    origem: MODO_SOMBRA ? 'digest_sombra' : 'digest'
   });
   if (ins.status >= 300) throw new Error('insert log ' + ins.status + ': ' + ins.body.slice(0, 300));
   const rowId = (JSON.parse(ins.body)[0] || {}).id;
-  console.log('Gravado em projeto_digest_log id=' + rowId + ' (enviado=false).');
+  console.log('Gravado em projeto_digest_log id=' + rowId + '.');
 
-  if (!MODO_SOMBRA) {
-    // GUARD: envio real só quando o Rogério ligar (MODO_SOMBRA=false).
-    // Nesta entrega NÃO ligamos — deixado explicitamente inerte para não
-    // arriscar postar no grupo antes da validação. Quando for ligar,
-    // implementar aqui a chamada à Evolution (sendText p/ GRUPO_PROJETOS)
-    // e dar update em projeto_digest_log set enviado=true, enviado_em=now.
-    console.log('[AVISO] MODO_SOMBRA=false, mas o envio real ainda nao foi ativado nesta versao. Nada enviado.');
+  if (MODO_SOMBRA) {
+    console.log('MODO SOMBRA: gravado com enviado=false. Nada enviado ao grupo.');
+    return;
   }
+
+  // ── ENVIO REAL ────────────────────────────────────────────────────
+  // Destino é SEMPRE a constante GRUPO_PROJETOS (a equipe). NUNCA um
+  // cliente, NUNCA um destino externo. O script continua só LENDO
+  // fin_projetos — não muda status de nenhum projeto.
+  const snd = await evoSendGrupoProjetos(conteudo);
+  if (snd.status >= 300) throw new Error('Evolution sendText ' + snd.status + ': ' + snd.body.slice(0, 300));
+  if (rowId) {
+    await sbREST('PATCH', '/rest/v1/projeto_digest_log?id=eq.' + rowId,
+      { enviado: true, enviado_em: new Date().toISOString() });
+  }
+  console.log('ENVIADO ao grupo Projetos (' + GRUPO_PROJETOS + '). Evolution status ' + snd.status + '.');
 })().catch(e => { console.error('FALHA digest: ' + (e && e.message || e)); process.exit(1); });
