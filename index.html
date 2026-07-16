@@ -1302,7 +1302,8 @@ body.capturing .rel-acao{display:none!important}
             <div id="pj-view-seg" style="display:inline-flex;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12.5px">
               <button type="button" class="on" data-v="kanban" onclick="pjSetView('kanban')">Kanban</button>
               <button type="button" data-v="lista" onclick="pjSetView('lista')" style="border-left:1px solid var(--gray3);border-right:1px solid var(--gray3)">Lista</button>
-              <button type="button" data-v="clientes" onclick="pjSetView('clientes')">Por cliente</button>
+              <button type="button" data-v="clientes" onclick="pjSetView('clientes')" style="border-right:1px solid var(--gray3)">Por cliente</button>
+              <button type="button" data-v="digest" onclick="pjSetView('digest')" title="O que o robô postaria no grupo Projetos (modo sombra)">🌙 Digest</button>
             </div>
             <select id="pj-f-status" onchange="pjRender()">
               <option value="">Todos os status</option>
@@ -1319,6 +1320,16 @@ body.capturing .rel-acao{display:none!important}
             </tr></thead><tbody id="pj-lista-tb"></tbody></table></div>
           </div>
           <div id="pj-clientes" style="display:none"></div>
+          <div id="pj-digest" style="display:none">
+            <div class="card" style="border-left:3px solid var(--turq)">
+              <div class="card-bd" style="padding:14px 16px">
+                <div style="font-size:12.5px;color:var(--text2)">
+                  🌙 <b>Modo sombra:</b> o robô monta este resumo e <b>grava</b> aqui, mas <b>não posta</b> no grupo. Destino previsto quando ligar o envio: grupo <b>Projetos - Diagnóstika</b>. Roda automático nos dias úteis às 7h30 (horário de Brasília).
+                </div>
+              </div>
+            </div>
+            <div id="pj-digest-lista"></div>
+          </div>
         </div>
       </div>
 
@@ -7114,9 +7125,50 @@ function pjRender(){
   document.getElementById('pj-kanban').style.display=_pjView==='kanban'?'':'none';
   document.getElementById('pj-lista').style.display=_pjView==='lista'?'':'none';
   document.getElementById('pj-clientes').style.display=_pjView==='clientes'?'':'none';
+  document.getElementById('pj-digest').style.display=_pjView==='digest'?'':'none';
   if(_pjView==='kanban')_pjRenderKanban();
   if(_pjView==='lista')_pjRenderLista();
   if(_pjView==='clientes')_pjRenderClientes();
+  if(_pjView==='digest')_pjRenderDigest();
+}
+
+// ── Conferência do Digest (modo sombra) ──────────────────────
+let _pjDigestCache=null;
+async function _pjRenderDigest(force){
+  const el=document.getElementById('pj-digest-lista');
+  if(_pjDigestCache && !force){ _pjPintaDigest(_pjDigestCache); return; }
+  el.innerHTML='<div class="card"><div class="card-bd"><div class="empty">Carregando digests…</div></div></div>';
+  try{
+    const{data,error}=await sb.from('projeto_digest_log').select('*').order('gerado_em',{ascending:false}).limit(30);
+    if(error){
+      if(_pjTabelaFalta(error)){ el.innerHTML='<div class="card"><div class="card-bd" style="padding:16px"><b>⚙️ Digest ainda não instalado.</b><p style="font-size:13px;color:var(--text2);margin-top:6px">Rode <code>_setup_projeto_digest.sql</code> no Supabase.</p></div></div>'; return; }
+      throw error;
+    }
+    _pjDigestCache=data||[]; _pjPintaDigest(_pjDigestCache);
+  }catch(e){ el.innerHTML='<div class="card"><div class="card-bd"><div class="empty">Erro: '+esc(e.message||e)+'</div></div></div>'; }
+}
+function _pjPintaDigest(rows){
+  const el=document.getElementById('pj-digest-lista');
+  if(!rows.length){ el.innerHTML='<div class="card"><div class="card-bd"><div class="empty">Nenhum digest gerado ainda. O robô roda nos dias úteis às 7h30.</div></div></div>'; return; }
+  el.innerHTML=rows.map(r=>{
+    const dt=new Date(r.gerado_em);
+    const quando=formatData(r.gerado_em.slice(0,10))+' '+String(r.gerado_em.slice(11,16));
+    const rs=r.resumo||{};
+    const badge=r.enviado
+      ?'<span class="badge ok">enviado</span>'
+      :'<span class="badge" style="background:#EDE7F6;color:#5E35B1">🌙 sombra (não enviado)</span>';
+    return `<div class="card">
+      <div class="card-hd" style="flex-wrap:wrap;gap:6px">
+        <h3>Digest de ${esc(quando)}</h3>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${badge}
+          <span style="font-size:11px;color:var(--text2)">${rs.parados??'?'} parados · ${rs.a_receber??'?'} a receber · ${rs.docs_pendentes??'?'} docs</span></div>
+      </div>
+      <div class="card-bd" style="padding:12px 16px">
+        <pre style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.5;margin:0;color:var(--text1)">${esc(r.conteudo||'')}</pre>
+        <div style="margin-top:10px;font-size:11px;color:var(--text2)">Destino previsto: ${esc(r.destino_jid||'')} · origem: ${esc(r.origem||'')}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function _pjCardHtml(p){
@@ -7460,7 +7512,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260716-153924';
+const APP_BUILD='20260716-161631';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
