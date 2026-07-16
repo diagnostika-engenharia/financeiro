@@ -1343,6 +1343,11 @@ body.capturing .rel-acao{display:none!important}
     <div class="modal-hd"><h3 id="mpj-title">Projeto</h3><button onclick="closeModal('modal-projeto')">×</button></div>
     <div class="modal-bd" style="overflow-y:auto;flex:1">
       <input type="hidden" id="mpj-id">
+      <div id="mpj-auto-banner" style="display:none;background:#EDE7F6;border:1px solid #D1C4E9;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px">
+        <b style="color:#5E35B1">🤖 Atualizado automaticamente pelo grupo</b>
+        <div style="color:var(--text2);margin:4px 0 8px">O robô leu o grupo Projetos e aplicou estas mudanças. Confira: se estiver certo, aceite; se não, corrija os campos e salve.</div>
+        <button class="btn btn-primary btn-sm" type="button" onclick="pjAceitarAuto()">✓ Aceitar as atualizações</button>
+      </div>
       <div class="form-2col">
         <div class="form-row"><label>Cliente *</label>
           <div style="display:flex;gap:6px"><select id="mpj-cliente" style="flex:1"></select>
@@ -7073,6 +7078,8 @@ const PJ_PARADO_DIAS=10;  // limiar do "parado há X dias" (selo, KPI, filtro e 
 const _pjParado=p=>_pjAtivo(p)&&(!(p.proximo_passo||'').trim()||(p.proximo_passo_prazo&&p.proximo_passo_prazo<hoje())||_pjParadoDias(p)>=PJ_PARADO_DIAS);
 const _pjAReceber=p=>Math.max(0,(+p.receita_total_centavos||0)-(+p.receita_recebida_centavos||0));
 const _pjEventosDe=pid=>_pjEventos.filter(e=>e.projeto_id===pid);
+// projeto com update automático do grupo ainda não confirmado pela equipe
+const _pjAutoPend=p=>_pjEventos.some(e=>e.projeto_id===p.id&&e.confirmado===false);
 // dias parado desde o último movimento (só conta p/ projetos ativos)
 function _pjParadoDias(p){
   const base=p.last_movement_at||p.atualizado_em||p.criado_em; if(!base)return 0;
@@ -7188,6 +7195,7 @@ function _pjCardHtml(p){
     </div>
     <div class="cli">${esc(c.nome)}</div>
     <div class="tip">${esc(PJ_TIPOS[p.tipo]||p.tipo)}${p.bairro||p.cidade?' · '+esc([p.bairro,p.cidade].filter(Boolean).join(', ')):''}</div>
+    ${_pjAutoPend(p)?`<div style="margin-top:6px;font-size:11px;font-weight:700;color:#5E35B1;background:#EDE7F6;border-radius:6px;padding:3px 7px;display:inline-block">🤖 auto do grupo · confira</div>`:''}
     ${nx}
     <div class="ft">
       ${docs.length?`<span>📄 ${rec}/${docs.length} docs</span>`:''}
@@ -7293,6 +7301,7 @@ function pjNovo(){
   _pjRenderDocsModal(null);
   document.getElementById('mpj-conta').innerHTML='<i>Salve o projeto e informe a etiqueta do extrato para ver a conta.</i>';
   document.getElementById('mpj-tl-wrap').style.display='none';
+  document.getElementById('mpj-auto-banner').style.display='none';
   document.getElementById('mpj-excluir').style.display='none';
   document.getElementById('modal-projeto').classList.add('open');
 }
@@ -7325,8 +7334,20 @@ function pjAbrir(id){
   t.innerHTML=esc((p.codigo?p.codigo+' — ':'')+_pjCliente(p.cliente_id).nome)
     +(_pjAtivo(p)&&dias>=PJ_PARADO_DIAS?` <span style="font-size:11px;font-weight:700;background:#FDECEA;color:#B71C1C;border-radius:10px;padding:2px 8px">⏳ parado ${dias}d</span>`:'');
   document.getElementById('mpj-tl-wrap').style.display='';
+  document.getElementById('mpj-auto-banner').style.display=_pjAutoPend(p)?'':'none';
   document.getElementById('mpj-excluir').style.display='';
   document.getElementById('modal-projeto').classList.add('open');
+}
+
+// aceita os updates automáticos do grupo (marca eventos confirmado=true)
+async function pjAceitarAuto(){
+  const pid=document.getElementById('mpj-id').value; if(!pid)return;
+  const{error}=await sb.from('fin_projeto_eventos').update({confirmado:true}).eq('projeto_id',pid).eq('confirmado',false);
+  if(error){toast('Erro: '+error.message,true);return;}
+  _pjEventos.forEach(e=>{ if(e.projeto_id===pid&&e.confirmado===false)e.confirmado=true; });
+  document.getElementById('mpj-auto-banner').style.display='none';
+  _pjRenderTimeline(pid); pjRender();
+  toast('✅ Atualizações aceitas');
 }
 
 function _pjRenderTimeline(pid){
@@ -7452,6 +7473,11 @@ async function pjSalvar(){
       const i=_pjProjetos.findIndex(x=>x.id===id); if(i>=0)_pjProjetos[i]=data;
       if(antes.status&&antes.status!==row.status)
         _pjEvento(id,'status_change',_pjStatusInfo(antes.status).l+' → '+_pjStatusInfo(row.status).l);
+      // editar manualmente = a equipe revisou: confirma updates automáticos pendentes
+      if(_pjAutoPend({id})){
+        await sb.from('fin_projeto_eventos').update({confirmado:true}).eq('projeto_id',id).eq('confirmado',false);
+        _pjEventos.forEach(e=>{ if(e.projeto_id===id&&e.confirmado===false)e.confirmado=true; });
+      }
     }else{
       const{data,error}=await sb.from('fin_projetos').insert(row).select().single();
       if(error)throw error;
@@ -7512,7 +7538,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260716-164414';
+const APP_BUILD='20260716-174545';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
