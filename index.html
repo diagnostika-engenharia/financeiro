@@ -1292,12 +1292,24 @@ body.capturing .rel-acao{display:none!important}
         </div>
 
         <div id="pj-conteudo" style="display:none">
+          <!-- Período recorta o que VENCE e o que foi RECEBIDO (fluxo de caixa).
+               Contratado/deve/custo são acumulados, não dependem de período. -->
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 2px 10px">
+            <span style="font-size:12px;color:var(--text2);font-weight:600">Período (vencimentos e recebimentos):</span>
+            <div id="pj-per-seg" style="display:inline-flex;flex-wrap:wrap;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12.5px">
+              <button type="button" data-p="mes" onclick="_pjSetPer('mes')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">Este mês</button>
+              <button type="button" data-p="3" onclick="_pjSetPer('3')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">3 meses</button>
+              <button type="button" data-p="6" onclick="_pjSetPer('6')" style="border:0;border-right:1px solid var(--gray3);background:#fff;color:var(--text2);padding:6px 12px;cursor:pointer;font-weight:600">6 meses</button>
+              <button type="button" data-p="tudo" onclick="_pjSetPer('tudo')" style="border:0;background:var(--teal);color:#fff;padding:6px 12px;cursor:pointer;font-weight:600">Tudo</button>
+            </div>
+          </div>
           <div class="kpi-row">
-            <div class="kpi blue"><label>Em andamento</label><div class="val" id="pj-k-andamento">—</div></div>
-            <div class="kpi red"><label>Parados / sem próximo passo</label><div class="val" id="pj-k-parados">—</div></div>
-            <div class="kpi green"><label>A receber (contratado)</label><div class="val" id="pj-k-receber">—</div></div>
-            <div class="kpi" style="border-color:#E65100"><label>Entrada 30% pendente</label><div class="val" id="pj-k-entrada" style="color:#E65100">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-entrada-sub">—</div></div>
-            <div class="kpi gray"><label>Custo acumulado (extrato)</label><div class="val" id="pj-k-custo">—</div></div>
+            <div class="kpi blue"><label>Em andamento</label><div class="val" id="pj-k-andamento">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-andamento-sub">—</div></div>
+            <div class="kpi green"><label>Recebido <span id="pj-k-receb-per" style="font-weight:400"></span></label><div class="val" id="pj-k-recebido" style="color:#1B5E20">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-recebido-sub">—</div></div>
+            <div class="kpi" style="border-color:#0277BD"><label>Vence <span id="pj-k-vence-per" style="font-weight:400"></span></label><div class="val" id="pj-k-vence" style="color:#0277BD">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-vence-sub">—</div></div>
+            <div class="kpi red"><label>Vencido (atrasado)</label><div class="val" id="pj-k-vencido">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-vencido-sub">—</div></div>
+            <div class="kpi" style="border-color:#E65100"><label>Entrada pendente</label><div class="val" id="pj-k-entrada" style="color:#E65100">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-entrada-sub">—</div></div>
+            <div class="kpi gray"><label>Custo (extrato)</label><div class="val" id="pj-k-custo">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-custo-sub">acumulado</div></div>
           </div>
           <div class="filters" style="flex-wrap:wrap;align-items:center;gap:8px">
             <div id="pj-view-seg" style="display:inline-flex;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12.5px">
@@ -1378,9 +1390,7 @@ body.capturing .rel-acao{display:none!important}
         <div class="form-row"><label>👉 Próximo passo</label><input id="mpj-passo" placeholder="ex: Cobrar documentação"></div>
         <div class="form-row"><label>Prazo do próximo passo</label><input type="date" id="mpj-prazo"></div>
         <div class="form-row"><label>Valor contratado (R$)</label><input id="mpj-rtotal" inputmode="decimal" placeholder="0,00" oninput="_pjPintaEntrada()"></div>
-        <div class="form-row"><label>Já recebido (R$)</label><input id="mpj-rreceb" inputmode="decimal" placeholder="0,00" oninput="_pjPintaEntrada()"></div>
-        <div class="form-row"><label>Entrada exigida (%) <small title="regra da empresa: 30% antes de começar">ⓘ</small></label>
-          <input id="mpj-entpct" inputmode="decimal" placeholder="30" oninput="_pjPintaEntrada()"></div>
+        <div class="form-row"><label>Já recebido (R$) <small title="atualizado sozinho pelo feeder do extrato quando o PIX cai">ⓘ</small></label><input id="mpj-rreceb" inputmode="decimal" placeholder="0,00" oninput="_pjPintaEntrada()"></div>
       </div>
 
       <div id="mpj-docs-wrap" style="margin-top:10px">
@@ -1396,7 +1406,31 @@ body.capturing .rel-acao{display:none!important}
         </div>
       </div>
 
-      <div id="mpj-entrada-box" style="margin-top:12px;border-radius:8px;padding:10px 12px;font-size:12.5px"></div>
+      <!-- PLANO DE PAGAMENTO: condição varia por contrato (padrão 30% + 70% na entrega).
+           A entrada vence NO ACEITE da proposta. Gera contas a receber com vencimento. -->
+      <div style="margin-top:14px;border:1px solid var(--gray3);border-radius:10px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <b style="font-size:13px">📅 Plano de pagamento</b>
+          <span style="font-size:11px;color:var(--text2)">padrão: 30% no aceite + 70% na entrega</span>
+        </div>
+        <div class="form-2col">
+          <div class="form-row"><label>Entrada (%) <small title="regra: precisa ser paga antes de começar">ⓘ</small></label>
+            <input id="mpj-entpct" inputmode="decimal" placeholder="30" oninput="_pjPintaEntrada()"></div>
+          <div class="form-row"><label>Data do aceite <small title="a entrada vence no aceite da proposta (mesmo dia)">ⓘ</small></label>
+            <input type="date" id="mpj-aceite" onchange="_pjPintaEntrada()"></div>
+          <div class="form-row"><label>Saldo em quantas parcelas</label>
+            <input id="mpj-parcelas" inputmode="numeric" placeholder="1" oninput="_pjPintaEntrada()"></div>
+          <div class="form-row"><label>1º vencimento do saldo <small title="deixe vazio se for 'na entrega' (a definir)">ⓘ</small></label>
+            <input type="date" id="mpj-saldovenc" onchange="_pjPintaEntrada()"></div>
+        </div>
+        <div id="mpj-entrada-box" style="margin-top:8px;border-radius:8px;padding:10px 12px;font-size:12.5px"></div>
+        <div id="mpj-plano-prev" style="margin-top:8px;font-size:12.5px"></div>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary btn-sm" type="button" onclick="pjGerarParcelas()">💳 Gerar contas a receber</button>
+          <a onclick="nav('receber')" style="font-size:11.5px;color:var(--turq);cursor:pointer">ver em A Receber →</a>
+        </div>
+        <div id="mpj-parcelas-lista" style="margin-top:8px"></div>
+      </div>
 
       <div id="mpj-conta-wrap" style="margin-top:14px">
         <b style="font-size:13px">💰 Conta do projeto (extrato)</b>
@@ -7028,6 +7062,8 @@ const _pjNorm=s=>String(s||'').trim().toLowerCase();
 const PJ_ORIGEM={manual:'✍️ manual',extrato:'🏦 extrato',gmail:'✉️ e-mail',whatsapp:'💬 WhatsApp',grupo:'👥 grupo'};
 const PJ_EV_TIPO={status_change:'🔄 status',doc_recebido:'📄 doc',pagamento:'💰 pagamento',custo:'🔻 custo',nota:'📝 nota',prazo:'⏰ prazo'};
 let _pjClientes=[], _pjProjetos=[], _pjDocs=[], _pjEventos=[], _pjTxns=[], _pjView='kanban', _pjCarregado=false, _pjDocsDraft=[];
+// parcelas do projeto que viraram contas a receber (fonte do fluxo de caixa)
+let _pjParcelas=[];
 
 // "1.234,56" → centavos (int)
 function _pjCents(str){
@@ -7046,13 +7082,15 @@ async function loadProjetos(force){
   if(_pjCarregado && !force){ pjRender(); return; }
   const aviso=document.getElementById('pj-setup-aviso'), conteudo=document.getElementById('pj-conteudo');
   try{
-    const [rc,rp,rd,re,rt]=await Promise.all([
+    const [rc,rp,rd,re,rt,rpar]=await Promise.all([
       sb.from('fin_projeto_clientes').select('*').order('nome'),
       sb.from('fin_projetos').select('*').order('criado_em'),
       sb.from('fin_projeto_docs').select('*').order('criado_em'),
       sb.from('fin_projeto_eventos').select('*').order('data',{ascending:false}),
-      sb.from('fin_transacoes_bancarias').select('id,data,projeto,valor,tipo,tipo_categoria,categoria,historico').not('projeto','is',null)
+      sb.from('fin_transacoes_bancarias').select('id,data,projeto,valor,tipo,tipo_categoria,categoria,historico').not('projeto','is',null),
+      sb.from('fin_contas_receber').select('id,projeto_id,cliente,descricao,valor,data_vencimento,data_recebimento,status').not('projeto_id','is',null)
     ]);
+    _pjParcelas=(rpar&&!rpar.error)?(rpar.data||[]):[];
     if(rc.error||rp.error||rd.error){
       const err=rc.error||rp.error||rd.error;
       if(_pjTabelaFalta(err)){ aviso.style.display=''; conteudo.style.display='none'; return; }
@@ -7150,13 +7188,46 @@ function pjSetView(v){
   pjRender();
 }
 
+// ── Período dos KPIs (fluxo de caixa) ───────────────────────────────
+let _pjPer='tudo';
+function _pjSetPer(p){
+  _pjPer=p;
+  document.querySelectorAll('#pj-per-seg button').forEach(b=>{const on=b.dataset.p===p;b.style.background=on?'var(--teal)':'#fff';b.style.color=on?'#fff':'var(--text2)';});
+  pjRender();
+}
+const PJ_PER_LABEL={mes:'no mês','3':'em 3 meses','6':'em 6 meses',tudo:'(total)'};
+function _pjRange(){
+  if(_pjPer==='tudo')return{de:'',ate:''};
+  const n=new Date(), y=n.getFullYear(), m=n.getMonth();
+  const som=(yy,mm)=>{const d=new Date(yy,mm,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';};
+  const eom=(yy,mm)=>{const d=new Date(yy,mm+1,0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const meses={mes:0,'3':2,'6':5}[_pjPer]||0;
+  return {de:som(y,m), ate:eom(y,m+meses)};
+}
+const _pjNoPer=(d,r)=>!!d&&(!r.de||d>=r.de)&&(!r.ate||d<=r.ate);
+
 function pjRender(){
   if(!_pjCarregado)return;
-  // KPIs
+  const R=_pjRange(), lbl=PJ_PER_LABEL[_pjPer]||'';
   const ativos=_pjProjetos.filter(_pjAtivo);
   document.getElementById('pj-k-andamento').textContent=ativos.length;
-  document.getElementById('pj-k-parados').textContent=_pjProjetos.filter(_pjParado).length;
-  document.getElementById('pj-k-receber').textContent='R$ '+_pjBrl(_pjProjetos.reduce((s,p)=>s+_pjAReceber(p),0));
+  document.getElementById('pj-k-andamento-sub').textContent=_pjProjetos.filter(_pjParado).length+' parado(s)';
+  ['pj-k-receb-per','pj-k-vence-per'].forEach(i=>{const e=document.getElementById(i);if(e)e.textContent=lbl;});
+
+  // Fluxo de caixa vem das PARCELAS (contas a receber com vencimento).
+  const parc=_pjParcelas||[];
+  const recParc=parc.filter(r=>r.status==='Recebido'&&_pjNoPer(r.data_recebimento||r.data_vencimento,R)).reduce((s,r)=>s+(+r.valor||0),0);
+  const venceParc=parc.filter(r=>r.status!=='Recebido'&&_pjNoPer(r.data_vencimento,R)).reduce((s,r)=>s+(+r.valor||0),0);
+  const vencidoParc=parc.filter(r=>r.status!=='Recebido'&&r.data_vencimento&&r.data_vencimento<hoje());
+  const semParcela=_pjProjetos.filter(p=>_pjAtivo(p)&&!_pjSemValor(p)&&!parc.some(r=>r.projeto_id===p.id)).length;
+  const recTotalManual=_pjProjetos.reduce((s,p)=>s+(+p.receita_recebida_centavos||0),0);
+
+  document.getElementById('pj-k-recebido').textContent='R$ '+_pjBrl(_pjPer==='tudo'?recTotalManual:recParc);
+  document.getElementById('pj-k-recebido-sub').textContent=_pjPer==='tudo'?'total do controle do projeto':'em parcelas geradas';
+  document.getElementById('pj-k-vence').textContent='R$ '+_pjBrl(venceParc);
+  document.getElementById('pj-k-vence-sub').textContent=semParcela?'⚠️ '+semParcela+' projeto(s) sem parcela gerada':'previsto a entrar';
+  document.getElementById('pj-k-vencido').textContent='R$ '+_pjBrl(vencidoParc.reduce((s,r)=>s+(+r.valor||0),0));
+  document.getElementById('pj-k-vencido-sub').textContent=vencidoParc.length+' parcela(s) atrasada(s)';
   // KPI da entrada: quanto falta de entrada + quantos violam a regra
   const semEnt=_pjProjetos.filter(p=>_pjAtivo(p)&&(_pjAguardaEntrada(p)||_pjIniciouSemEntrada(p)));
   const viol=_pjProjetos.filter(p=>_pjAtivo(p)&&_pjIniciouSemEntrada(p)).length;
@@ -7276,27 +7347,60 @@ function _pjRenderLista(){
   }).join('');
 }
 
+// Resumo financeiro por cliente: contratado / recebido / a receber / resultado,
+// para saber o que cada um deve sem somar projeto por projeto.
 function _pjRenderClientes(){
   const el=document.getElementById('pj-clientes'), itens=_pjFiltrados();
   const porCli={};
   itens.forEach(p=>{(porCli[p.cliente_id]=porCli[p.cliente_id]||[]).push(p);});
   if(!Object.keys(porCli).length){el.innerHTML='<div class="card"><div class="card-bd"><div class="empty">Nenhum projeto no filtro.</div></div></div>';return;}
-  el.innerHTML=Object.entries(porCli).map(([cid,projs])=>{
+  const linhaVal=(rot,v,cor)=>`<div style="text-align:right"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.3px">${rot}</div><div style="font-size:13.5px;font-weight:700;${cor?'color:'+cor:''}">R$ ${_pjBrl(v)}</div></div>`;
+  // totais gerais (todos os clientes do filtro)
+  let gT=0,gR=0,gC=0;
+  const cards=Object.entries(porCli).map(([cid,projs])=>{
     const c=_pjCliente(cid);
+    const tot=projs.reduce((s,p)=>s+(+p.receita_total_centavos||0),0);
+    const rec=projs.reduce((s,p)=>s+(+p.receita_recebida_centavos||0),0);
     const aRec=projs.reduce((s,p)=>s+_pjAReceber(p),0);
-    const custo=projs.reduce((s,p)=>s+_pjConta(p).custoExtrato,0);
+    const custo=Math.round(projs.reduce((s,p)=>s+_pjConta(p).custoExtrato,0)*100);
+    const result=rec-custo;
+    gT+=tot; gR+=rec; gC+=custo;
+    const semValor=projs.filter(_pjSemValor).length;
+    const entradaFalta=projs.filter(p=>_pjAtivo(p)&&(_pjAguardaEntrada(p)||_pjIniciouSemEntrada(p))).reduce((s,p)=>s+_pjEntradaFalta(p),0);
     return `<div class="card pj-cli-card">
-      <div class="card-hd" style="flex-wrap:wrap;gap:6px"><h3>👤 ${esc(c.nome)} <small style="font-weight:600;color:var(--text2)">(${projs.length} projeto${projs.length>1?'s':''})</small></h3>
-        <span style="font-size:11.5px;color:var(--text2)">${aRec>0?'a receber R$ '+_pjBrl(aRec):''}${custo>0?' · custo R$ '+_pjBrl(Math.round(custo*100)):''}</span></div>
+      <div class="card-hd" style="flex-wrap:wrap;gap:8px;align-items:flex-start">
+        <h3 style="flex:1;min-width:140px">👤 ${esc(c.nome)} <small style="font-weight:600;color:var(--text2)">(${projs.length} projeto${projs.length>1?'s':''}${semValor?' · '+semValor+' sem valor':''})</small>
+          ${entradaFalta>0?'<div style="font-size:11px;font-weight:700;color:#E65100;margin-top:2px">⛔ entrada pendente: R$ '+_pjBrl(entradaFalta)+'</div>':''}
+        </h3>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          ${linhaVal('contratado',tot)}
+          ${linhaVal('recebido',rec,'#1B5E20')}
+          ${linhaVal('deve',aRec,aRec>0?'#E65100':'')}
+          ${linhaVal('custo',custo,custo>0?'var(--red)':'')}
+          ${linhaVal('resultado',result,result>=0?'#1B5E20':'var(--red)')}
+        </div>
+      </div>
       <div class="card-bd" style="padding:4px 16px">
-        ${projs.map(p=>{const st=_pjStatusInfo(p.status);return `<div class="pj-cli-proj" onclick="pjAbrir('${p.id}')">
+        ${projs.map(p=>{const st=_pjStatusInfo(p.status);const pa=_pjAReceber(p);const pc=Math.round(_pjConta(p).custoExtrato*100);
+          return `<div class="pj-cli-proj" onclick="pjAbrir('${p.id}')">
           <span><b style="color:var(--teal)">${esc(p.codigo||PJ_TIPOS[p.tipo]||p.tipo)}</b> — ${esc(p.descricao||PJ_TIPOS[p.tipo]||'')}</span>
-          <span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="badge" style="background:${st.c}22;color:${st.c}">${esc(st.l)}</span>
-          <small style="color:${_pjParado(p)?'var(--red)':'var(--text2)'}">${esc(p.proximo_passo||'⚠️ sem passo')}</small></span>
+          <span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <span class="badge" style="background:${st.c}22;color:${st.c}">${esc(st.l)}</span>
+            ${_pjSemValor(p)?'<small style="color:#8D6E00">💰 valor a definir</small>'
+              :`<small>contrat. R$ ${_pjBrl(+p.receita_total_centavos||0)} · receb. R$ ${_pjBrl(+p.receita_recebida_centavos||0)}${pa>0?' · <b style="color:#E65100">deve R$ '+_pjBrl(pa)+'</b>':''}${pc>0?' · custo R$ '+_pjBrl(pc):''}</small>`}
+          </span>
         </div>`;}).join('')}
       </div>
     </div>`;
   }).join('');
+  const gRes=gR-gC, gDeve=Math.max(0,gT-gR);
+  el.innerHTML=`<div class="card" style="border-left:3px solid var(--teal)">
+      <div class="card-hd" style="flex-wrap:wrap;gap:8px"><h3>Σ Total de todos os clientes</h3>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          ${linhaVal('contratado',gT)}${linhaVal('recebido',gR,'#1B5E20')}${linhaVal('devem',gDeve,gDeve>0?'#E65100':'')}
+          ${linhaVal('custo',gC,gC>0?'var(--red)':'')}${linhaVal('resultado',gRes,gRes>=0?'#1B5E20':'var(--red)')}
+        </div></div>
+    </div>`+cards;
 }
 
 // ── Drag & drop (desktop; no mobile muda pelo modal) ──
@@ -7337,7 +7441,10 @@ function pjNovo(){
   document.getElementById('mpj-id').value='';
   ['mpj-codigo','mpj-desc','mpj-end','mpj-bairro','mpj-cidade','mpj-etq','mpj-passo','mpj-prazo','mpj-rtotal','mpj-rreceb'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('mpj-entpct').value='30';
-  _pjPintaEntrada();
+  document.getElementById('mpj-aceite').value=hoje();     // aceite = hoje (entrada vence no aceite)
+  document.getElementById('mpj-parcelas').value='1';      // padrao: saldo unico (na entrega)
+  document.getElementById('mpj-saldovenc').value='';
+  _pjPintaEntrada(); _pjPintaPlano();
   document.getElementById('mpj-resp').value='Claudemir';
   document.getElementById('mpj-dono').checked=false;
   document.getElementById('mpj-status').value='levantamento';
@@ -7371,8 +7478,11 @@ function pjAbrir(id){
   document.getElementById('mpj-prazo').value=p.proximo_passo_prazo||'';
   document.getElementById('mpj-rtotal').value=p.receita_total_centavos?_pjBrl(p.receita_total_centavos):'';
   document.getElementById('mpj-rreceb').value=p.receita_recebida_centavos?_pjBrl(p.receita_recebida_centavos):'';
-  document.getElementById('mpj-entpct').value=(p.entrada_percentual!=null?String(p.entrada_percentual).replace('.',','):'30');
-  _pjPintaEntrada();
+  document.getElementById('mpj-entpct').value=(p.entrada_percentual!=null?_pjNum(p.entrada_percentual):'30');
+  document.getElementById('mpj-aceite').value=p.data_aceite||'';
+  document.getElementById('mpj-parcelas').value=p.saldo_parcelas||1;
+  document.getElementById('mpj-saldovenc').value=p.saldo_primeiro_venc||'';
+  _pjPintaEntrada(); _pjPintaPlano();
   _pjRenderDocsModal(p.id);
   _pjRenderContaModal(p);
   _pjRenderTimeline(p.id);
@@ -7386,6 +7496,50 @@ function pjAbrir(id){
   document.getElementById('modal-projeto').classList.add('open');
 }
 
+// ── Gera as contas a receber do projeto (entrada + saldo) ───────────
+// É isto que liga Projetos ao Dashboard/fluxo de caixa/DRE/conciliação:
+// a parcela vira uma conta a receber de verdade, com vencimento.
+async function pjGerarParcelas(){
+  const id=document.getElementById('mpj-id').value;
+  if(!id){toast('Salve o projeto primeiro',true);return;}
+  const p=_pjPlanoDoForm();
+  if(!p.receita_total_centavos){toast('Informe o valor contratado',true);return;}
+  if(!p.data_aceite){toast('Informe a data do aceite (é o vencimento da entrada)',true);return;}
+  const parc=_pjPlanoParcelas(p);
+  const semData=parc.filter(x=>!x.venc);
+  const jaTem=(_pjParcelas||[]).filter(r=>r.projeto_id===id);
+  let msg='Gerar '+parc.length+' conta(s) a receber para este projeto?\n\n'+parc.map(x=>'• '+x.rotulo+' — R$ '+_pjBrl(x.valor)+(x.venc?' — venc. '+formatData(x.venc):' — SEM DATA')).join('\n');
+  if(semData.length) msg+='\n\n⚠️ '+semData.length+' parcela(s) sem vencimento ("na entrega"). Elas não entram na previsão de caixa até ganharem data.';
+  if(jaTem.length) msg+='\n\n⚠️ Este projeto já tem '+jaTem.length+' conta(s) gerada(s). As antigas ainda PENDENTES serão substituídas (as já recebidas ficam).';
+  if(!confirm(msg))return;
+  const cli=_pjCliente(p.cliente_id).nome||'Cliente';
+  const rot=(document.getElementById('mpj-codigo').value||'').trim();
+  try{
+    if(jaTem.length){
+      const apagar=jaTem.filter(r=>r.status!=='Recebido').map(r=>r.id);
+      if(apagar.length) await sb.from('fin_contas_receber').delete().in('id',apagar);
+    }
+    const rows=parc.map(x=>({
+      cliente:cli, categoria:'Projeto', projeto_id:id,
+      descricao:(rot?rot+' — ':'')+x.rotulo,
+      valor:x.valor, data_vencimento:x.venc, status:'Pendente',
+    }));
+    const{data,error}=await sb.from('fin_contas_receber').insert(rows).select();
+    if(error)throw error;
+    const{error:e2}=await sb.from('fin_projetos').update({
+      entrada_percentual:p.entrada_percentual, data_aceite:p.data_aceite,
+      saldo_parcelas:p.saldo_parcelas, saldo_primeiro_venc:p.saldo_primeiro_venc,
+    }).eq('id',id);
+    if(e2)throw e2;
+    const proj=_pjProjetos.find(x=>x.id===id);
+    if(proj)Object.assign(proj,{entrada_percentual:p.entrada_percentual,data_aceite:p.data_aceite,saldo_parcelas:p.saldo_parcelas,saldo_primeiro_venc:p.saldo_primeiro_venc});
+    _pjParcelas=(_pjParcelas||[]).filter(r=>r.projeto_id!==id||r.status==='Recebido').concat(data||[]);
+    _pjEvento(id,'nota','Plano de pagamento gerado: '+parc.length+' parcela(s) em Contas a Receber (entrada '+_pjNum(p.entrada_percentual)+'% no aceite '+formatData(p.data_aceite)+').');
+    _pjPintaPlano(); pjRender();
+    toast('✅ '+parc.length+' conta(s) a receber gerada(s)');
+  }catch(e){ toast('Erro ao gerar: '+(e.message||e),true); }
+}
+
 // aceita os updates automáticos do grupo (marca eventos confirmado=true)
 async function pjAceitarAuto(){
   const pid=document.getElementById('mpj-id').value; if(!pid)return;
@@ -7397,18 +7551,82 @@ async function pjAceitarAuto(){
   toast('✅ Atualizações aceitas');
 }
 
+// ── Plano de pagamento: monta as parcelas (entrada + saldo) ──────────
+// Condição varia por contrato. Entrada vence NO ACEITE. Saldo em N parcelas
+// mensais a partir do 1º vencimento; sem data = "na entrega (a definir)".
+function _pjPlanoParcelas(p){
+  const total=+p.receita_total_centavos||0; if(!total) return [];
+  const pct=_pjEntradaPct(p);
+  const entrada=Math.round(total*pct/100);
+  const saldo=total-entrada;
+  const n=Math.max(1,parseInt(p.saldo_parcelas)||1);
+  const out=[];
+  if(entrada>0) out.push({rotulo:'Entrada '+_pjNum(pct)+'%', valor:entrada, venc:p.data_aceite||null, tipo:'entrada'});
+  if(saldo>0){
+    const base=Math.floor(saldo/n), resto=saldo-base*n;
+    for(let i=0;i<n;i++){
+      let venc=null;
+      if(p.saldo_primeiro_venc){ const d=new Date(p.saldo_primeiro_venc+'T12:00:00'); d.setMonth(d.getMonth()+i); venc=d.toISOString().slice(0,10); }
+      out.push({rotulo:'Saldo '+(n>1?(i+1)+'/'+n:'(na entrega)'), valor:base+(i===n-1?resto:0), venc, tipo:'saldo'});
+    }
+  }
+  return out;
+}
+const _pjNum=v=>String(v).replace(/\.0+$/,'').replace('.',',');
+function _pjPlanoDoForm(){
+  const id=document.getElementById('mpj-id').value;
+  const atual=_pjProjetos.find(x=>x.id===id)||{};
+  return {
+    id, cliente_id:document.getElementById('mpj-cliente').value,
+    receita_total_centavos:_pjCents(document.getElementById('mpj-rtotal').value),
+    receita_recebida_centavos:_pjCents(document.getElementById('mpj-rreceb').value),
+    entrada_percentual:parseFloat(String(document.getElementById('mpj-entpct').value).replace(',','.'))||30,
+    data_aceite:document.getElementById('mpj-aceite').value||null,
+    saldo_parcelas:Math.max(1,parseInt(document.getElementById('mpj-parcelas').value)||1),
+    saldo_primeiro_venc:document.getElementById('mpj-saldovenc').value||null,
+    entrada_paga_em:atual.entrada_paga_em, status:document.getElementById('mpj-status').value,
+    codigo:document.getElementById('mpj-codigo').value,
+  };
+}
+// prévia do plano (antes de gerar) + lista das parcelas já geradas
+function _pjPintaPlano(){
+  const prev=document.getElementById('mpj-plano-prev'); if(!prev)return;
+  const p=_pjPlanoDoForm();
+  const parc=_pjPlanoParcelas(p);
+  if(!parc.length){ prev.innerHTML='<i style="color:var(--text2)">Informe o valor contratado para montar o plano.</i>'; }
+  else{
+    prev.innerHTML='<div style="font-size:11px;color:var(--text2);margin-bottom:3px">Prévia do plano:</div>'+parc.map(x=>
+      `<div style="display:flex;justify-content:space-between;border-bottom:1px dashed var(--gray3);padding:3px 0">
+        <span>${esc(x.rotulo)}</span>
+        <span><b>R$ ${_pjBrl(x.valor)}</b> <small style="color:${x.venc?'var(--text2)':'#E65100'}">${x.venc?'venc. '+formatData(x.venc):'sem data (a definir)'}</small></span>
+      </div>`).join('');
+  }
+  _pjPintaParcelasGeradas(p.id);
+}
+// parcelas JÁ geradas em Contas a Receber (fonte da verdade do fluxo de caixa)
+function _pjPintaParcelasGeradas(pid){
+  const el=document.getElementById('mpj-parcelas-lista'); if(!el)return;
+  const rows=(_pjParcelas||[]).filter(r=>r.projeto_id===pid);
+  if(!rows.length){ el.innerHTML='<div style="font-size:11.5px;color:var(--text2)">Nenhuma conta a receber gerada ainda para este projeto.</div>'; return; }
+  const rec=rows.filter(r=>r.status==='Recebido').reduce((s,r)=>s+(+r.valor||0),0);
+  el.innerHTML='<div style="font-size:11px;color:var(--text2);margin:6px 0 3px">Contas a receber geradas ('+rows.length+'):</div>'+
+    rows.sort((a,b)=>String(a.data_vencimento||'').localeCompare(String(b.data_vencimento||''))).map(r=>{
+      const vencido=r.status!=='Recebido'&&r.data_vencimento&&r.data_vencimento<hoje();
+      return `<div style="display:flex;justify-content:space-between;border-bottom:1px dashed var(--gray3);padding:3px 0;font-size:12.5px">
+        <span>${esc(r.descricao||'parcela')}</span>
+        <span>R$ ${_pjBrl(+r.valor||0)} · <small>${r.data_vencimento?formatData(r.data_vencimento):'s/ data'}</small>
+        <span class="badge ${r.status==='Recebido'?'ok':vencido?'venc':'pend'}">${r.status==='Recebido'?'recebido':vencido?'vencido':'pendente'}</span></span>
+      </div>`;}).join('')+
+    (rec?'<div style="text-align:right;font-size:11.5px;color:#1B5E20;margin-top:4px">recebido: R$ '+_pjBrl(rec)+'</div>':'');
+}
+
 // Painel da entrada no modal — recalcula ao vivo conforme se digita valor/%/recebido
 function _pjPintaEntrada(){
   const box=document.getElementById('mpj-entrada-box'); if(!box)return;
   const id=document.getElementById('mpj-id').value;
   const atual=_pjProjetos.find(x=>x.id===id)||{};
-  const p={
-    receita_total_centavos:_pjCents(document.getElementById('mpj-rtotal').value),
-    receita_recebida_centavos:_pjCents(document.getElementById('mpj-rreceb').value),
-    entrada_percentual:parseFloat(String(document.getElementById('mpj-entpct').value).replace(',','.'))||30,
-    entrada_paga_em:atual.entrada_paga_em,
-    status:document.getElementById('mpj-status').value,
-  };
+  const p=_pjPlanoDoForm();
+  try{ _pjPintaPlano(); }catch(e){}
   if(_pjSemValor(p)){
     box.style.background='#FFF8E1'; box.style.border='1px solid #FFE082';
     box.innerHTML='<b style="color:#8D6E00">💰 Valor do contrato não informado</b><div style="color:var(--text2);margin-top:3px">Sem o valor não dá para cobrar a entrada de '+esc(String(p.entrada_percentual))+'%. Informe o contratado acima (ou diga o valor no grupo — o robô cadastra).</div>';
@@ -7539,7 +7757,10 @@ async function pjSalvar(){
     proximo_passo_prazo:document.getElementById('mpj-prazo').value||null,
     receita_total_centavos:_pjCents(document.getElementById('mpj-rtotal').value),
     receita_recebida_centavos:_pjCents(document.getElementById('mpj-rreceb').value),
-    entrada_percentual:(parseFloat(String(document.getElementById('mpj-entpct').value).replace(',','.'))||30)
+    entrada_percentual:(parseFloat(String(document.getElementById('mpj-entpct').value).replace(',','.'))||30),
+    data_aceite:document.getElementById('mpj-aceite').value||null,
+    saldo_parcelas:Math.max(1,parseInt(document.getElementById('mpj-parcelas').value)||1),
+    saldo_primeiro_venc:document.getElementById('mpj-saldovenc').value||null
   };
   if(!row.cliente_id){toast('Escolha o cliente',true);return;}
   // Regra do contrato: avisa (não bloqueia) se estiver movendo para "iniciado" sem a entrada
@@ -7622,7 +7843,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260717-053945';
+const APP_BUILD='20260717-061445';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
