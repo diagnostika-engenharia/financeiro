@@ -29,6 +29,7 @@ const EVO_KEY = CFG.evo_apikey;
 const GRUPO_PROJETOS = '120363407925288367@g.us';
 const DRY_RUN = process.env.DRY_RUN === '1';
 const FORCE = process.env.FORCE === '1';
+const PCT_PADRAO = 30;   // % de entrada padrao citado na pergunta
 const COOLDOWN_DIAS = parseInt(process.env.COOLDOWN_DIAS || '3');
 
 function reqJSON(opts, data) {
@@ -61,7 +62,7 @@ const ATIVO = p => p.status !== 'entregue';
   // escolhe a hora certa — imune ao fuso do host e ao horário de verão europeu.
   if (process.env.SCHEDULED === '1') {
     const now = new Date(); const dow = now.getDay(), hh = now.getHours();
-    if (!(dow >= 1 && dow <= 5 && hh === 7)) { console.log('Fora da janela (BRT ' + now.toTimeString().slice(0, 5) + ', dow ' + dow + '); pergunto so as 7h25 em dia util.'); return; }
+    if (!(dow >= 1 && dow <= 5 && hh === 7)) { console.log('Fora da janela (BRT ' + now.toTimeString().slice(0, 5) + ', dow ' + dow + '); pergunto só às 7h25 em dia útil.'); return; }
   }
 
   const [projetos, clientes, log] = await Promise.all([
@@ -72,12 +73,12 @@ const ATIVO = p => p.status !== 'entregue';
   const nome = id => (clientes.find(c => c.id === id) || {}).nome || '?';
   const semValor = projetos.filter(p => ATIVO(p) && !((+p.receita_total_centavos || 0) > 0));
 
-  if (!semValor.length) { console.log('Todos os projetos ativos ja tem valor. Nada a perguntar.'); return; }
+  if (!semValor.length) { console.log('Todos os projetos ativos já têm valor. Nada a perguntar.'); return; }
 
   // cooldown: nao repetir a pergunta todo dia
   if (!FORCE && log.length) {
     const dias = (Date.now() - new Date(log[0].gerado_em)) / 86400000;
-    if (dias < COOLDOWN_DIAS) { console.log('Ja perguntei ha ' + dias.toFixed(1) + ' dia(s) (cooldown ' + COOLDOWN_DIAS + 'd). Nao pergunto de novo.'); return; }
+    if (dias < COOLDOWN_DIAS) { console.log('Já perguntei há ' + dias.toFixed(1) + ' dia(s) (cooldown ' + COOLDOWN_DIAS + 'd). Não pergunto de novo.'); return; }
   }
 
   const itens = semValor.map(p => {
@@ -90,10 +91,10 @@ const ATIVO = p => p.status !== 'entregue';
   L.push('');
   itens.forEach(i => L.push(i));
   L.push('');
-  L.push('So responder aqui no formato: codigo = valor');
+  L.push('Só responder aqui no formato: código = valor');
   L.push('Ex: AH-24 = 3500 · JATOBA = 4 mil · Q-46 = 2.800');
   L.push('');
-  L.push('E p/ que: com o valor eu calculo a entrada de 30% e passo a cobrar quem comecou sem pagar. Sem o valor nao da p/ controlar isso.');
+  L.push('É p/ quê: com o valor eu calculo a entrada de ' + PCT_PADRAO + '% e passo a cobrar quem começou sem pagar. Sem o valor não dá p/ controlar isso.');
   const conteudo = L.join('\n');
 
   console.log('===== PERGUNTA DOS VALORES ' + (DRY_RUN ? '(DRY-RUN)' : '(ENVIANDO)') + ' =====');

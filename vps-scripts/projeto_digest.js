@@ -151,7 +151,7 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
   // ── texto (plano, sem markdown) ───────────────────────────────────
   const L = [];
   L.push('Resumo dos Projetos — ' + fmtDataBR(HOJE.toISOString()));
-  L.push('(uso interno da equipe · nao enviar a cliente)');
+  L.push('(uso interno da equipe · não enviar a cliente)');
   L.push('');
 
   if (violaEntrada.length) {
@@ -161,7 +161,7 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
   }
   if (semEntrada.length) {
     let tot = 0;
-    L.push('AGUARDANDO ENTRADA (nao iniciar antes de receber):');
+    L.push('AGUARDANDO ENTRADA (não iniciar antes de receber):');
     semEntrada.forEach(({ p }) => { tot += entFalta(p); L.push(linhaProj(p, 'entrada ' + entPct(p) + '% = ' + brl(entExigida(p)) + ', falta ' + brl(entFalta(p)))); });
     L.push('  Total de entradas a receber: ' + brl(tot));
     L.push('');
@@ -170,12 +170,12 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
   // (projeto_pergunta_valores.js). Pergunta no meio de relatório não é respondida,
   // e repetir a lista todo dia vira ruído. Aqui fica só o contador.
   if (semValorLista.length) {
-    L.push(semValorLista.length + ' projeto(s) ainda sem valor de contrato (pergunto em mensagem separada).');
+    L.push(semValorLista.length + ' projeto(s) ainda sem valor de contrato — pergunto em mensagem separada.');
     L.push('');
   }
   if (parados.length) {
-    L.push('PARADOS ha ' + PARADO_DIAS + '+ dias (sem movimento):');
-    parados.forEach(({ p, dias }) => L.push(linhaProj(p, dias + ' dias parado' + (p.proximo_passo ? ' · proximo: ' + p.proximo_passo : ' · SEM proximo passo'))));
+    L.push('PARADOS há ' + PARADO_DIAS + '+ dias (sem movimento):');
+    parados.forEach(({ p, dias }) => L.push(linhaProj(p, dias + ' dias parado' + (p.proximo_passo ? ' · próximo: ' + p.proximo_passo : ' · SEM próximo passo'))));
     L.push('');
   }
   if (aReceber.length) {
@@ -186,14 +186,14 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
     L.push('');
   }
   if (docPend.length) {
-    L.push('DOCUMENTO pendente ha ' + DOC_DIAS + '+ dias:');
-    docPend.forEach(({ p, item, dias }) => L.push(linhaProj(p, 'falta ' + item + ' (ha ' + dias + ' dias)')));
+    L.push('DOCUMENTO pendente há ' + DOC_DIAS + '+ dias:');
+    docPend.forEach(({ p, item, dias }) => L.push(linhaProj(p, 'falta ' + item + ' (há ' + dias + ' dias)')));
     L.push('');
   }
   if (prazos.length) {
-    L.push('PRAZOS (vencidos/proximos):');
+    L.push('PRAZOS (vencidos/próximos):');
     prazos.forEach(({ p, dPrazo }) => {
-      const q = dPrazo < 0 ? ('venceu ha ' + (-dPrazo) + 'd') : dPrazo === 0 ? 'vence HOJE' : ('vence em ' + dPrazo + 'd');
+      const q = dPrazo < 0 ? ('venceu há ' + (-dPrazo) + 'd') : dPrazo === 0 ? 'vence HOJE' : ('vence em ' + dPrazo + 'd');
       L.push(linhaProj(p, (p.proximo_passo || 'proximo passo') + ' — ' + q + ' (' + fmtDataBR(p.proximo_passo_prazo) + ')'));
     });
     L.push('');
@@ -205,7 +205,7 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
   const ativos = projetos.filter(ATIVO).length;
   L.push('---');
   L.push('Projetos ativos: ' + ativos + ' · parados: ' + parados.length + ' · a receber: ' + aReceber.length + ' · docs pendentes: ' + docPend.length
-    + ' · sem entrada: ' + (semEntrada.length + violaEntrada.length) + (violaEntrada.length ? ' (' + violaEntrada.length + ' ja iniciado)' : '') + ' · sem valor: ' + semValorLista.length);
+    + ' · sem entrada: ' + (semEntrada.length + violaEntrada.length) + (violaEntrada.length ? ' (' + violaEntrada.length + ' já iniciado)' : '') + ' · sem valor: ' + semValorLista.length);
 
   const conteudo = L.join('\n');
   const resumo = { ativos, parados: parados.length, a_receber: aReceber.length, docs_pendentes: docPend.length, prazos: prazos.length,
