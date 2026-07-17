@@ -155,9 +155,9 @@ insert into public.fin_projeto_clientes (id, nome, doc, obs) values
   ('c0000001-0000-4000-8000-000000000005','Erica / Doni', null,
    '1 cliente com 4 projetos (Hortolândia). Pendência histórica: confirmar dono do imóvel'),
   ('c0000001-0000-4000-8000-000000000006','Gisele', null,
-   'Par Gisele/Lucas no PIX "Agilidade A35"; desenho com cadista Marcus (finalização 50% paga em 25/06/2026)'),
-  ('c0000001-0000-4000-8000-000000000007','Condomínio Edifício Village Matisse', '54127097000127',
-   'Projeto de condomínio (exceção: PJ condominial) — contrato DK-2025-VM em 12x')
+   'Par Gisele/Lucas no PIX "Agilidade A35"; desenho com cadista Marcus (finalização 50% paga em 25/06/2026)')
+  -- Village Matisse REMOVIDO 16/07/2026: é ASSESSORIA (documento pontual parcelado 12x),
+  -- não projeto. Segue como cliente de assessoria em fin_clientes.
 on conflict (id) do nothing;
 
 insert into public.fin_projetos
@@ -198,11 +198,8 @@ insert into public.fin_projetos
   ('b0000002-0000-4000-8000-000000000009','c0000001-0000-4000-8000-000000000006','A35','outro',
    'Projeto (desenho com cadista Marcus) — finalização 50% paga em 25/06/2026', null, null,
    'elaboracao','Receber a finalização do cadista Marcus e validar o desenho', 0, 0, null,
-   '2026-06-25T13:52:00-03:00','grupo'),
-  ('b0000002-0000-4000-8000-000000000010','c0000001-0000-4000-8000-000000000007','DK-2025-VM','infraestrutura',
-   'Projeto de Infraestrutura para Ar Condicionado — contrato em 12 parcelas de R$ 1.150,00 (8 emitidas até jun/26)', null, 'Campinas',
-   'aguardando_pagamento','Acompanhar parcelas restantes (9 a 12)', 1380000, 920000, null,
-   '2026-06-26T01:55:00-03:00','extrato')
+   '2026-06-25T13:52:00-03:00','grupo')
+  -- Village Matisse (DK-2025-VM) REMOVIDO 16/07/2026: é ASSESSORIA, não projeto.
 on conflict (id) do nothing;
 
 insert into public.fin_projeto_docs (id, projeto_id, item, status, pendente_desde) values
@@ -224,8 +221,8 @@ insert into public.fin_projeto_eventos (id, projeto_id, data, origem, tipo, desc
   ('e0000004-0000-4000-8000-000000000006','b0000002-0000-4000-8000-000000000006','2026-07-01T19:35:00-03:00','grupo','nota','Status do Claudemir: Q-46 L01, barracão, alvará de construção — aguardando documentação (N.Sra. de Fátima, Hortolândia).'),
   ('e0000004-0000-4000-8000-000000000007','b0000002-0000-4000-8000-000000000007','2026-07-01T19:35:00-03:00','grupo','nota','Status do Claudemir: barracão São Bento, alvará de construção — aguardando documentação (Hortolândia).'),
   ('e0000004-0000-4000-8000-000000000008','b0000002-0000-4000-8000-000000000008','2026-07-01T19:35:00-03:00','grupo','nota','Status do Claudemir: prédio no lote ZM4, alvará de construção.'),
-  ('e0000004-0000-4000-8000-000000000009','b0000002-0000-4000-8000-000000000009','2026-06-25T13:52:00-03:00','grupo','pagamento','Finalização 50% do cadista Marcus paga (grupo Financeiro).'),
-  ('e0000004-0000-4000-8000-00000000000a','b0000002-0000-4000-8000-000000000010','2026-06-26T01:55:00-03:00','extrato','nota','Village Matisse: pagamento reclassificado como Projeto (parcelado em 12x), não ART.')
+  ('e0000004-0000-4000-8000-000000000009','b0000002-0000-4000-8000-000000000009','2026-06-25T13:52:00-03:00','grupo','pagamento','Finalização 50% do cadista Marcus paga (grupo Financeiro).')
+  -- evento do Village Matisse REMOVIDO 16/07/2026 (é assessoria, não projeto).
 on conflict (id) do nothing;
 
 -- Conferência:
