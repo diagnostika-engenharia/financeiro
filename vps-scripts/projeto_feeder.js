@@ -113,7 +113,7 @@ function acharProjeto(projetos, clientesById, upd) {
 (async () => {
   // contexto: projetos + clientes atuais
   const [projetos, clientes] = await Promise.all([
-    sbGet('fin_projetos', 'select=id,cliente_id,codigo,tipo,status,proximo_passo,bairro,cidade,descricao'),
+    sbGet('fin_projetos', 'select=id,cliente_id,codigo,tipo,status,proximo_passo,bairro,cidade,descricao,receita_total_centavos,receita_recebida_centavos,entrada_percentual,entrada_paga_em'),
     sbGet('fin_projeto_clientes', 'select=id,nome'),
   ]);
   const clientesById = {}; clientes.forEach(c => clientesById[c.id] = c);
@@ -143,12 +143,15 @@ function acharProjeto(projetos, clientesById, upd) {
     'Extraia SÓ o que a mensagem afirma. Não invente. Responda SÓ JSON:',
     '{"relevante":bool,"updates":[{"projeto_idx":<int da lista ou null>,"cliente_mencionado":str,"codigo_mencionado":str,',
     '"novo_status":<um de: ' + STATUS_VALIDOS.join('|') + '|null>,"proximo_passo":str|null,"docs_recebidos":[str],',
+    '"valor_contratado_reais":number|null,"entrada_pendente":bool|null,',
     '"projeto_novo":bool,"confianca":0..1,"resumo":str}]}',
     'Regras: se a msg for link/pergunta/combinação sem fato de andamento -> relevante=false, updates=[].',
     'Mapeie linguagem natural para status: "aguardando documentação/falta doc"->aguardando_doc; "aprovado"->aprovado;',
     '"finalizado/pronto"->finalizado; "aguardando pagamento/vai pagar"->aguardando_pagamento; "entregue/já entregamos/recebemos e finalizou"->entregue;',
     '"em análise/aguardando aprovação do condomínio"->analise; "protocolado na prefeitura"->protocolo_prefeitura; "levantando/vamos iniciar"->levantamento.',
     'Se mencionar documento recebido (matrícula, IPTU, contrato, imagem de fachada, metragem, etc.) coloque em docs_recebidos.',
+    'VALOR: se a mensagem disser o valor do contrato/orçamento do projeto, coloque em valor_contratado_reais (número em reais). Entenda "2k"/"2 mil"=2000, "3,5k"=3500, "R$ 4.000"=4000. É o valor TOTAL do contrato — NÃO confunda com pagamento recebido, sinal, entrada ou parcela; nesses casos deixe valor_contratado_reais=null.',
+    'ENTRADA: a regra da empresa é 30% de entrada antes de começar. Só use entrada_pendente quando a mensagem falar EXPLICITAMENTE da entrada inicial (palavras "entrada", "sinal", "30%"): "falta entrada"/"sem entrada"/"não deu entrada" -> entrada_pendente=true; "entrada paga"/"deu entrada"/"pagou o sinal" -> entrada_pendente=false. ATENÇÃO: "aguardando pagamento" do saldo/parcela final NÃO é entrada -> entrada_pendente=null. Se a msg não falar de entrada, null.',
     'Cada lote/imóvel é um projeto DISTINTO. Se a mensagem citar um código/lote (ex: N-09, ZM4, Q-46, São Bento) que NÃO está na lista — mesmo para um cliente que já existe — trate como projeto_novo=true e projeto_idx=null (é um lead/projeto novo daquele cliente, não uma atualização de outro projeto dele).',
     'Para distinguir projetos do mesmo cliente use o código E o bairro (ex: "São Bento" casa o projeto cujo bairro="São Bento", não o de outro bairro).',
     'projeto_novo=true só se for claramente um projeto/lote que NÃO está na lista. confianca reflita o quão explícito é o fato.',
@@ -202,16 +205,31 @@ function acharProjeto(projetos, clientesById, upd) {
 
       const nome = (clientesById[alvo.cliente_id] || {}).nome;
       const mudaStatus = upd.novo_status && STATUS_VALIDOS.includes(upd.novo_status) && conf >= CONF_STATUS && upd.novo_status !== alvo.status;
-      console.log('   -> ' + nome + ' / ' + (alvo.codigo || alvo.tipo) + (mudaStatus ? (': ' + alvo.status + ' => ' + upd.novo_status) : ' (status mantido)') + (upd.proximo_passo ? ' | passo: ' + upd.proximo_passo.slice(0, 50) : '') + (upd.docs_recebidos && upd.docs_recebidos.length ? ' | docs: ' + upd.docs_recebidos.join(', ') : '') + ' [conf ' + conf + ']');
-      aplicados.push({ tipo: 'update', projeto_id: alvo.id, cliente: nome, codigo: alvo.codigo, de: alvo.status, para: mudaStatus ? upd.novo_status : null, proximo_passo: upd.proximo_passo || null, docs: upd.docs_recebidos || [], confianca: conf, resumo: upd.resumo });
+      // valor do contrato dito no grupo (só grava se ainda não tem valor ou se mudou)
+      const valorReais = (typeof upd.valor_contratado_reais === 'number' && upd.valor_contratado_reais > 0) ? upd.valor_contratado_reais : null;
+      const novoTotal = (valorReais && conf >= CONF_STATUS) ? Math.round(valorReais * 100) : null;
+      const mudaValor = novoTotal && novoTotal !== (+alvo.receita_total_centavos || 0);
+      // entrada (regra: 30% antes de começar) — só marca PAGA se a msg afirmar que pagou
+      const entradaPaga = upd.entrada_pendente === false && conf >= CONF_STATUS && !alvo.entrada_paga_em;
+      const entradaFalta = upd.entrada_pendente === true;
+      console.log('   -> ' + nome + ' / ' + (alvo.codigo || alvo.tipo) + (mudaStatus ? (': ' + alvo.status + ' => ' + upd.novo_status) : ' (status mantido)') + (mudaValor ? ' | CONTRATO R$ ' + (novoTotal / 100).toFixed(2) : '') + (entradaPaga ? ' | ENTRADA PAGA' : entradaFalta ? ' | falta entrada' : '') + (upd.proximo_passo ? ' | passo: ' + upd.proximo_passo.slice(0, 40) : '') + (upd.docs_recebidos && upd.docs_recebidos.length ? ' | docs: ' + upd.docs_recebidos.join(', ') : '') + ' [conf ' + conf + ']');
+      aplicados.push({ tipo: 'update', projeto_id: alvo.id, cliente: nome, codigo: alvo.codigo, de: alvo.status, para: mudaStatus ? upd.novo_status : null, proximo_passo: upd.proximo_passo || null, docs: upd.docs_recebidos || [], valor_centavos: mudaValor ? novoTotal : null, entrada_paga: entradaPaga || null, entrada_falta: entradaFalta || null, confianca: conf, resumo: upd.resumo });
 
       if (!DRY_RUN) {
-        // 1) atualiza o projeto (status/proximo_passo/movimento/origem)
+        // 1) atualiza o projeto (status/proximo_passo/valor/entrada/movimento/origem)
         const patch = { last_movement_at: new Date(m.ts * 1000).toISOString(), origem_ultimo_update: 'grupo' };
         if (mudaStatus) patch.status = upd.novo_status;
         if (upd.proximo_passo) patch.proximo_passo = upd.proximo_passo;
+        if (mudaValor) patch.receita_total_centavos = novoTotal;
+        if (entradaPaga) patch.entrada_paga_em = new Date(m.ts * 1000).toISOString();
         await sb('PATCH', '/rest/v1/fin_projetos?id=eq.' + alvo.id, patch);
         if (mudaStatus) alvo.status = upd.novo_status;  // reflete no contexto local
+        if (mudaValor) alvo.receita_total_centavos = novoTotal;
+        if (entradaPaga) alvo.entrada_paga_em = patch.entrada_paga_em;
+        // eventos específicos de valor/entrada (sempre confirmado=false)
+        if (mudaValor) await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'grupo', confirmado: false, tipo: 'nota', valor_centavos: novoTotal, descricao: '(auto do grupo) valor do contrato: R$ ' + (novoTotal / 100).toFixed(2) + ' — entrada de ' + (alvo.entrada_percentual || 30) + '% = R$ ' + ((novoTotal * (alvo.entrada_percentual || 30) / 100) / 100).toFixed(2) });
+        if (entradaPaga) await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'grupo', confirmado: false, tipo: 'pagamento', descricao: '(auto do grupo) entrada informada como PAGA — liberado para iniciar' });
+        if (entradaFalta) await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'grupo', confirmado: false, tipo: 'nota', descricao: '(auto do grupo) entrada ainda NÃO paga — não iniciar antes dos ' + (alvo.entrada_percentual || 30) + '%' });
         // 2) evento SEMPRE confirmado=false
         await sb('POST', '/rest/v1/fin_projeto_eventos', {
           projeto_id: alvo.id, origem: 'grupo', confirmado: false,

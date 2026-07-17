@@ -104,15 +104,25 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
 
   const [clientes, projetos, docs] = await Promise.all([
     sbGet('fin_projeto_clientes', 'select=id,nome'),
-    sbGet('fin_projetos', 'select=id,cliente_id,codigo,tipo,status,proximo_passo,proximo_passo_prazo,last_movement_at,receita_total_centavos,receita_recebida_centavos'),
+    sbGet('fin_projetos', 'select=id,cliente_id,codigo,tipo,status,proximo_passo,proximo_passo_prazo,last_movement_at,receita_total_centavos,receita_recebida_centavos,entrada_percentual,entrada_paga_em'),
     sbGet('fin_projeto_docs', 'select=id,projeto_id,item,status,pendente_desde&status=eq.pendente'),
   ]);
   const nomeCli = id => (clientes.find(c => c.id === id) || {}).nome || '?';
 
+  // ── regra da entrada (30% antes de começar) ───────────────────────
+  const ST_INICIADO = ['elaboracao', 'protocolo_prefeitura', 'analise', 'aprovado', 'finalizado', 'aguardando_pagamento', 'entregue'];
+  const entPct = p => (+p.entrada_percentual || 30);
+  const semValor = p => !((+p.receita_total_centavos || 0) > 0);
+  const entExigida = p => semValor(p) ? 0 : Math.round((+p.receita_total_centavos) * entPct(p) / 100);
+  const entOk = p => { const ex = entExigida(p); return ex > 0 && (!!p.entrada_paga_em || (+p.receita_recebida_centavos || 0) >= ex); };
+  const entFalta = p => Math.max(0, entExigida(p) - (+p.receita_recebida_centavos || 0));
+
   // ── categorias ────────────────────────────────────────────────────
-  const parados = [], aReceber = [], prazos = [], docPend = [];
+  const parados = [], aReceber = [], prazos = [], docPend = [], semEntrada = [], violaEntrada = [], semValorLista = [];
   for (const p of projetos) {
     if (!ATIVO(p)) continue;
+    if (semValor(p)) semValorLista.push({ p });
+    else if (!entOk(p)) { if (ST_INICIADO.includes(p.status)) violaEntrada.push({ p }); else semEntrada.push({ p }); }
     const dParado = diasDesde(p.last_movement_at);
     if (dParado != null && dParado >= PARADO_DIAS) parados.push({ p, dias: dParado });
     const falta = Math.max(0, (+p.receita_total_centavos || 0) - (+p.receita_recebida_centavos || 0));
@@ -141,6 +151,23 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
   L.push('(uso interno da equipe · nao enviar a cliente)');
   L.push('');
 
+  if (violaEntrada.length) {
+    L.push('*** INICIADO SEM A ENTRADA DE ' + entPct(violaEntrada[0].p) + '% (regra do contrato) ***');
+    violaEntrada.forEach(({ p }) => L.push(linhaProj(p, 'entrada exigida ' + brl(entExigida(p)) + ', falta ' + brl(entFalta(p)))));
+    L.push('');
+  }
+  if (semEntrada.length) {
+    let tot = 0;
+    L.push('AGUARDANDO ENTRADA (nao iniciar antes de receber):');
+    semEntrada.forEach(({ p }) => { tot += entFalta(p); L.push(linhaProj(p, 'entrada ' + entPct(p) + '% = ' + brl(entExigida(p)) + ', falta ' + brl(entFalta(p)))); });
+    L.push('  Total de entradas a receber: ' + brl(tot));
+    L.push('');
+  }
+  if (semValorLista.length) {
+    L.push('SEM VALOR DE CONTRATO (sem isso nao da p/ cobrar a entrada):');
+    semValorLista.forEach(({ p }) => L.push(linhaProj(p, 'informar o valor fechado')));
+    L.push('');
+  }
   if (parados.length) {
     L.push('PARADOS ha ' + PARADO_DIAS + '+ dias (sem movimento):');
     parados.forEach(({ p, dias }) => L.push(linhaProj(p, dias + ' dias parado' + (p.proximo_passo ? ' · proximo: ' + p.proximo_passo : ' · SEM proximo passo'))));
@@ -167,16 +194,19 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
     L.push('');
   }
 
-  const nada = !parados.length && !aReceber.length && !docPend.length && !prazos.length;
-  if (nada) L.push('Nenhum projeto parado, a receber ou com prazo/doc pendente. Tudo em dia.');
+  const nada = !parados.length && !aReceber.length && !docPend.length && !prazos.length && !semEntrada.length && !violaEntrada.length && !semValorLista.length;
+  if (nada) L.push('Nenhum projeto parado, a receber ou com prazo/doc/entrada pendente. Tudo em dia.');
 
   const ativos = projetos.filter(ATIVO).length;
   L.push('---');
-  L.push('Projetos ativos: ' + ativos + ' · parados: ' + parados.length + ' · a receber: ' + aReceber.length + ' · docs pendentes: ' + docPend.length);
+  L.push('Projetos ativos: ' + ativos + ' · parados: ' + parados.length + ' · a receber: ' + aReceber.length + ' · docs pendentes: ' + docPend.length
+    + ' · sem entrada: ' + (semEntrada.length + violaEntrada.length) + (violaEntrada.length ? ' (' + violaEntrada.length + ' ja iniciado)' : '') + ' · sem valor: ' + semValorLista.length);
 
   const conteudo = L.join('\n');
   const resumo = { ativos, parados: parados.length, a_receber: aReceber.length, docs_pendentes: docPend.length, prazos: prazos.length,
-    a_receber_centavos: aReceber.reduce((s, x) => s + x.falta, 0) };
+    a_receber_centavos: aReceber.reduce((s, x) => s + x.falta, 0),
+    sem_entrada: semEntrada.length, viola_entrada: violaEntrada.length, sem_valor: semValorLista.length,
+    entrada_a_receber_centavos: semEntrada.concat(violaEntrada).reduce((s, x) => s + entFalta(x.p), 0) };
 
   console.log('===== DIGEST GERADO (' + (MODO_SOMBRA ? 'SOMBRA' : 'REAL') + ') =====');
   console.log(conteudo);

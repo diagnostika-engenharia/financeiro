@@ -75,7 +75,7 @@ function casaPagadorCliente(pag, cliNome) {
 
 (async () => {
   const [projetos, clientes, txns, procRows] = await Promise.all([
-    sbGet('fin_projetos', 'select=id,cliente_id,codigo,tipo,status,receita_total_centavos,receita_recebida_centavos,etiqueta_extrato'),
+    sbGet('fin_projetos', 'select=id,cliente_id,codigo,tipo,status,receita_total_centavos,receita_recebida_centavos,etiqueta_extrato,entrada_percentual,entrada_paga_em'),
     sbGet('fin_projeto_clientes', 'select=id,nome'),
     sbGet('fin_transacoes_bancarias', 'select=id,data,valor,tipo,tipo_categoria,categoria,historico,observacao,projeto&data=gte.' + SINCE + '&order=data.asc&limit=1000'),
     sbGet('projeto_feeder_processados', 'select=msg_id&limit=4000'),
@@ -137,15 +137,22 @@ function casaPagadorCliente(pag, cliNome) {
     const recebidaDepois = recebidaAntes + val;
     const quitou = total > 0 && recebidaDepois >= total - TOL;
     const moveEntregue = quitou && alvo.status === 'aguardando_pagamento';
+    // REGRA DA ENTRADA (30% antes de começar): este pagamento atingiu o mínimo?
+    const pct = +alvo.entrada_percentual || 30;
+    const entradaExigida = total > 0 ? Math.round(total * pct / 100) : 0;
+    const fechaEntrada = entradaExigida > 0 && !alvo.entrada_paga_em && recebidaDepois >= entradaExigida - TOL;
     nBaixa++;
-    console.log(linha + ' -> BAIXA em ' + (cliById[alvo.cliente_id] || {}).nome + ' / ' + (alvo.codigo || alvo.tipo) + ' (' + motivo + '); recebido ' + brl(recebidaAntes) + ' -> ' + brl(recebidaDepois) + (total ? ' de ' + brl(total) : '') + (moveEntregue ? ' [QUITADO -> entregue]' : quitou ? ' [quitado]' : '') );
+    console.log(linha + ' -> BAIXA em ' + (cliById[alvo.cliente_id] || {}).nome + ' / ' + (alvo.codigo || alvo.tipo) + ' (' + motivo + '); recebido ' + brl(recebidaAntes) + ' -> ' + brl(recebidaDepois) + (total ? ' de ' + brl(total) : '') + (fechaEntrada ? ' [ENTRADA ' + pct + '% OK -> pode iniciar]' : '') + (moveEntregue ? ' [QUITADO -> entregue]' : quitou ? ' [quitado]' : '') );
 
     if (!DRY_RUN) {
       const patch = { receita_recebida_centavos: recebidaDepois, last_movement_at: new Date(String(t.data).slice(0, 10) + 'T12:00:00-03:00').toISOString(), origem_ultimo_update: 'extrato' };
       if (moveEntregue) patch.status = 'entregue';
+      if (fechaEntrada) patch.entrada_paga_em = new Date(String(t.data).slice(0, 10) + 'T12:00:00-03:00').toISOString();
       await sb('PATCH', '/rest/v1/fin_projetos?id=eq.' + alvo.id, patch);
       alvo.receita_recebida_centavos = recebidaDepois; if (moveEntregue) alvo.status = 'entregue';
+      if (fechaEntrada) alvo.entrada_paga_em = patch.entrada_paga_em;
       await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'extrato', confirmado: false, tipo: 'pagamento', valor_centavos: val, descricao: '(auto do extrato) pagamento recebido ' + brl(val) + ' de "' + pag + '"' + (moveEntregue ? ' — quitado, projeto marcado como entregue' : '') });
+      if (fechaEntrada) await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'extrato', confirmado: false, tipo: 'pagamento', valor_centavos: entradaExigida, descricao: '(auto do extrato) ENTRADA de ' + pct + '% (' + brl(entradaExigida) + ') atingida — contrato liberado para iniciar' });
       // vincula o lançamento ao projeto (etiqueta) p/ a conta do projeto
       const etq = alvo.etiqueta_extrato || alvo.codigo;
       if (etq && !t.projeto) await sb('PATCH', '/rest/v1/fin_transacoes_bancarias?id=eq.' + t.id, { projeto: etq });

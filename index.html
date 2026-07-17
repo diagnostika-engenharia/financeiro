@@ -1296,6 +1296,7 @@ body.capturing .rel-acao{display:none!important}
             <div class="kpi blue"><label>Em andamento</label><div class="val" id="pj-k-andamento">—</div></div>
             <div class="kpi red"><label>Parados / sem próximo passo</label><div class="val" id="pj-k-parados">—</div></div>
             <div class="kpi green"><label>A receber (contratado)</label><div class="val" id="pj-k-receber">—</div></div>
+            <div class="kpi" style="border-color:#E65100"><label>Entrada 30% pendente</label><div class="val" id="pj-k-entrada" style="color:#E65100">—</div><div style="font-size:11px;color:var(--text2);margin-top:2px" id="pj-k-entrada-sub">—</div></div>
             <div class="kpi gray"><label>Custo acumulado (extrato)</label><div class="val" id="pj-k-custo">—</div></div>
           </div>
           <div class="filters" style="flex-wrap:wrap;align-items:center;gap:8px">
@@ -1310,6 +1311,9 @@ body.capturing .rel-acao{display:none!important}
               <option value="__ativos">Em andamento</option>
               <option value="__parados">Parados (sem passo ou prazo vencido)</option>
               <option value="__areceber">Com valor a receber</option>
+              <option value="__sementrada">⛔ Entrada 30% pendente</option>
+              <option value="__violaentrada">🚫 Iniciado sem entrada</option>
+              <option value="__semvalor">💰 Sem valor de contrato</option>
             </select>
             <input id="pj-f-busca" oninput="pjRender()" placeholder="🔎 cliente, código, bairro…" style="padding:6px 9px;border:1px solid var(--gray3);border-radius:8px;font-size:13px;flex:1;min-width:140px;max-width:260px">
           </div>
@@ -1373,8 +1377,10 @@ body.capturing .rel-acao{display:none!important}
       <div class="form-2col">
         <div class="form-row"><label>👉 Próximo passo</label><input id="mpj-passo" placeholder="ex: Cobrar documentação"></div>
         <div class="form-row"><label>Prazo do próximo passo</label><input type="date" id="mpj-prazo"></div>
-        <div class="form-row"><label>Valor contratado (R$)</label><input id="mpj-rtotal" inputmode="decimal" placeholder="0,00"></div>
-        <div class="form-row"><label>Já recebido (R$)</label><input id="mpj-rreceb" inputmode="decimal" placeholder="0,00"></div>
+        <div class="form-row"><label>Valor contratado (R$)</label><input id="mpj-rtotal" inputmode="decimal" placeholder="0,00" oninput="_pjPintaEntrada()"></div>
+        <div class="form-row"><label>Já recebido (R$)</label><input id="mpj-rreceb" inputmode="decimal" placeholder="0,00" oninput="_pjPintaEntrada()"></div>
+        <div class="form-row"><label>Entrada exigida (%) <small title="regra da empresa: 30% antes de começar">ⓘ</small></label>
+          <input id="mpj-entpct" inputmode="decimal" placeholder="30" oninput="_pjPintaEntrada()"></div>
       </div>
 
       <div id="mpj-docs-wrap" style="margin-top:10px">
@@ -1389,6 +1395,8 @@ body.capturing .rel-acao{display:none!important}
           <button class="btn btn-outline btn-sm" type="button" onclick="pjAddDoc()">+ Adicionar</button>
         </div>
       </div>
+
+      <div id="mpj-entrada-box" style="margin-top:12px;border-radius:8px;padding:10px 12px;font-size:12.5px"></div>
 
       <div id="mpj-conta-wrap" style="margin-top:14px">
         <b style="font-size:13px">💰 Conta do projeto (extrato)</b>
@@ -7077,6 +7085,18 @@ const PJ_PARADO_DIAS=10;  // limiar do "parado há X dias" (selo, KPI, filtro e 
 // OU sem movimento há >= PJ_PARADO_DIAS dias
 const _pjParado=p=>_pjAtivo(p)&&(!(p.proximo_passo||'').trim()||(p.proximo_passo_prazo&&p.proximo_passo_prazo<hoje())||_pjParadoDias(p)>=PJ_PARADO_DIAS);
 const _pjAReceber=p=>Math.max(0,(+p.receita_total_centavos||0)-(+p.receita_recebida_centavos||0));
+// ── Regra do contrato: ENTRADA de 30% antes de começar ──────────
+// Status que significam "trabalho já começou" (não pode estar aqui sem entrada)
+const PJ_ST_INICIADO=['elaboracao','protocolo_prefeitura','analise','aprovado','finalizado','aguardando_pagamento','entregue'];
+const _pjEntradaPct=p=>(+p.entrada_percentual||30);
+const _pjSemValor=p=>!((+p.receita_total_centavos||0)>0);           // contrato sem valor informado
+const _pjEntradaExigida=p=>{const t=+p.receita_total_centavos||0;return t>0?Math.round(t*_pjEntradaPct(p)/100):0;};
+const _pjEntradaOk=p=>{const ex=_pjEntradaExigida(p);if(!ex)return false;return !!p.entrada_paga_em||(+p.receita_recebida_centavos||0)>=ex;};
+const _pjEntradaFalta=p=>Math.max(0,_pjEntradaExigida(p)-(+p.receita_recebida_centavos||0));
+// só pode começar com a entrada paga — isto aqui é violação da regra
+const _pjIniciouSemEntrada=p=>!_pjSemValor(p)&&!_pjEntradaOk(p)&&PJ_ST_INICIADO.includes(p.status);
+// aguardando a entrada para poder iniciar
+const _pjAguardaEntrada=p=>!_pjSemValor(p)&&!_pjEntradaOk(p)&&!PJ_ST_INICIADO.includes(p.status);
 const _pjEventosDe=pid=>_pjEventos.filter(e=>e.projeto_id===pid);
 // projeto com update automático do grupo ainda não confirmado pela equipe
 const _pjAutoPend=p=>_pjEventos.some(e=>e.projeto_id===p.id&&e.confirmado===false);
@@ -7105,6 +7125,9 @@ function _pjFiltrados(){
     if(f==='__ativos'&&!_pjAtivo(p))return false;
     if(f==='__parados'&&!_pjParado(p))return false;
     if(f==='__areceber'&&_pjAReceber(p)<=0)return false;
+    if(f==='__sementrada'&&!(_pjAguardaEntrada(p)||_pjIniciouSemEntrada(p)))return false;
+    if(f==='__violaentrada'&&!_pjIniciouSemEntrada(p))return false;
+    if(f==='__semvalor'&&!_pjSemValor(p))return false;
     if(f&&!f.startsWith('__')&&p.status!==f)return false;
     if(q){
       const c=_pjCliente(p.cliente_id);
@@ -7128,6 +7151,12 @@ function pjRender(){
   document.getElementById('pj-k-andamento').textContent=ativos.length;
   document.getElementById('pj-k-parados').textContent=_pjProjetos.filter(_pjParado).length;
   document.getElementById('pj-k-receber').textContent='R$ '+_pjBrl(_pjProjetos.reduce((s,p)=>s+_pjAReceber(p),0));
+  // KPI da entrada: quanto falta de entrada + quantos violam a regra
+  const semEnt=_pjProjetos.filter(p=>_pjAtivo(p)&&(_pjAguardaEntrada(p)||_pjIniciouSemEntrada(p)));
+  const viol=_pjProjetos.filter(p=>_pjAtivo(p)&&_pjIniciouSemEntrada(p)).length;
+  const semValor=_pjProjetos.filter(p=>_pjAtivo(p)&&_pjSemValor(p)).length;
+  document.getElementById('pj-k-entrada').textContent='R$ '+_pjBrl(semEnt.reduce((s,p)=>s+_pjEntradaFalta(p),0));
+  document.getElementById('pj-k-entrada-sub').textContent=semEnt.length+' projeto(s)'+(viol?' · '+viol+' já iniciado(s) 🚫':'')+(semValor?' · '+semValor+' sem valor':'');
   document.getElementById('pj-k-custo').textContent='R$ '+_pjBrl(Math.round(_pjProjetos.reduce((s,p)=>s+_pjConta(p).custoExtrato,0)*100)/100*100);
   document.getElementById('pj-kanban').style.display=_pjView==='kanban'?'':'none';
   document.getElementById('pj-lista').style.display=_pjView==='lista'?'':'none';
@@ -7198,6 +7227,10 @@ function _pjCardHtml(p){
     ${_pjAutoPend(p)?`<div style="margin-top:6px;font-size:11px;font-weight:700;color:#5E35B1;background:#EDE7F6;border-radius:6px;padding:3px 7px;display:inline-block">🤖 auto do grupo · confira</div>`:''}
     ${nx}
     <div class="ft">
+      ${_pjSemValor(p)?`<span style="background:#FFF8E1;border-color:#FFE082;color:#8D6E00" title="sem valor de contrato — não dá para cobrar a entrada">💰 valor a definir</span>`
+        :_pjIniciouSemEntrada(p)?`<span style="background:#FDECEA;border-color:#F5C6C0;color:#B71C1C" title="começou sem a entrada de ${_pjEntradaPct(p)}%">🚫 iniciado SEM entrada</span>`
+        :_pjEntradaOk(p)?`<span style="background:#E8F5E9;border-color:#A5D6A7;color:#1B5E20" title="entrada de ${_pjEntradaPct(p)}% paga">✅ entrada ok</span>`
+        :`<span style="background:#FFF3E0;border-color:#FFCC80;color:#E65100" title="entrada de ${_pjEntradaPct(p)}% = R$ ${_pjBrl(_pjEntradaExigida(p))}">⛔ entrada: falta R$ ${_pjBrl(_pjEntradaFalta(p))}</span>`}
       ${docs.length?`<span>📄 ${rec}/${docs.length} docs</span>`:''}
       ${aRec>0?`<span>💰 receber R$ ${_pjBrl(aRec)}</span>`:''}
       ${conta.custoExtrato>0?`<span>🔻 custo R$ ${_pjBrl(Math.round(conta.custoExtrato*100))}</span>`:''}
@@ -7268,6 +7301,10 @@ async function _pjDrop(ev,status){
   if(!_pjDragId)return;
   const p=_pjProjetos.find(x=>x.id===_pjDragId); _pjDragId=null;
   if(!p||p.status===status)return;
+  // Regra da entrada: avisa antes de mover para uma etapa de trabalho iniciado sem os 30%
+  if(_pjIniciouSemEntrada({...p,status})&&!_pjIniciouSemEntrada(p)){
+    if(!confirm('⚠️ Regra da entrada\n\nMover para "'+_pjStatusInfo(status).l+'" significa iniciar o trabalho, mas a entrada de '+_pjEntradaPct(p)+'% ainda não foi paga.\n\nExigido: R$ '+_pjBrl(_pjEntradaExigida(p))+'\nFalta: R$ '+_pjBrl(_pjEntradaFalta(p))+'\n\nMover mesmo assim?')){pjRender();return;}
+  }
   const anterior=p.status; p.status=status; pjRender();
   const patch={status}; _pjTocaMovimento(patch);
   const{error}=await sb.from('fin_projetos').update(patch).eq('id',p.id);
@@ -7293,6 +7330,8 @@ function pjNovo(){
   document.getElementById('mpj-title').textContent='Novo Projeto';
   document.getElementById('mpj-id').value='';
   ['mpj-codigo','mpj-desc','mpj-end','mpj-bairro','mpj-cidade','mpj-etq','mpj-passo','mpj-prazo','mpj-rtotal','mpj-rreceb'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('mpj-entpct').value='30';
+  _pjPintaEntrada();
   document.getElementById('mpj-resp').value='Claudemir';
   document.getElementById('mpj-dono').checked=false;
   document.getElementById('mpj-status').value='levantamento';
@@ -7326,6 +7365,8 @@ function pjAbrir(id){
   document.getElementById('mpj-prazo').value=p.proximo_passo_prazo||'';
   document.getElementById('mpj-rtotal').value=p.receita_total_centavos?_pjBrl(p.receita_total_centavos):'';
   document.getElementById('mpj-rreceb').value=p.receita_recebida_centavos?_pjBrl(p.receita_recebida_centavos):'';
+  document.getElementById('mpj-entpct').value=(p.entrada_percentual!=null?String(p.entrada_percentual).replace('.',','):'30');
+  _pjPintaEntrada();
   _pjRenderDocsModal(p.id);
   _pjRenderContaModal(p);
   _pjRenderTimeline(p.id);
@@ -7348,6 +7389,37 @@ async function pjAceitarAuto(){
   document.getElementById('mpj-auto-banner').style.display='none';
   _pjRenderTimeline(pid); pjRender();
   toast('✅ Atualizações aceitas');
+}
+
+// Painel da entrada no modal — recalcula ao vivo conforme se digita valor/%/recebido
+function _pjPintaEntrada(){
+  const box=document.getElementById('mpj-entrada-box'); if(!box)return;
+  const id=document.getElementById('mpj-id').value;
+  const atual=_pjProjetos.find(x=>x.id===id)||{};
+  const p={
+    receita_total_centavos:_pjCents(document.getElementById('mpj-rtotal').value),
+    receita_recebida_centavos:_pjCents(document.getElementById('mpj-rreceb').value),
+    entrada_percentual:parseFloat(String(document.getElementById('mpj-entpct').value).replace(',','.'))||30,
+    entrada_paga_em:atual.entrada_paga_em,
+    status:document.getElementById('mpj-status').value,
+  };
+  if(_pjSemValor(p)){
+    box.style.background='#FFF8E1'; box.style.border='1px solid #FFE082';
+    box.innerHTML='<b style="color:#8D6E00">💰 Valor do contrato não informado</b><div style="color:var(--text2);margin-top:3px">Sem o valor não dá para cobrar a entrada de '+esc(String(p.entrada_percentual))+'%. Informe o contratado acima (ou diga o valor no grupo — o robô cadastra).</div>';
+    return;
+  }
+  const ex=_pjEntradaExigida(p), falta=_pjEntradaFalta(p), ok=_pjEntradaOk(p), viol=_pjIniciouSemEntrada(p);
+  const quando=atual.entrada_paga_em?' em '+formatData(String(atual.entrada_paga_em).slice(0,10)):'';
+  if(viol){
+    box.style.background='#FDECEA'; box.style.border='1px solid #F5C6C0';
+    box.innerHTML='<b style="color:#B71C1C">🚫 Projeto iniciado SEM a entrada</b><div style="color:var(--text2);margin-top:3px">Regra: '+esc(String(p.entrada_percentual))+'% (<b>R$ '+_pjBrl(ex)+'</b>) antes de começar. Recebido R$ '+_pjBrl(p.receita_recebida_centavos)+' — <b>falta R$ '+_pjBrl(falta)+'</b>. O trabalho já está em "'+esc(_pjStatusInfo(p.status).l)+'".</div>';
+  }else if(ok){
+    box.style.background='#E8F5E9'; box.style.border='1px solid #A5D6A7';
+    box.innerHTML='<b style="color:#1B5E20">✅ Entrada de '+esc(String(p.entrada_percentual))+'% paga'+esc(quando)+'</b><div style="color:var(--text2);margin-top:3px">Exigido R$ '+_pjBrl(ex)+' · recebido R$ '+_pjBrl(p.receita_recebida_centavos)+'. Liberado para iniciar.</div>';
+  }else{
+    box.style.background='#FFF3E0'; box.style.border='1px solid #FFCC80';
+    box.innerHTML='<b style="color:#E65100">⛔ Aguardando a entrada de '+esc(String(p.entrada_percentual))+'%</b><div style="color:var(--text2);margin-top:3px">Exigido <b>R$ '+_pjBrl(ex)+'</b> · recebido R$ '+_pjBrl(p.receita_recebida_centavos)+' · <b>falta R$ '+_pjBrl(falta)+'</b>. Não iniciar antes disso.</div>';
+  }
 }
 
 function _pjRenderTimeline(pid){
@@ -7460,9 +7532,15 @@ async function pjSalvar(){
     proximo_passo:(document.getElementById('mpj-passo').value||'').trim()||null,
     proximo_passo_prazo:document.getElementById('mpj-prazo').value||null,
     receita_total_centavos:_pjCents(document.getElementById('mpj-rtotal').value),
-    receita_recebida_centavos:_pjCents(document.getElementById('mpj-rreceb').value)
+    receita_recebida_centavos:_pjCents(document.getElementById('mpj-rreceb').value),
+    entrada_percentual:(parseFloat(String(document.getElementById('mpj-entpct').value).replace(',','.'))||30)
   };
   if(!row.cliente_id){toast('Escolha o cliente',true);return;}
+  // Regra do contrato: avisa (não bloqueia) se estiver movendo para "iniciado" sem a entrada
+  if(_pjIniciouSemEntrada(row)){
+    const ex=_pjEntradaExigida(row), falta=_pjEntradaFalta(row);
+    if(!confirm('⚠️ Regra da entrada\n\nEste projeto está indo para "'+_pjStatusInfo(row.status).l+'" (trabalho iniciado), mas a entrada de '+row.entrada_percentual+'% ainda não foi paga.\n\nExigido: R$ '+_pjBrl(ex)+'\nFalta: R$ '+_pjBrl(falta)+'\n\nSalvar mesmo assim?'))return;
+  }
   const btn=document.getElementById('mpj-salvar'); btn.disabled=true;
   try{
     if(id){
@@ -7538,7 +7616,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260716-174545';
+const APP_BUILD='20260717-050306';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
