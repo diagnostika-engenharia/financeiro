@@ -1370,8 +1370,8 @@ body.capturing .rel-acao{display:none!important}
         <div class="form-row"><label>Endereço</label><input id="mpj-end"></div>
         <div class="form-row"><label>Bairro</label><input id="mpj-bairro"></div>
         <div class="form-row"><label>Cidade</label><input id="mpj-cidade"></div>
-        <div class="form-row"><label>Etiqueta no extrato <small title="mesmo texto usado no campo 'projeto' ao classificar lançamentos em Extratos & DRE">ⓘ</small></label>
-          <input id="mpj-etq" list="pj-etq-list" placeholder="liga custos/receitas do extrato"><datalist id="pj-etq-list"></datalist>
+        <div class="form-row"><label>Etiqueta(s) no extrato <small title="mesmo texto usado no campo 'projeto' ao classificar lançamentos em Extratos & DRE. Pode informar várias separadas por vírgula (ex: A35, Projeto da casa Gisele)">ⓘ</small></label>
+          <input id="mpj-etq" list="pj-etq-list" placeholder="ex: A35, Projeto da casa Gisele (separe por vírgula)"><datalist id="pj-etq-list"></datalist>
         </div>
       </div>
       <div class="form-2col">
@@ -7070,9 +7070,15 @@ async function loadProjetos(force){
 const _pjCliente=id=>_pjClientes.find(c=>c.id===id)||{nome:'?'};
 const _pjDocsDe=pid=>_pjDocs.filter(d=>d.projeto_id===pid);
 // transações do extrato cuja etiqueta `projeto` casa com a do projeto
+// Etiquetas do projeto no extrato. Aceita VÁRIAS separadas por vírgula, porque na
+// prática o mesmo projeto foi etiquetado com textos diferentes (ex.: "A35" e
+// "Projeto da casa Gisele"). Também casa pelo código do projeto.
+function _pjEtiquetas(p){
+  return String(p.etiqueta_extrato||'').split(',').map(s=>_pjNorm(s)).filter(Boolean);
+}
 function _pjTxnsDe(p){
-  const etq=_pjNorm(p.etiqueta_extrato); if(!etq) return [];
-  return _pjTxns.filter(t=>_pjNorm(t.projeto)===etq);
+  const etqs=_pjEtiquetas(p); if(!etqs.length) return [];
+  return _pjTxns.filter(t=>{const tp=_pjNorm(t.projeto); return tp && etqs.includes(tp);});
 }
 function _pjConta(p){
   let rec=0,custo=0;
@@ -7616,7 +7622,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260717-050306';
+const APP_BUILD='20260717-053945';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();

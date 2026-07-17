@@ -72,6 +72,20 @@ function casaPagadorCliente(pag, cliNome) {
   const inter = a.filter(t => b.includes(t));
   return inter.length; // nº de tokens em comum (0 = não casa)
 }
+// ── Etiqueta do extrato = link feito por HUMANO -> tem prioridade sobre o nome ──
+// Um projeto pode ter várias etiquetas separadas por vírgula (o mesmo projeto foi
+// etiquetado com textos diferentes na prática). Também casa pelo código.
+const etqKey = s => norm(s).replace(/\s+/g, '');
+function etiquetasDe(p) {
+  const lst = String(p.etiqueta_extrato || '').split(',').map(etqKey).filter(Boolean);
+  if (p.codigo) lst.push(etqKey(p.codigo));
+  return lst;
+}
+function acharPorEtiqueta(projetos, t) {
+  const tp = etqKey(t.projeto); if (!tp) return null;
+  const hits = projetos.filter(p => etiquetasDe(p).includes(tp));
+  return hits.length === 1 ? hits[0] : null;   // ambíguo -> deixa o fluxo normal decidir
+}
 
 (async () => {
   const [projetos, clientes, txns, procRows] = await Promise.all([
@@ -88,18 +102,58 @@ function casaPagadorCliente(pag, cliNome) {
   console.log('Créditos no período (desde ' + SINCE + '): ' + creditos.length);
 
   let nBaixa = 0, nRev = 0;
+
+  // Aplica a baixa do crédito `t` no projeto `alvo` (soma recebido, fecha entrada
+  // de 30% se atingiu, marca entregue se quitou, evento confirmado=false).
+  async function aplicarBaixa(alvo, t, val, pag, linha, motivo) {
+    const key = 'txn:' + t.id;
+    const total = +alvo.receita_total_centavos || 0;
+    const recebidaAntes = +alvo.receita_recebida_centavos || 0;
+    const recebidaDepois = recebidaAntes + val;
+    const quitou = total > 0 && recebidaDepois >= total - TOL;
+    const moveEntregue = quitou && alvo.status === 'aguardando_pagamento';
+    // REGRA DA ENTRADA (30% antes de começar): este pagamento atingiu o mínimo?
+    const pct = +alvo.entrada_percentual || 30;
+    const entradaExigida = total > 0 ? Math.round(total * pct / 100) : 0;
+    const fechaEntrada = entradaExigida > 0 && !alvo.entrada_paga_em && recebidaDepois >= entradaExigida - TOL;
+    nBaixa++;
+    console.log(linha + ' -> BAIXA em ' + (cliById[alvo.cliente_id] || {}).nome + ' / ' + (alvo.codigo || alvo.tipo) + ' (' + motivo + '); recebido ' + brl(recebidaAntes) + ' -> ' + brl(recebidaDepois) + (total ? ' de ' + brl(total) : '') + (fechaEntrada ? ' [ENTRADA ' + pct + '% OK -> pode iniciar]' : '') + (moveEntregue ? ' [QUITADO -> entregue]' : quitou ? ' [quitado]' : ''));
+    if (DRY_RUN) return;
+    const quando = new Date(String(t.data).slice(0, 10) + 'T12:00:00-03:00').toISOString();
+    const patch = { receita_recebida_centavos: recebidaDepois, last_movement_at: quando, origem_ultimo_update: 'extrato' };
+    if (moveEntregue) patch.status = 'entregue';
+    if (fechaEntrada) patch.entrada_paga_em = quando;
+    await sb('PATCH', '/rest/v1/fin_projetos?id=eq.' + alvo.id, patch);
+    alvo.receita_recebida_centavos = recebidaDepois; if (moveEntregue) alvo.status = 'entregue';
+    if (fechaEntrada) alvo.entrada_paga_em = quando;
+    await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'extrato', confirmado: false, tipo: 'pagamento', valor_centavos: val, descricao: '(auto do extrato) pagamento recebido ' + brl(val) + ' de "' + pag + '"' + (moveEntregue ? ' — quitado, projeto marcado como entregue' : '') });
+    if (fechaEntrada) await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'extrato', confirmado: false, tipo: 'pagamento', valor_centavos: entradaExigida, descricao: '(auto do extrato) ENTRADA de ' + pct + '% (' + brl(entradaExigida) + ') atingida — contrato liberado para iniciar' });
+    // vincula o lançamento ao projeto (etiqueta) p/ a conta do projeto
+    const etq = (String(alvo.etiqueta_extrato || '').split(',')[0] || '').trim() || alvo.codigo;
+    if (etq && !t.projeto) await sb('PATCH', '/rest/v1/fin_transacoes_bancarias?id=eq.' + t.id, { projeto: etq });
+    await sb('POST', '/rest/v1/projeto_feeder_processados', { msg_id: key, autor: pag, texto: t.historico, relevante: true, n_updates: 1, resultado: { projeto: alvo.codigo || alvo.id, valor_centavos: val, quitou, moveEntregue, motivo } });
+    proc.add(key);
+  }
+
   for (const t of creditos) {
     const key = 'txn:' + t.id;
     if (!DRY_RUN && proc.has(key)) continue;
     const val = cents(t.valor);
     const pag = payerName(t);
 
-    // candidatos: projetos cujo cliente casa o pagador
+    const linha = '[' + String(t.data).slice(0, 10) + '] ' + brl(val) + ' de "' + (pag || '?').slice(0, 34) + '"';
+
+    // 1º) ETIQUETA: se um humano já etiquetou o lançamento com o projeto, isso manda.
+    const porEtq = acharPorEtiqueta(projetos, t);
+    if (porEtq) {
+      await aplicarBaixa(porEtq, t, val, pag, linha, 'etiqueta "' + t.projeto + '" (marcada por humano)');
+      continue;
+    }
+
+    // 2º) fallback: nome do pagador x cliente
     const cand = projetos.map(p => ({ p, score: casaPagadorCliente(pag, (cliById[p.cliente_id] || {}).nome) }))
       .filter(x => x.score > 0)
       .sort((a, b) => b.score - a.score);
-
-    const linha = '[' + String(t.data).slice(0, 10) + '] ' + brl(val) + ' de "' + (pag || '?').slice(0, 34) + '"';
 
     if (!cand.length) { continue; } // crédito não é de projeto (condomínio/ART/etc) — ignora silencioso
 
@@ -131,34 +185,7 @@ function casaPagadorCliente(pag, cliNome) {
       continue;
     }
 
-    // aplica baixa
-    const total = +alvo.receita_total_centavos || 0;
-    const recebidaAntes = +alvo.receita_recebida_centavos || 0;
-    const recebidaDepois = recebidaAntes + val;
-    const quitou = total > 0 && recebidaDepois >= total - TOL;
-    const moveEntregue = quitou && alvo.status === 'aguardando_pagamento';
-    // REGRA DA ENTRADA (30% antes de começar): este pagamento atingiu o mínimo?
-    const pct = +alvo.entrada_percentual || 30;
-    const entradaExigida = total > 0 ? Math.round(total * pct / 100) : 0;
-    const fechaEntrada = entradaExigida > 0 && !alvo.entrada_paga_em && recebidaDepois >= entradaExigida - TOL;
-    nBaixa++;
-    console.log(linha + ' -> BAIXA em ' + (cliById[alvo.cliente_id] || {}).nome + ' / ' + (alvo.codigo || alvo.tipo) + ' (' + motivo + '); recebido ' + brl(recebidaAntes) + ' -> ' + brl(recebidaDepois) + (total ? ' de ' + brl(total) : '') + (fechaEntrada ? ' [ENTRADA ' + pct + '% OK -> pode iniciar]' : '') + (moveEntregue ? ' [QUITADO -> entregue]' : quitou ? ' [quitado]' : '') );
-
-    if (!DRY_RUN) {
-      const patch = { receita_recebida_centavos: recebidaDepois, last_movement_at: new Date(String(t.data).slice(0, 10) + 'T12:00:00-03:00').toISOString(), origem_ultimo_update: 'extrato' };
-      if (moveEntregue) patch.status = 'entregue';
-      if (fechaEntrada) patch.entrada_paga_em = new Date(String(t.data).slice(0, 10) + 'T12:00:00-03:00').toISOString();
-      await sb('PATCH', '/rest/v1/fin_projetos?id=eq.' + alvo.id, patch);
-      alvo.receita_recebida_centavos = recebidaDepois; if (moveEntregue) alvo.status = 'entregue';
-      if (fechaEntrada) alvo.entrada_paga_em = patch.entrada_paga_em;
-      await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'extrato', confirmado: false, tipo: 'pagamento', valor_centavos: val, descricao: '(auto do extrato) pagamento recebido ' + brl(val) + ' de "' + pag + '"' + (moveEntregue ? ' — quitado, projeto marcado como entregue' : '') });
-      if (fechaEntrada) await sb('POST', '/rest/v1/fin_projeto_eventos', { projeto_id: alvo.id, origem: 'extrato', confirmado: false, tipo: 'pagamento', valor_centavos: entradaExigida, descricao: '(auto do extrato) ENTRADA de ' + pct + '% (' + brl(entradaExigida) + ') atingida — contrato liberado para iniciar' });
-      // vincula o lançamento ao projeto (etiqueta) p/ a conta do projeto
-      const etq = alvo.etiqueta_extrato || alvo.codigo;
-      if (etq && !t.projeto) await sb('PATCH', '/rest/v1/fin_transacoes_bancarias?id=eq.' + t.id, { projeto: etq });
-      await sb('POST', '/rest/v1/projeto_feeder_processados', { msg_id: key, autor: pag, texto: t.historico, relevante: true, n_updates: 1, resultado: { projeto: alvo.codigo || alvo.id, valor_centavos: val, quitou, moveEntregue } });
-      proc.add(key);
-    }
+    await aplicarBaixa(alvo, t, val, pag, linha, motivo);
   }
 
   console.log('\n===== RESUMO: ' + creditos.length + ' créditos · ' + nBaixa + ' baixas · ' + nRev + ' p/ revisão =====');

@@ -28,6 +28,9 @@ const GRUPO_PROJETOS = '120363407925288367@g.us';
 const PARADO_DIAS = parseInt(process.env.PARADO_DIAS || '7');   // limiar "parado há X dias"
 const DOC_DIAS = parseInt(process.env.DOC_DIAS || '10');        // limiar doc pendente antigo
 const MODO_SOMBRA = process.env.MODO_SOMBRA !== 'false';        // default: SOMBRA
+// PREVIEW: só monta e imprime o texto — NÃO grava no log e NÃO envia.
+// (útil p/ conferir o texto sem criar registro do dia, que bloquearia o envio das 7h30)
+const PREVIEW = process.env.DRY_RUN === '1' || process.env.PREVIEW === '1';
 
 // ── REST helper (Supabase) ──────────────────────────────────────────
 function sbREST(method, path, body) {
@@ -163,9 +166,11 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
     L.push('  Total de entradas a receber: ' + brl(tot));
     L.push('');
   }
+  // Os valores faltantes NÃO entram aqui: viram uma mensagem-pergunta separada
+  // (projeto_pergunta_valores.js). Pergunta no meio de relatório não é respondida,
+  // e repetir a lista todo dia vira ruído. Aqui fica só o contador.
   if (semValorLista.length) {
-    L.push('SEM VALOR DE CONTRATO (sem isso nao da p/ cobrar a entrada):');
-    semValorLista.forEach(({ p }) => L.push(linhaProj(p, 'informar o valor fechado')));
+    L.push(semValorLista.length + ' projeto(s) ainda sem valor de contrato (pergunto em mensagem separada).');
     L.push('');
   }
   if (parados.length) {
@@ -208,9 +213,11 @@ const dateBRT = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paul
     sem_entrada: semEntrada.length, viola_entrada: violaEntrada.length, sem_valor: semValorLista.length,
     entrada_a_receber_centavos: semEntrada.concat(violaEntrada).reduce((s, x) => s + entFalta(x.p), 0) };
 
-  console.log('===== DIGEST GERADO (' + (MODO_SOMBRA ? 'SOMBRA' : 'REAL') + ') =====');
+  console.log('===== DIGEST GERADO (' + (PREVIEW ? 'PREVIEW' : MODO_SOMBRA ? 'SOMBRA' : 'REAL') + ') =====');
   console.log(conteudo);
   console.log('=====================================');
+
+  if (PREVIEW) { console.log('(PREVIEW — nada gravado no log, nada enviado ao grupo.)'); return; }
 
   // ── grava sempre no log de auditoria ──────────────────────────────
   const ins = await sbREST('POST', '/rest/v1/projeto_digest_log', {
