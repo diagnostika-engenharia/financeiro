@@ -55,12 +55,13 @@ const TIPOS = { averbacao: 'Averbação', regularizacao: 'Regularização', anex
 const ATIVO = p => p.status !== 'entregue';
 
 (async () => {
-  // Agendado (SCHEDULED=1): só pergunta em horário comercial BRT, dia útil.
-  // O cron do SO desta máquina ignora CRON_TZ, então quem decide a hora é o
-  // relógio BRT do container (mesmo padrão do digest).
+  // Agendado (SCHEDULED=1): pergunta às 7h25 BRT, dia útil (logo antes do
+  // digest das 7h30). O cron do SO ignora CRON_TZ, então ele dispara de hora
+  // em hora no minuto :25 e é ESTE guard, no relógio BRT do container, que
+  // escolhe a hora certa — imune ao fuso do host e ao horário de verão europeu.
   if (process.env.SCHEDULED === '1') {
     const now = new Date(); const dow = now.getDay(), hh = now.getHours();
-    if (!(dow >= 1 && dow <= 5 && hh >= 9 && hh < 18)) { console.log('Fora do horario comercial BRT (' + now.toTimeString().slice(0, 5) + ', dow ' + dow + '). Nao pergunto agora.'); return; }
+    if (!(dow >= 1 && dow <= 5 && hh === 7)) { console.log('Fora da janela (BRT ' + now.toTimeString().slice(0, 5) + ', dow ' + dow + '); pergunto so as 7h25 em dia util.'); return; }
   }
 
   const [projetos, clientes, log] = await Promise.all([
