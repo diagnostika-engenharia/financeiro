@@ -7523,6 +7523,10 @@ async function pjGerarParcelas(){
       cliente:cli, categoria:'Projeto', projeto_id:id,
       descricao:(rot?rot+' — ':'')+x.rotulo,
       valor:x.valor, data_vencimento:x.venc, status:'Pendente',
+      // dia_vencimento é NOT NULL (legado das mensalidades recorrentes): deriva
+      // do vencimento; sem data ("na entrega") usa 1 só como placeholder.
+      dia_vencimento:x.venc?parseInt(String(x.venc).slice(8,10)):1,
+      recorrente:false,
     }));
     const{data,error}=await sb.from('fin_contas_receber').insert(rows).select();
     if(error)throw error;
@@ -7843,7 +7847,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260717-061445';
+const APP_BUILD='20260717-062051';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
