@@ -6614,6 +6614,25 @@ async function _aplicarParcelamentos(itens,socioNome,comp){
   if(aplicadas.length) await _carregarParcelamentos(true);
   return aplicadas.map(a=>a.regra);
 }
+// Reverte a trava de parcelamento de uma competência (ao excluir/estornar o recibo):
+// remove a competência de competencias_aplicadas, recua parcela_atual e reativa a regra.
+// Assim, apagar e regerar o recibo faz o desconto reaparecer sozinho.
+async function _reverterParcelamentos(socioNome,comp){
+  const{data:regras}=await sb.from('fin_parcelamentos').select('*').eq('socio_nome',socioNome);
+  const revertidas=[];
+  for(const r of (regras||[])){
+    const comps=r.competencias_aplicadas||[];
+    if(!comps.includes(comp))continue;
+    await sb.from('fin_parcelamentos').update({
+      parcela_atual:Math.max(1,(r.parcela_atual||1)-1),
+      competencias_aplicadas:comps.filter(c=>c!==comp),
+      ativo:true
+    }).eq('id',r.id);
+    revertidas.push(r);
+  }
+  if(revertidas.length) await _carregarParcelamentos(true);
+  return revertidas;
+}
 
 let _plItemIdx=0;
 let _plContasSaldo={}; // {cofre: saldo, 1: saldo, 2: saldo, 3: saldo}
@@ -6684,6 +6703,8 @@ async function saveProLabore(){
   // Aplica automaticamente parcelamentos ativos (ex: drone): mantém o débito cheio e
   // adiciona a linha de crédito de estorno (despesa PJ). Idempotente por competência.
   const ajustesAplicados=await _aplicarParcelamentos(novosItens,socioNome,comp);
+  // Garante pro_labore_id em qualquer linha adicionada pela regra (ela não o define).
+  novosItens.forEach(i=>{ if(i.pro_labore_id==null) i.pro_labore_id=plId; });
 
   if(novosItens.length){
     const{error:e2}=await sb.from('fin_pro_labore_itens').insert(novosItens);
@@ -6710,9 +6731,15 @@ async function editPL(id){
 
 async function delPL(id){
   if(!confirm('Excluir este lançamento?'))return;
+  // Captura sócio/competência ANTES de apagar, p/ devolver a trava de parcelamento.
+  const{data:pl}=await sb.from('fin_pro_labore').select('socio_nome,competencia').eq('id',id).single();
   await sb.from('fin_pro_labore_itens').delete().eq('pro_labore_id',id);
   const{error}=await sb.from('fin_pro_labore').delete().eq('id',id);
   if(error){toast('Erro ao excluir',true);return;}
+  if(pl){
+    const rev=await _reverterParcelamentos(pl.socio_nome,pl.competencia);
+    rev.forEach(r=>toast(`Parcelamento "${r.descricao}" liberado de ${pl.competencia} (volta a aplicar se regerar)`));
+  }
   toast('Lançamento excluído');loadProLabore();
 }
 
@@ -6833,6 +6860,9 @@ async function estornarPL(id){
     }
   }
 
+  // Obs: NÃO reverter a trava de parcelamento aqui — o recibo estornado permanece e pode
+  // ser re-pago (o que reaplicaria o desconto e duplicaria a linha de crédito). A reversão
+  // acontece só na exclusão real (delPL).
   toast('Pagamento estornado');loadProLabore();
 }
 
