@@ -6949,11 +6949,11 @@ async function gerarPLMes(compDefault,socioIdFiltro){
         alertas.push('Fatura do cartão NÃO encontrada no banco');
       }
 
-      // 3. Financiamento carro R$1.985,81 (dia ~23, DÉB.TIT)
+      // 3. Financiamento carro R$1.985,81 (dia ~23, DÉB.TIT) — parcela PESSOAL do Claudemir,
+      // confirmada como recorrente contra o extrato; entra automaticamente como desconto.
       const financ=banco.find(t=>Math.round(t.valor*100)===198581);
       if(financ){
-        itens.push({tipo:'debito',descricao:'Financiamento carro (confirmar)',valor:198581,data:financ.data});
-        alertas.push('Financiamento carro R$1.985,81 encontrado em '+financ.data+' — CONFIRMAR desconto');
+        itens.push({tipo:'debito',descricao:'Financiamento carro (pessoal)',valor:198581,data:financ.data});
       } else {
         alertas.push('Financiamento carro R$1.985,81 NÃO localizado no banco');
       }
