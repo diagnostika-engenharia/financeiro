@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BI / Indicadores — Mockup • Financeiro Diagnóstika</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --teal:#155B67; --teal2:#2C6E79; --teal-deep:#244B5B;
+    --turq:#00B4AC; --green:#16A34A; --green-d:#1B5E20;
+    --orange:#E65100; --orange-l:#FFF3E0; --red:#C0392B;
+    --blue:#1565C0; --ink:#253235; --muted:#6B7B83;
+    --bg:#f4f6f8; --card:#ffffff; --line:#E2EAEF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);padding:0;-webkit-font-smoothing:antialiased}
+  .topbar{background:var(--teal);color:#fff;padding:10px 20px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .topbar .dot{width:8px;height:8px;border-radius:50%;background:var(--turq)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px}
+  h1{font-size:26px;color:var(--teal);letter-spacing:-.3px}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .badge{background:var(--orange-l);color:var(--orange);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #f3d9bf}
+
+  /* filtro periodo */
+  .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{border:0;background:transparent;padding:8px 16px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s}
+  .seg button.on{background:var(--teal);color:#fff}
+  .seg button:not(.on):hover{background:#eef3f5}
+
+  /* kpis */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--card);border-radius:14px;padding:16px 18px;border:1px solid var(--line);border-left:4px solid var(--teal);box-shadow:0 1px 3px rgba(20,60,70,.05)}
+  .kpi.g{border-left-color:var(--green)} .kpi.r{border-left-color:var(--red)} .kpi.o{border-left-color:var(--orange)}
+  .kpi .lbl{font-size:11px;letter-spacing:.5px;color:var(--muted);font-weight:700;text-transform:uppercase}
+  .kpi .val{font-size:24px;font-weight:800;margin-top:6px;letter-spacing:-.5px}
+  .kpi.g .val{color:var(--green)} .kpi.r .val{color:var(--red)} .kpi .val{color:var(--teal)} .kpi.o .val{color:var(--orange)}
+  .kpi .trend{font-size:11px;margin-top:5px;color:var(--muted)}
+  .kpi .trend b{color:var(--green)} .kpi .trend.down b{color:var(--red)}
+
+  /* grid graficos */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--card);border-radius:14px;padding:18px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(20,60,70,.05)}
+  .card.full{grid-column:1 / -1}
+  .card h3{font-size:14px;color:var(--teal-deep);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between}
+  .card .cap{font-size:11px;color:var(--muted);margin-bottom:14px}
+  .chart-box{position:relative;height:280px}
+  .chart-box.tall{height:320px}
+  .pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:#eef3f5;color:var(--teal2)}
+
+  .foot{margin-top:24px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6}
+  .foot b{color:var(--teal)}
+
+  @media(max-width:860px){
+    .kpis{grid-template-columns:1fr 1fr}
+    .grid{grid-template-columns:1fr}
+    h1{font-size:22px}
+    .head{align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><span class="dot"></span> Financeiro · Diagnóstika &nbsp;›&nbsp; <b style="font-weight:600">BI / Indicadores</b> &nbsp;<span style="opacity:.6;font-size:11px">(mockup interativo — dados de exemplo)</span></div>
+
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>BI / Indicadores <span class="badge">PRÉVIA</span></h1>
+        <div class="sub">Inteligência financeira • dados ilustrativos para validação visual</div>
+      </div>
+      <div class="seg" id="seg">
+        <button data-p="3">3 meses</button>
+        <button data-p="6" class="on">6 meses</button>
+        <button data-p="12">12 meses</button>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid">
+      <div class="card full">
+        <h3>Fluxo de caixa mensal <span class="pill" id="fluxoTag">6 meses</span></h3>
+        <div class="cap">Entradas × Saídas (barras) e saldo acumulado (linha)</div>
+        <div class="chart-box tall"><canvas id="cFluxo"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h3>Receita por tipo de serviço</h3>
+        <div class="cap">ART concentra a maior fatia da demanda</div>
+        <div class="chart-box"><canvas id="cServico"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h3>Receita por condomínio</h3>
+        <div class="cap">Top clientes no período</div>
+        <div class="chart-box"><canvas id="cCliente"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h3>Inadimplência / contas a receber</h3>
+        <div class="cap">Em dia × A vencer × Vencido</div>
+        <div class="chart-box"><canvas id="cInad"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h3>Resultado (DRE) — evolução</h3>
+        <div class="cap">Receita, despesa e margem mês a mês</div>
+        <div class="chart-box"><canvas id="cDre"></canvas></div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <b>Mockup interativo</b> — troque o período no canto superior direito e os gráficos recalculam.<br>
+      Versão real puxaria os dados das tabelas <b>fin_contas_receber</b>, <b>fin_contas_pagar</b>, <b>fin_nfse_emitidas</b> e <b>fin_transacoes_bancarias</b> no Supabase.
+    </div>
+  </div>
+
+<script>
+const C={teal:'#155B67',teal2:'#2C6E79',turq:'#00B4AC',green:'#16A34A',orange:'#E65100',red:'#C0392B',blue:'#1565C0',muted:'#6B7B83',line:'#E2EAEF'};
+const BRL=v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0});
+const BRLk=v=>'R$ '+(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:1})+'k';
+
+// ---- base de dados de exemplo (12 meses) ----
+const MESES=['Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai','Jun'];
+const ENTRADAS=[6200,7100,5800,8400,7600,9200,6800,7900,8600,7200,9100,8300];
+const SAIDAS  =[4100,4600,5200,4800,5100,6300,4400,4900,5300,4700,5600,5200];
+
+const SERVICOS=[
+  {l:'ART (CREA)',          v:61, c:C.teal},
+  {l:'Laudos / Pareceres',  v:16, c:C.turq},
+  {l:'Plano de Manutenção', v:11, c:C.green},
+  {l:'Projetos',            v: 8, c:C.orange},
+  {l:'Vistorias',           v: 4, c:C.blue},
+];
+const CLIENTES=[
+  {l:'Portal Primavera', v:14200},
+  {l:'Monte Carlo',      v:11800},
+  {l:'Morada Morumbi',   v: 9600},
+  {l:'Santa Clara',      v: 7300},
+  {l:'Fit Condo',        v: 5100},
+  {l:'Outros',           v: 8900},
+];
+
+let charts={};
+function destroyAll(){Object.values(charts).forEach(c=>c&&c.destroy());charts={}}
+
+function slice(p){
+  const n=p, s=12-n;
+  return {meses:MESES.slice(s),ent:ENTRADAS.slice(s),sai:SAIDAS.slice(s)};
+}
+
+function render(p){
+  destroyAll();
+  const d=slice(p);
+  document.getElementById('fluxoTag').textContent=p+' meses';
+
+  // KPIs
+  const totIn=d.ent.reduce((a,b)=>a+b,0), totOut=d.sai.reduce((a,b)=>a+b,0);
+  const result=totIn-totOut, margem=Math.round(result/totIn*100);
+  const inad=Math.round(totIn*0.12);
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi g"><div class="lbl">Receita no período</div><div class="val">${BRL(totIn)}</div><div class="trend">▲ <b>+12%</b> vs. anterior</div></div>
+    <div class="kpi r"><div class="lbl">Despesa no período</div><div class="val">${BRL(totOut)}</div><div class="trend down">▲ <b>+4%</b> vs. anterior</div></div>
+    <div class="kpi"><div class="lbl">Resultado</div><div class="val">${BRL(result)}</div><div class="trend">margem <b>${margem}%</b></div></div>
+    <div class="kpi o"><div class="lbl">A receber vencido</div><div class="val">${BRL(inad)}</div><div class="trend">${(12).toFixed(0)}% da receita</div></div>`;
+
+  const gridCfg={grid:{color:'#eef2f4'},ticks:{color:C.muted,font:{size:11}}};
+  const noGrid={grid:{display:false},ticks:{color:C.muted,font:{size:11}}};
+
+  // Fluxo
+  let acc=0;const saldo=d.ent.map((e,i)=>acc+=(e-d.sai[i]));
+  charts.fluxo=new Chart(cFluxo,{data:{labels:d.meses,datasets:[
+    {type:'bar',label:'Entradas',data:d.ent,backgroundColor:C.green,borderRadius:5,order:2},
+    {type:'bar',label:'Saídas',data:d.sai,backgroundColor:C.orange,borderRadius:5,order:2},
+    {type:'line',label:'Saldo acumulado',data:saldo,borderColor:C.teal,backgroundColor:C.teal,tension:.35,borderWidth:3,pointRadius:3,order:1,yAxisID:'y'}
+  ]},options:{maintainAspectRatio:false,responsive:true,
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8,font:{size:12}}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': '+BRL(c.raw)}}},
+    scales:{x:noGrid,y:{...gridCfg,ticks:{...gridCfg.ticks,callback:v=>BRLk(v)}}}}});
+
+  // Serviço (doughnut)
+  charts.serv=new Chart(cServico,{type:'doughnut',data:{labels:SERVICOS.map(s=>s.l),
+    datasets:[{data:SERVICOS.map(s=>s.v),backgroundColor:SERVICOS.map(s=>s.c),borderWidth:2,borderColor:'#fff'}]},
+    options:{maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.label+': '+c.raw+'%'}}}}});
+
+  // Cliente (barra horizontal)
+  const cl=[...CLIENTES].sort((a,b)=>b.v-a.v);
+  charts.cli=new Chart(cCliente,{type:'bar',data:{labels:cl.map(c=>c.l),
+    datasets:[{data:cl.map(c=>c.v),backgroundColor:C.teal2,borderRadius:5}]},
+    options:{indexAxis:'y',maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>BRL(c.raw)}}},
+      scales:{x:{...gridCfg,ticks:{...gridCfg.ticks,callback:v=>BRLk(v)}},y:noGrid}}});
+
+  // Inadimplência
+  charts.inad=new Chart(cInad,{type:'doughnut',data:{labels:['Em dia','A vencer','Vencido'],
+    datasets:[{data:[64,24,12],backgroundColor:[C.green,C.blue,C.red],borderWidth:2,borderColor:'#fff'}]},
+    options:{maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.label+': '+c.raw+'%'}}}}});
+
+  // DRE
+  const margemArr=d.ent.map((e,i)=>Math.round((e-d.sai[i])/e*100));
+  charts.dre=new Chart(cDre,{data:{labels:d.meses,datasets:[
+    {type:'line',label:'Receita',data:d.ent,borderColor:C.green,backgroundColor:'rgba(22,163,74,.08)',fill:true,tension:.35,borderWidth:2,pointRadius:2},
+    {type:'line',label:'Despesa',data:d.sai,borderColor:C.orange,backgroundColor:'rgba(230,81,0,.06)',fill:true,tension:.35,borderWidth:2,pointRadius:2},
+    {type:'line',label:'Margem %',data:margemArr,borderColor:C.teal,borderWidth:3,borderDash:[5,4],tension:.35,pointRadius:0,yAxisID:'y1'}
+  ]},options:{maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8,font:{size:12}}}},
+    scales:{x:noGrid,
+      y:{...gridCfg,ticks:{...gridCfg.ticks,callback:v=>BRLk(v)}},
+      y1:{position:'right',grid:{display:false},ticks:{color:C.teal,callback:v=>v+'%',font:{size:11}},min:0,max:60}}}});
+}
+
+// filtro
+document.getElementById('seg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#seg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  render(+b.dataset.p);
+});
+
+render(6);
+</script>
+</body>
+</html>

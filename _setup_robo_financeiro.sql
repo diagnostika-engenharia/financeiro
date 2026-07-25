@@ -36,13 +36,13 @@ begin
     'a_receber', (
       select jsonb_build_object(
         'pendente_total', round(coalesce(sum(valor),0)/100.0,2),
-        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento::date < hoje),0)/100.0,2),
+        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento < hoje),0)/100.0,2),
         'qtd', count(*),
         'proximos', coalesce((
           select jsonb_agg(jsonb_build_object(
             'cliente',cliente,'categoria',categoria,
-            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento::date,'DD/MM/YYYY'),
-            'vencido',(data_vencimento::date < hoje)))
+            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento,'DD/MM/YYYY'),
+            'vencido',(data_vencimento < hoje)))
           from (select * from public.fin_contas_receber
                 where status='Pendente' and coalesce(estornado,false)=false
                 order by data_vencimento limit 15) s), '[]'::jsonb)
@@ -53,13 +53,13 @@ begin
     'a_pagar', (
       select jsonb_build_object(
         'pendente_total', round(coalesce(sum(valor),0)/100.0,2),
-        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento::date < hoje),0)/100.0,2),
+        'vencido_total',  round(coalesce(sum(valor) filter (where data_vencimento < hoje),0)/100.0,2),
         'qtd', count(*),
         'proximos', coalesce((
           select jsonb_agg(jsonb_build_object(
             'fornecedor',fornecedor,'categoria',categoria,
-            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento::date,'DD/MM/YYYY'),
-            'vencido',(data_vencimento::date < hoje)))
+            'valor',round(valor/100.0,2),'vencimento',to_char(data_vencimento,'DD/MM/YYYY'),
+            'vencido',(data_vencimento < hoje)))
           from (select * from public.fin_contas_pagar
                 where status='Pendente' and coalesce(estornado,false)=false
                 order by data_vencimento limit 15) s), '[]'::jsonb)

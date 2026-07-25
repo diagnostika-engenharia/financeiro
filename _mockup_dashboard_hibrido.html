@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Híbrido — Mockup • Financeiro Diagnóstika</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --teal:#155B67; --teal2:#2C6E79; --teal-deep:#244B5B;
+    --turq:#00B4AC; --green:#16A34A; --green-d:#1B5E20;
+    --orange:#E65100; --orange-l:#FFF3E0; --red:#C0392B;
+    --blue:#1565C0; --ink:#253235; --muted:#6B7B83;
+    --bg:#f4f6f8; --card:#ffffff; --line:#E2EAEF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .topbar{background:var(--teal);color:#fff;padding:10px 20px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .topbar .dot{width:8px;height:8px;border-radius:50%;background:var(--turq)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:6px}
+  h1{font-size:26px;color:var(--teal);letter-spacing:-.3px}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .badge{background:var(--orange-l);color:var(--orange);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #f3d9bf}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 14px;font-size:13px;color:var(--teal);cursor:pointer;font-weight:600}
+  .btn:hover{background:#eef3f5}
+
+  .filterbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 18px;font-size:13px;color:var(--muted)}
+  .filterbar input{border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:13px;color:var(--ink)}
+  .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-left:auto}
+  .seg button{border:0;background:transparent;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+  .seg button.on{background:var(--teal);color:#fff}
+  .seg button:not(.on):hover{background:#eef3f5}
+
+  /* saldo atual destaque */
+  .hero{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px}
+  .saldo-card{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;box-shadow:0 4px 14px rgba(20,75,91,.25)}
+  .saldo-card .lbl{font-size:12px;letter-spacing:.5px;font-weight:700;opacity:.85;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .saldo-card .big{font-size:38px;font-weight:800;letter-spacing:-1px;margin-top:6px}
+  .saldo-card .eye{cursor:pointer;opacity:.7;font-size:14px}
+  .accounts{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+  .acct{display:flex;justify-content:space-between;align-items:center;font-size:13px;background:rgba(255,255,255,.12);border-radius:9px;padding:8px 12px}
+  .acct .nm{display:flex;align-items:center;gap:8px;opacity:.95}
+  .acct .bdot{width:8px;height:8px;border-radius:2px;background:var(--turq)}
+  .acct .vl{font-weight:700}
+  .spark-card{background:var(--card);border-radius:16px;padding:18px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(20,60,70,.05);display:flex;flex-direction:column}
+  .spark-card h3{font-size:13px;color:var(--teal-deep);margin-bottom:2px}
+  .spark-card .cap{font-size:11px;color:var(--muted);margin-bottom:8px}
+  .spark-box{position:relative;flex:1;min-height:120px}
+
+  /* kpis acao */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--card);border-radius:14px;padding:15px 17px;border:1px solid var(--line);border-left:4px solid var(--teal);box-shadow:0 1px 3px rgba(20,60,70,.05)}
+  .kpi.g{border-left-color:var(--green)} .kpi.r{border-left-color:var(--red)} .kpi.o{border-left-color:var(--orange)} .kpi.b{border-left-color:var(--blue)}
+  .kpi .lbl{font-size:11px;letter-spacing:.4px;color:var(--muted);font-weight:700;text-transform:uppercase}
+  .kpi .val{font-size:22px;font-weight:800;margin-top:6px;letter-spacing:-.5px;color:var(--teal)}
+  .kpi.g .val{color:var(--green)} .kpi.r .val{color:var(--red)} .kpi.o .val{color:var(--orange)} .kpi.b .val{color:var(--blue)}
+  .kpi .sub2{font-size:11px;margin-top:4px;color:var(--muted)}
+
+  /* listas */
+  .panel{background:var(--card);border-radius:14px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(20,60,70,.05);margin-bottom:16px;overflow:hidden}
+  .panel-h{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--line)}
+  .panel-h h3{font-size:15px;color:var(--teal-deep)}
+  .panel-h a{font-size:12.5px;color:var(--teal2);text-decoration:none;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:11px 18px;font-size:10.5px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;font-weight:700;border-bottom:1px solid var(--line)}
+  td{padding:13px 18px;border-bottom:1px solid #f1f5f7}
+  tr:last-child td{border-bottom:0}
+  .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
+  .tag.venc{background:#fdecec;color:var(--red)} .tag.pend{background:#fff3e0;color:var(--orange)} .tag.ok{background:#e8f5e9;color:var(--green-d)}
+  .val-num{font-weight:700;color:var(--ink)}
+
+  .foot{margin-top:22px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6}
+  .foot b{color:var(--teal)}
+
+  @media(max-width:860px){
+    .hero{grid-template-columns:1fr}
+    .kpis{grid-template-columns:1fr 1fr}
+    h1{font-size:22px}
+    .saldo-card .big{font-size:32px}
+    th:nth-child(2),td:nth-child(2){display:none}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><span class="dot"></span> Financeiro · Diagnóstika &nbsp;›&nbsp; <b style="font-weight:600">Dashboard híbrido</b> &nbsp;<span style="opacity:.6;font-size:11px">(mockup interativo — dados de exemplo)</span></div>
+
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>Dashboard <span class="badge">PRÉVIA HÍBRIDA</span></h1>
+        <div class="sub">Fila de ação + sinais de tendência, sem perder o operacional</div>
+      </div>
+      <button class="btn">↻ Atualizar</button>
+    </div>
+
+    <div class="filterbar">
+      Vencimento de: <input type="text" value="dd/mm/aaaa" style="width:110px">
+      até: <input type="text" value="dd/mm/aaaa" style="width:110px">
+      <button class="btn" style="padding:6px 12px">Limpar período</button>
+      <div class="seg" id="seg">
+        <button data-p="30" class="on">30 dias</button>
+        <button data-p="60">60 dias</button>
+        <button data-p="90">90 dias</button>
+      </div>
+    </div>
+
+    <!-- HERO: saldo atual + sparkline -->
+    <div class="hero">
+      <div class="saldo-card">
+        <div class="lbl">💰 Saldo atual consolidado <span class="eye" id="eye" title="ocultar/mostrar">👁️</span></div>
+        <div class="big" id="saldoAtual">R$ 18.430,00</div>
+        <div class="accounts" id="accounts">
+          <div class="acct"><span class="nm"><span class="bdot"></span>Sicoob · Conta corrente</span><span class="vl">R$ 15.980,00</span></div>
+          <div class="acct"><span class="nm"><span class="bdot" style="background:var(--green)"></span>Caixa / dinheiro</span><span class="vl">R$ 1.250,00</span></div>
+          <div class="acct"><span class="nm"><span class="bdot" style="background:var(--orange)"></span>Reserva</span><span class="vl">R$ 1.200,00</span></div>
+        </div>
+      </div>
+      <div class="spark-card">
+        <h3>Evolução do saldo</h3>
+        <div class="cap" id="sparkCap">últimos 6 meses</div>
+        <div class="spark-box"><canvas id="cSpark"></canvas></div>
+      </div>
+    </div>
+
+    <!-- KPIs de ação -->
+    <div class="kpis" id="kpis"></div>
+
+    <!-- Contas a Receber -->
+    <div class="panel">
+      <div class="panel-h"><h3>Contas a Receber — Pendentes</h3><a href="#">Ver todas →</a></div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Portal Primavera</td><td>Serviços de Engenharia</td><td>20/06/2026</td><td class="val-num">R$ 1.750,00</td><td><span class="tag venc">⚠ Vencido</span></td></tr>
+          <tr><td>Monte Carlo</td><td>ART (CREA)</td><td>02/07/2026</td><td class="val-num">R$ 350,00</td><td><span class="tag pend">⏳ A vencer</span></td></tr>
+          <tr><td>Morada Morumbi</td><td>Plano de Manutenção</td><td>10/07/2026</td><td class="val-num">R$ 2.400,00</td><td><span class="tag pend">⏳ A vencer</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Contas a Pagar -->
+    <div class="panel">
+      <div class="panel-h"><h3>Contas a Pagar — Pendentes</h3><a href="#">Ver todas →</a></div>
+      <table>
+        <thead><tr><th>Fornecedor</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Reembolso Rogério Conceição (Digitais) — junho de 2026</td><td>Reembolsos</td><td>30/06/2026</td><td class="val-num">R$ 2.065,91</td><td><span class="tag pend">⏳ Pendente</span></td></tr>
+          <tr><td>Anuidade CREA-SP</td><td>Impostos / Taxas</td><td>05/07/2026</td><td class="val-num">R$ 580,00</td><td><span class="tag pend">⏳ Pendente</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="foot">
+      <b>Dashboard híbrido</b> — mantém as listas de ação e ganha o <b>saldo atual consolidado</b> + evolução. O BI completo fica numa aba à parte.<br>
+      Versão real: saldo das contas via <b>fin_transacoes_bancarias</b>; previstos via <b>fin_contas_receber</b> / <b>fin_contas_pagar</b>.
+    </div>
+  </div>
+
+<script>
+const C={teal:'#155B67',teal2:'#2C6E79',turq:'#00B4AC',green:'#16A34A',orange:'#E65100',red:'#C0392B',blue:'#1565C0',muted:'#6B7B83'};
+const BRL=v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2});
+const BRL0=v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0});
+
+const SALDO_ATUAL=18430;
+const SALDO_HIST=[9200,11400,10800,13600,15100,18430]; // 6 meses
+const MESES=['Jan','Fev','Mar','Abr','Mai','Jun'];
+
+// previstos por janela de dias (exemplo)
+const DADOS={
+  30:{ent:4500,sai:2645.91,receb:4500,vencido:1750},
+  60:{ent:7850,sai:4210,receb:7850,vencido:1750},
+  90:{ent:11200,sai:6480,receb:11200,vencido:1750},
+};
+
+let spark;
+function renderSpark(){
+  if(spark)spark.destroy();
+  spark=new Chart(cSpark,{type:'line',data:{labels:MESES,datasets:[{
+    data:SALDO_HIST,borderColor:C.teal,backgroundColor:'rgba(0,180,172,.12)',fill:true,
+    tension:.4,borderWidth:3,pointRadius:3,pointBackgroundColor:C.turq
+  }]},options:{maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>BRL0(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{color:C.muted,font:{size:10}}},
+      y:{grid:{color:'#eef2f4'},ticks:{color:C.muted,font:{size:10},callback:v=>'R$'+(v/1000)+'k'}}}}});
+}
+
+function renderKpis(p){
+  const d=DADOS[p];
+  const projetado=SALDO_ATUAL+d.ent-d.sai;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi g"><div class="lbl">Entradas previstas</div><div class="val">${BRL(d.ent)}</div><div class="sub2">próximos ${p} dias</div></div>
+    <div class="kpi r"><div class="lbl">Saídas previstas</div><div class="val">${BRL(d.sai)}</div><div class="sub2">próximos ${p} dias</div></div>
+    <div class="kpi b"><div class="lbl">Saldo projetado</div><div class="val">${BRL(projetado)}</div><div class="sub2">saldo atual + previstos</div></div>
+    <div class="kpi o"><div class="lbl">A receber vencido</div><div class="val">${BRL(d.vencido)}</div><div class="sub2">cobrança imediata</div></div>`;
+}
+
+document.getElementById('seg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#seg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  renderKpis(+b.dataset.p);
+});
+
+// privacidade do saldo
+let hidden=false;
+document.getElementById('eye').addEventListener('click',()=>{
+  hidden=!hidden;
+  document.getElementById('saldoAtual').textContent = hidden ? 'R$ ••••••' : BRL(SALDO_ATUAL);
+  document.querySelectorAll('#accounts .vl').forEach((el,i)=>{
+    if(hidden){el.dataset.v=el.textContent;el.textContent='••••';}
+    else{el.textContent=el.dataset.v;}
+  });
+});
+
+document.getElementById('saldoAtual').textContent=BRL(SALDO_ATUAL);
+renderSpark();
+renderKpis(30);
+</script>
+</body>
+</html>

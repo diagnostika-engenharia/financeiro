@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projeção de Caixa — Mockup • Financeiro Diagnóstika</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --teal:#155B67; --teal2:#2C6E79; --teal-deep:#244B5B;
+    --turq:#00B4AC; --green:#16A34A; --green-d:#1B5E20;
+    --orange:#E65100; --orange-l:#FFF3E0; --red:#C0392B; --red-l:#fdecec;
+    --blue:#1565C0; --ink:#253235; --muted:#6B7B83;
+    --bg:#f4f6f8; --card:#ffffff; --line:#E2EAEF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .topbar{background:var(--teal);color:#fff;padding:10px 20px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .topbar .dot{width:8px;height:8px;border-radius:50%;background:var(--turq)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:14px}
+  h1{font-size:26px;color:var(--teal);letter-spacing:-.3px}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .badge{background:var(--orange-l);color:var(--orange);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #f3d9bf}
+
+  .scen{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .scen button{border:0;background:transparent;padding:8px 16px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+  .scen button.on{background:var(--teal);color:#fff}
+  .scen button:not(.on):hover{background:#eef3f5}
+
+  /* banner de status */
+  .banner{border-radius:12px;padding:14px 18px;margin-bottom:16px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .banner.ok{background:#e8f5e9;color:var(--green-d);border:1px solid #c8e6c9}
+  .banner.warn{background:var(--red-l);color:var(--red);border:1px solid #f5c6c6}
+  .banner .ic{font-size:18px;flex-shrink:0}
+  .banner .bn-txt{flex:1;line-height:1.45}
+
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+  .kpi{background:var(--card);border-radius:14px;padding:15px 18px;border:1px solid var(--line);border-left:4px solid var(--teal);box-shadow:0 1px 3px rgba(20,60,70,.05)}
+  .kpi.g{border-left-color:var(--green)} .kpi.r{border-left-color:var(--red)} .kpi.b{border-left-color:var(--blue)}
+  .kpi .lbl{font-size:11px;letter-spacing:.4px;color:var(--muted);font-weight:700;text-transform:uppercase}
+  .kpi .val{font-size:23px;font-weight:800;margin-top:6px;letter-spacing:-.5px;color:var(--teal)}
+  .kpi.g .val{color:var(--green)} .kpi.r .val{color:var(--red)} .kpi.b .val{color:var(--blue)}
+  .kpi .sub2{font-size:11px;margin-top:4px;color:var(--muted)}
+
+  .grid{display:grid;grid-template-columns:1.7fr 1fr;gap:16px}
+  .card{background:var(--card);border-radius:14px;padding:18px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(20,60,70,.05)}
+  .card h3{font-size:14px;color:var(--teal-deep);margin-bottom:2px}
+  .card .cap{font-size:11px;color:var(--muted);margin-bottom:14px}
+  .chart-box{position:relative;height:340px}
+
+  .tl{max-height:340px;overflow-y:auto;margin:-4px -4px 0;padding:0 4px}
+  .tl-item{display:flex;align-items:center;gap:11px;padding:10px 4px;border-bottom:1px solid #f1f5f7}
+  .tl-item:last-child{border-bottom:0}
+  .tl-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:700}
+  .tl-ic.in{background:#e8f5e9;color:var(--green-d)} .tl-ic.out{background:var(--orange-l);color:var(--orange)}
+  .tl-mid{flex:1;min-width:0}
+  .tl-desc{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tl-date{font-size:11px;color:var(--muted)}
+  .tl-val{font-size:13px;font-weight:700;text-align:right;white-space:nowrap}
+  .tl-val.in{color:var(--green)} .tl-val.out{color:var(--red)}
+  .tl-saldo{font-size:10.5px;color:var(--muted);text-align:right}
+  .tl-saldo.neg{color:var(--red);font-weight:700}
+
+  .foot{margin-top:22px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6}
+  .foot b{color:var(--teal)}
+
+  @media(max-width:860px){
+    .kpis{grid-template-columns:1fr}
+    .grid{grid-template-columns:1fr}
+    h1{font-size:22px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><span class="dot"></span> Financeiro · Diagnóstika &nbsp;›&nbsp; <b style="font-weight:600">Projeção de Caixa</b> &nbsp;<span style="opacity:.6;font-size:11px">(mockup interativo — dados de exemplo)</span></div>
+
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>Projeção de Caixa <span class="badge">PRÉVIA · IDEIA 3</span></h1>
+        <div class="sub">Para onde o saldo vai nos próximos 60 dias — e quando aperta</div>
+      </div>
+      <div class="scen" id="scen">
+        <button data-s="otim">Otimista</button>
+        <button data-s="real" class="on">Realista</button>
+        <button data-s="pess">Pessimista</button>
+      </div>
+    </div>
+
+    <div class="banner" id="banner"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Saldo projetado dia a dia</h3>
+        <div class="cap">Trecho em vermelho = caixa negativo · linha pontilhada = zero</div>
+        <div class="chart-box"><canvas id="cProj"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Próximos lançamentos</h3>
+        <div class="cap" id="tlCap">entradas e saídas agendadas</div>
+        <div class="tl" id="tl"></div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <b>Projeção de Caixa</b> — troque o cenário e a curva, os alertas e a timeline recalculam.<br>
+      Versão real projeta a partir do saldo de <b>fin_transacoes_bancarias</b> + agendados em <b>fin_contas_receber</b> / <b>fin_contas_pagar</b>.
+    </div>
+  </div>
+
+<script>
+const C={teal:'#155B67',turq:'#00B4AC',green:'#16A34A',orange:'#E65100',red:'#C0392B',muted:'#6B7B83'};
+const BRL=v=>(v<0?'- R$ ':'R$ ')+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2});
+const BRL0=v=>(v<0?'-R$':'R$')+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:0});
+const BASE=new Date(2026,5,27); // 27/06/2026 (mês 0-indexado)
+const HORIZ=60;
+const fmtDate=d=>{const x=new Date(BASE);x.setDate(x.getDate()+d);return String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0');};
+
+const SALDO_INI=6800;
+
+// eventos base: dia varia por cenário; valor + = entrada
+function eventos(scen){
+  const e=[
+    {desc:'Reembolso Rogério Conceição', dia:3,  v:-2065.91},
+    {desc:'Monte Carlo · ART',           dia:5,  v: 350},
+    {desc:'Pró-labore',                  dia:5,  v:-3000},
+    {desc:'Anuidade CREA-SP',            dia:8,  v:-580},
+    {desc:'Despesas operacionais',       dia:15, v:-900},
+    {desc:'DAS (Simples Nacional)',      dia:20, v:-1150},
+    {desc:'Fit Condo · Laudo',           dia:32, v: 1800},
+    {desc:'Pró-labore',                  dia:35, v:-3000},
+    {desc:'NFS-e nova · Portal',         dia:48, v: 2200},
+  ];
+  // recebimentos que dependem do cenário
+  if(scen==='otim'){
+    e.push({desc:'Portal Primavera (vencido)', dia:2,  v:1750});
+    e.push({desc:'Morada Morumbi',             dia:10, v:2400});
+  }else if(scen==='real'){
+    e.push({desc:'Portal Primavera (vencido)', dia:7,  v:1750});
+    e.push({desc:'Morada Morumbi',             dia:13, v:2400});
+  }else{ // pessimista: vencido NÃO entra no horizonte; Morada atrasa
+    e.push({desc:'Morada Morumbi (atrasado)',  dia:25, v:2400});
+  }
+  return e.sort((a,b)=>a.dia-b.dia);
+}
+
+let chart;
+function render(scen){
+  const evs=eventos(scen);
+  // série diária
+  const serie=[]; let saldo=SALDO_INI; let ei=0;
+  for(let d=0;d<=HORIZ;d++){
+    while(ei<evs.length && evs[ei].dia===d){ saldo+=evs[ei].v; ei++; }
+    serie.push(saldo);
+  }
+  // métricas
+  let min=Infinity, minDia=0;
+  serie.forEach((v,i)=>{ if(v<min){min=v;minDia=i;} });
+  const fim=serie[serie.length-1];
+
+  // banner
+  const banner=document.getElementById('banner');
+  if(min<0){
+    banner.className='banner warn';
+    banner.innerHTML=`<span class="ic">⚠️</span><span class="bn-txt">Atenção: no cenário <b>${nome(scen)}</b> o caixa fica negativo em <b>${fmtDate(minDia)}</b> — menor saldo ${BRL(min)}.</span>`;
+  }else{
+    banner.className='banner ok';
+    banner.innerHTML=`<span class="ic">✅</span><span class="bn-txt">Cenário <b>${nome(scen)}</b>: o caixa se mantém positivo nos 60 dias — menor saldo ${BRL(min)} em ${fmtDate(minDia)}.</span>`;
+  }
+
+  // kpis
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="lbl">Saldo hoje</div><div class="val">${BRL(SALDO_INI)}</div><div class="sub2">${fmtDate(0)}</div></div>
+    <div class="kpi ${min<0?'r':'g'}"><div class="lbl">Menor saldo projetado</div><div class="val">${BRL(min)}</div><div class="sub2">em ${fmtDate(minDia)}</div></div>
+    <div class="kpi b"><div class="lbl">Saldo em 60 dias</div><div class="val">${BRL(fim)}</div><div class="sub2">${fmtDate(HORIZ)}</div></div>`;
+
+  // grafico
+  if(chart)chart.destroy();
+  const labels=serie.map((_,i)=> i%5===0?fmtDate(i):'');
+  chart=new Chart(cProj,{type:'line',data:{labels,datasets:[
+    {data:serie,borderWidth:3,tension:.25,pointRadius:0,fill:true,
+      borderColor:C.teal,
+      backgroundColor:(ctx)=>{const a=ctx.chart.ctx.createLinearGradient(0,0,0,340);a.addColorStop(0,'rgba(0,180,172,.18)');a.addColorStop(1,'rgba(0,180,172,0)');return a;},
+      segment:{borderColor:s=>s.p1.parsed.y<0?C.red:C.teal}},
+    {data:serie.map(()=>0),borderColor:'rgba(192,57,43,.55)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false}
+  ]},options:{maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{
+      title:items=>'Dia '+fmtDate(items[0].dataIndex),label:c=>'Saldo: '+BRL(c.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{color:C.muted,font:{size:10},autoSkip:false,maxRotation:0}},
+      y:{grid:{color:'#eef2f4'},ticks:{color:C.muted,font:{size:11},callback:v=>BRL0(v)}}}}});
+
+  // timeline
+  let run=SALDO_INI;
+  document.getElementById('tl').innerHTML=evs.map(ev=>{
+    run+=ev.v; const inn=ev.v>=0;
+    return `<div class="tl-item">
+      <div class="tl-ic ${inn?'in':'out'}">${inn?'↓':'↑'}</div>
+      <div class="tl-mid"><div class="tl-desc">${ev.desc}</div><div class="tl-date">${fmtDate(ev.dia)} · daqui a ${ev.dia} dias</div></div>
+      <div><div class="tl-val ${inn?'in':'out'}">${inn?'+':''}${BRL(ev.v)}</div><div class="tl-saldo ${run<0?'neg':''}">saldo ${BRL(run)}</div></div>
+    </div>`;
+  }).join('');
+}
+function nome(s){return s==='otim'?'Otimista':s==='pess'?'Pessimista':'Realista';}
+
+document.getElementById('scen').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#scen button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  render(b.dataset.s);
+});
+
+render('real');
+</script>
+</body>
+</html>

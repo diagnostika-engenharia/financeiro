@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard com gráfico — Prévia • Financeiro Diagnóstika</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --teal:#155B67; --teal2:#2C6E79; --teal-deep:#244B5B; --turq:#00B4AC;
+    --green:#16A34A; --orange:#E65100; --red:#C0392B; --blue:#1565C0;
+    --ink:#253235; --text2:#6B7B83; --bg:#f4f6f8; --card:#fff; --gray3:#E2EAEF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .topbar{background:var(--teal);color:#fff;padding:9px 18px;font-size:12px;display:flex;align-items:center;gap:8px}
+  .topbar .dot{width:8px;height:8px;border-radius:50%;background:var(--turq)}
+  .wrap{max-width:1120px;margin:0 auto;padding:20px 20px 60px}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px}
+  h2{font-size:24px;color:var(--teal)}
+  .page-header p{color:var(--text2);font-size:13px;margin-top:2px}
+  .btn{border:1px solid var(--gray3);background:#fff;border-radius:8px;padding:7px 13px;font-size:13px;color:var(--teal);cursor:pointer;font-weight:600}
+  .filt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 16px;font-size:12px;color:var(--text2);font-weight:600}
+  .filt input{border:1px solid var(--gray3);border-radius:8px;padding:5px 7px;color:var(--ink)}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  .kpi{background:var(--card);border-radius:12px;padding:15px 16px;border:1px solid var(--gray3);border-left:4px solid var(--teal)}
+  .kpi.green{border-left-color:var(--green)} .kpi.red{border-left-color:var(--red)} .kpi.blue{border-left-color:var(--blue)} .kpi.gray{border-left-color:var(--text2)}
+  .kpi label{font-size:11px;letter-spacing:.4px;color:var(--text2);font-weight:700;text-transform:uppercase}
+  .kpi .val{font-size:22px;font-weight:800;margin-top:6px;letter-spacing:-.5px}
+  .kpi.green .val{color:var(--green)} .kpi.red .val{color:var(--red)} .kpi.blue .val{color:var(--teal)} .kpi.gray .val{color:var(--text2)}
+
+  .card{background:var(--card);border-radius:12px;border:1px solid var(--gray3);margin-bottom:16px;overflow:hidden}
+  .card-hd{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--gray3)}
+  .card-hd h3{font-size:15px;color:var(--teal-deep)}
+  .card-hd a{font-size:12px;color:var(--turq);cursor:pointer;font-weight:600}
+  .card-bd{padding:18px}
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;padding:10px 18px;font-size:10.5px;letter-spacing:.4px;color:var(--text2);text-transform:uppercase;font-weight:700;border-bottom:1px solid var(--gray3)}
+  .tbl td{padding:12px 18px;border-bottom:1px solid #f1f5f7}
+  .tbl tr:last-child td{border-bottom:0}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
+  .badge.venc{background:#fdecec;color:var(--red)} .badge.pend{background:#fff3e0;color:var(--orange)}
+
+  /* destaque do card novo */
+  .novo{position:relative;box-shadow:0 0 0 2px var(--turq);}
+  .novo-tag{position:absolute;top:-11px;left:16px;background:var(--turq);color:#fff;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.3px;z-index:2}
+
+  #dashcat-seg{display:inline-flex;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12px}
+  #dashcat-seg button{border:0;background:#fff;color:var(--text2);padding:5px 12px;cursor:pointer;font-weight:600}
+  #dashcat-seg button.on{background:var(--turq);color:#fff}
+
+  @media(max-width:820px){
+    .kpi-row{grid-template-columns:1fr 1fr}
+    h2{font-size:20px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><span class="dot"></span> Financeiro · Diagnóstika &nbsp;<span style="opacity:.6;font-size:11px">— prévia do Dashboard com o gráfico (dados de exemplo)</span></div>
+
+  <div class="wrap">
+    <div class="page-header">
+      <div><h2>Dashboard</h2><p>Visão geral financeira</p></div>
+      <button class="btn">↺ Atualizar</button>
+    </div>
+    <div class="filt">
+      Vencimento de: <input value="dd/mm/aaaa" style="width:100px">
+      até: <input value="dd/mm/aaaa" style="width:100px">
+      <button class="btn" style="padding:5px 11px">Limpar período</button>
+    </div>
+
+    <!-- KPIs (iguais aos seus reais) -->
+    <div class="kpi-row">
+      <div class="kpi green"><label>Entradas Previstas</label><div class="val">R$ 1.750,00</div></div>
+      <div class="kpi red"><label>Saídas Previstas</label><div class="val">R$ 2.065,91</div></div>
+      <div class="kpi blue"><label>Saldo Projetado</label><div class="val">R$ -315,91</div></div>
+      <div class="kpi gray"><label>Contas Bancárias</label><div class="val">R$ 0,00</div></div>
+    </div>
+
+    <!-- ► CARD NOVO: exatamente aqui, entre os KPIs e as listas -->
+    <div class="card novo">
+      <span class="novo-tag">◆ CARD NOVO — é aqui que entra</span>
+      <div class="card-hd" style="flex-wrap:wrap;gap:8px">
+        <h3>Receita por categoria</h3>
+        <div id="dashcat-seg">
+          <button class="on" data-m="ambos" onclick="_setDashCat('ambos')">Ambos</button>
+          <button data-m="realizado" onclick="_setDashCat('realizado')">Realizado</button>
+          <button data-m="previsto" onclick="_setDashCat('previsto')">Previsto</button>
+        </div>
+      </div>
+      <div class="card-bd">
+        <div style="position:relative;height:260px"><canvas id="dash-cat-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- listas reais (inalteradas) -->
+    <div class="card">
+      <div class="card-hd"><h3>Contas a Receber — Pendentes</h3><a>Ver todas →</a></div>
+      <div class="card-bd" style="padding:0">
+        <table class="tbl">
+          <thead><tr><th>Cliente</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead>
+          <tbody><tr><td>Portal Primavera</td><td>Assessoria</td><td>20/06/2026</td><td><b>R$ 1.750,00</b></td><td><span class="badge venc">⚠ Vencido</span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h3>Contas a Pagar — Pendentes</h3><a>Ver todas →</a></div>
+      <div class="card-bd" style="padding:0">
+        <table class="tbl">
+          <thead><tr><th>Fornecedor</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead>
+          <tbody><tr><td>Reembolso Rogério Conceição (Digitais) — junho de 2026</td><td>Reembolsos</td><td>30/06/2026</td><td><b>R$ 2.065,91</b></td><td><span class="badge pend">⏳ Pendente</span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p style="text-align:center;color:var(--text2);font-size:12px;margin-top:20px;line-height:1.6">
+      O card <b>Receita por categoria</b> entra entre os indicadores e as listas de pendentes.<br>
+      Troque <b>Ambos / Realizado / Previsto</b> no canto do card — na versão real ele puxa de <b>fin_contas_receber</b> agrupado por categoria.
+    </p>
+  </div>
+
+<script>
+const _CORES={'ART':'#155B67','Assessoria':'#00B4AC','Projeto':'#16A34A','Vistoria':'#1565C0','Laudo/Parecer':'#E65100','Outros':'#6B7B83'};
+// dados de exemplo por modo (valores em R$)
+const DADOS={
+  ambos:     {'Assessoria':4200,'ART':2300,'Projeto':1350,'Laudo/Parecer':950,'Vistoria':400},
+  realizado: {'Assessoria':3000,'ART':1500,'Projeto':900,'Laudo/Parecer':600,'Vistoria':400},
+  previsto:  {'Assessoria':1200,'ART':800,'Projeto':450,'Laudo/Parecer':350},
+};
+let _chart=null;
+function _setDashCat(m){
+  document.querySelectorAll('#dashcat-seg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  const acc=DADOS[m];
+  const cats=Object.keys(acc).sort((a,b)=>acc[b]-acc[a]);
+  const valores=cats.map(c=>acc[c]), cores=cats.map(c=>_CORES[c]);
+  const total=valores.reduce((s,v)=>s+v,0);
+  if(_chart)_chart.destroy();
+  _chart=new Chart(document.getElementById('dash-cat-chart'),{type:'doughnut',
+    data:{labels:cats,datasets:[{data:valores,backgroundColor:cores,borderWidth:2,borderColor:'#fff'}]},
+    options:{maintainAspectRatio:false,cutout:'58%',
+      plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:12},padding:10}},
+        tooltip:{callbacks:{label:c=>{const v=c.raw,pct=total?Math.round(v/total*100):0;return ` ${c.label}: R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})} (${pct}%)`;}}}}}});
+}
+_setDashCat('ambos');
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+{
+  "name": "Sicoob — Sync Extrato",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "A cada 6h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sicoob-sync-extrato",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Manual",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 500],
+      "webhookId": "sicoob-sync-extrato"
+    },
+    {
+      "parameters": {
+        "mode": "passThrough"
+      },
+      "id": "merge-triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "grant_type", "value": "client_credentials" },
+            { "name": "client_id", "value": "={{ $credentials.sicoobOauth2.clientId }}" },
+            { "name": "client_secret", "value": "={{ $credentials.sicoobOauth2.clientSecret }}" },
+            { "name": "scope", "value": "conta_corrente" }
+          ]
+        },
+        "options": {
+          "pfx": {
+            "value": "={{ $credentials.sicoobMtls.pfx }}"
+          },
+          "passphrase": "={{ $credentials.sicoobMtls.passphrase }}"
+        }
+      },
+      "id": "oauth2-token",
+      "name": "OAuth2 Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 400],
+      "credentials": {
+        "httpSslAuth": { "id": "CONFIGURAR", "name": "Sicoob mTLS (.pfx)" }
+      },
+      "notesInFlow": true,
+      "notes": "⚠️ Credencial 'Sicoob mTLS (.pfx)' precisa ser criada no n8n com o .pfx + senha do Sicoob"
+    },
+    {
+      "parameters": {
+        "url": "https://api.sicoob.com.br/conta-corrente/v4/extrato",
+        "authentication": "genericCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.access_token }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "numeroContaCorrente", "value": "={{ $env.SICOOB_CONTA }}" },
+            { "name": "dataInicio", "value": "={{ $now.minus(7, 'days').format('yyyy-MM-dd') }}" },
+            { "name": "dataFim", "value": "={{ $now.format('yyyy-MM-dd') }}" }
+          ]
+        },
+        "options": {
+          "pfx": {
+            "value": "={{ $credentials.sicoobMtls.pfx }}"
+          },
+          "passphrase": "={{ $credentials.sicoobMtls.passphrase }}"
+        }
+      },
+      "id": "get-extrato",
+      "name": "GET Extrato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 400],
+      "credentials": {
+        "httpSslAuth": { "id": "CONFIGURAR", "name": "Sicoob mTLS (.pfx)" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transforma transações da API Sicoob para formato fin_transacoes_bancarias\nconst resultado = $input.first().json.resultado || $input.first().json;\nconst transacoes = resultado.transacoes || resultado || [];\n\nconst crypto = require('crypto');\n\nreturn transacoes.map(tx => {\n  const valor = Math.abs(tx.valor);\n  const tipo = tx.valor >= 0 ? 'C' : 'D';\n  const data = tx.data || tx.dataLancamento;\n  const historico = tx.descricao || tx.historico || '';\n  const idExterno = tx.identificador || tx.idTransacao || '';\n  \n  // Hash para dedup (mesmo padrão do parser PDF)\n  const hashBase = `${data}|${valor}|${tipo}|${historico}|${idExterno}`;\n  const hash = crypto.createHash('md5').update(hashBase).digest('hex');\n  \n  return {\n    json: {\n      data: data,\n      historico: historico,\n      valor: valor,\n      tipo: tipo,\n      hash: hash,\n      origem_arquivo: 'api-sicoob',\n      competencia: data ? data.substring(0, 7) : null,\n      id_externo: idExterno,\n      conta: 'Sicoob PJ'\n    }\n  };\n});\n"
+      },
+      "id": "transform-txns",
+      "name": "Transformar Transações",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO fin_transacoes_bancarias (data, historico, valor, tipo, hash, origem_arquivo, competencia, id_externo, conta)\nVALUES ('{{ $json.data }}', '{{ $json.historico }}', {{ $json.valor }}, '{{ $json.tipo }}', '{{ $json.hash }}', '{{ $json.origem_arquivo }}', '{{ $json.competencia }}', '{{ $json.id_externo }}', '{{ $json.conta }}')\nON CONFLICT (hash) DO NOTHING;",
+        "options": {}
+      },
+      "id": "supabase-insert",
+      "name": "Supabase INSERT (dedup)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1400, 400],
+      "credentials": {
+        "postgres": { "id": "CONFIGURAR", "name": "Supabase Postgres" }
+      },
+      "notesInFlow": true,
+      "notes": "ON CONFLICT (hash) DO NOTHING — dedup automático"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "=sync completa: {{ $items().length }} transações processadas em {{ $now.format('dd/MM/yyyy HH:mm') }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "log-resultado",
+      "name": "Log Resultado",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1640, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, transacoes: $items().length, timestamp: $now.toISO() }) }}"
+      },
+      "id": "respond-webhook",
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1640, 560]
+    }
+  ],
+  "connections": {
+    "A cada 6h": { "main": [[{ "node": "Merge Triggers", "type": "main", "index": 0 }]] },
+    "Webhook Manual": { "main": [[{ "node": "Merge Triggers", "type": "main", "index": 0 }]] },
+    "Merge Triggers": { "main": [[{ "node": "OAuth2 Token", "type": "main", "index": 0 }]] },
+    "OAuth2 Token": { "main": [[{ "node": "GET Extrato", "type": "main", "index": 0 }]] },
+    "GET Extrato": { "main": [[{ "node": "Transformar Transações", "type": "main", "index": 0 }]] },
+    "Transformar Transações": { "main": [[{ "node": "Supabase INSERT (dedup)", "type": "main", "index": 0 }]] },
+    "Supabase INSERT (dedup)": { "main": [[{ "node": "Log Resultado", "type": "main", "index": 0 }, { "node": "Respond Webhook", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "instanceId": "diagnostika-financeiro",
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    { "name": "sicoob" },
+    { "name": "financeiro" }
+  ]
+}

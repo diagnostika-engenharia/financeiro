@@ -1,0 +1,110 @@
+{
+  "name": "Sicoob — Saldo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "sicoob-saldo",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "webhook-saldo",
+      "name": "Webhook Saldo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 400],
+      "webhookId": "sicoob-saldo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "grant_type", "value": "client_credentials" },
+            { "name": "client_id", "value": "={{ $credentials.sicoobOauth2.clientId }}" },
+            { "name": "client_secret", "value": "={{ $credentials.sicoobOauth2.clientSecret }}" },
+            { "name": "scope", "value": "conta_corrente" }
+          ]
+        },
+        "options": {
+          "pfx": {
+            "value": "={{ $credentials.sicoobMtls.pfx }}"
+          },
+          "passphrase": "={{ $credentials.sicoobMtls.passphrase }}"
+        }
+      },
+      "id": "oauth2-token",
+      "name": "OAuth2 Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 400],
+      "credentials": {
+        "httpSslAuth": { "id": "CONFIGURAR", "name": "Sicoob mTLS (.pfx)" }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.sicoob.com.br/conta-corrente/v4/saldo",
+        "authentication": "genericCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.access_token }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "numeroContaCorrente", "value": "={{ $env.SICOOB_CONTA }}" }
+          ]
+        },
+        "options": {
+          "pfx": {
+            "value": "={{ $credentials.sicoobMtls.pfx }}"
+          },
+          "passphrase": "={{ $credentials.sicoobMtls.passphrase }}"
+        }
+      },
+      "id": "get-saldo",
+      "name": "GET Saldo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 400],
+      "credentials": {
+        "httpSslAuth": { "id": "CONFIGURAR", "name": "Sicoob mTLS (.pfx)" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, saldo: $json.resultado?.saldo ?? $json.saldo ?? null, saldoBloqueado: $json.resultado?.saldoBloqueado ?? null, dataHora: $now.toISO() }) }}"
+      },
+      "id": "respond-saldo",
+      "name": "Retornar Saldo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [940, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Saldo": { "main": [[{ "node": "OAuth2 Token", "type": "main", "index": 0 }]] },
+    "OAuth2 Token": { "main": [[{ "node": "GET Saldo", "type": "main", "index": 0 }]] },
+    "GET Saldo": { "main": [[{ "node": "Retornar Saldo", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "meta": {
+    "instanceId": "diagnostika-financeiro",
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    { "name": "sicoob" },
+    { "name": "financeiro" }
+  ]
+}

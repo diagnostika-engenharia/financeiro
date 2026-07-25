@@ -1,0 +1,249 @@
+{
+  "name": "Financeiro — IA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "* 7-23 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1",
+      "name": "Agendador",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evo.84.46.248.23.sslip.io/chat/findMessages/diagnostika",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ where:{ key:{ remoteJid: \"120363254845222563@g.us\" } }, page:1, offset:30 }) }}",
+        "options": {}
+      },
+      "id": "a2",
+      "name": "Buscar msgs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "rT3fxrnBbDxkTWNw",
+          "name": "Evolution apikey"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// \"Filtrar novas\" — pega só mensagens novas do grupo (dedup via static data),\n// não-do-bot, dos últimos 20 min. Marca como processadas (otimista).\n// Captura também o texto CITADO (quando é resposta a um aviso).\n\nconst store = $getWorkflowStaticData('global');\nif (!Array.isArray(store.done)) store.done = [];\nconst doneSet = new Set(store.done);\n\nconst resp = $input.first().json;\nlet arr = Array.isArray(resp) ? resp\n  : (resp && resp.messages && resp.messages.records) || (resp && resp.messages) || (resp && resp.records) || [];\nif (!Array.isArray(arr)) arr = [];\n\nconst cutoff = Date.now() - 20 * 60 * 1000;\nconst novas = [];\nfor (const m of arr) {\n  const ts = (m.messageTimestamp || 0) * 1000;\n  if (ts < cutoff) continue;\n  if (m.key && m.key.fromMe) continue;\n  const id = m.key && m.key.id;\n  if (!id || doneSet.has(id)) continue;\n\n  const msg = m.message || {};\n  const text = msg.conversation\n    || (msg.extendedTextMessage && msg.extendedTextMessage.text)\n    || (msg.imageMessage && msg.imageMessage.caption)\n    || (msg.videoMessage && msg.videoMessage.caption)\n    || (msg.documentMessage && msg.documentMessage.caption) || '';\n\n  let quoted = '';\n  try {\n    const ci = msg.extendedTextMessage && msg.extendedTextMessage.contextInfo;\n    const qm = ci && ci.quotedMessage;\n    if (qm) quoted = qm.conversation\n      || (qm.extendedTextMessage && qm.extendedTextMessage.text)\n      || (qm.imageMessage && qm.imageMessage.caption) || '';\n  } catch (e) {}\n\n  if (!text || text.trim().length < 2) continue;\n  novas.push({ id, sender: m.pushName || '?', ts, text: text.trim(), quoted: (quoted || '').trim() });\n}\n\nfor (const n of novas) store.done.push(n.id);\nif (store.done.length > 800) store.done = store.done.slice(-800);\n\nreturn novas.map(n => ({ json: n }));\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "a3",
+      "name": "Filtrar novas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, data::text AS data, historico, valor::text AS valor, tipo, categoria, observacao FROM fin_transacoes_bancarias WHERE data >= to_char((CURRENT_DATE - INTERVAL '45 days'),'YYYY-MM-DD') ORDER BY data DESC LIMIT 400"
+      },
+      "id": "a4",
+      "name": "Buscar txs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "LQ0Lu1R0sqq8sAMz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// \"Montar prompt\" — junta mensagens novas + transações e monta o pedido pro Gemini.\n// roda uma vez (runOnceForAllItems).\n\nconst msgs = $('Filtrar novas').all().map(i => i.json);\n\n// transações (dedup por id — Postgres pode rodar N vezes)\nlet txItems = $input.all().map(i => i.json);\nconst seen = new Set();\nlet txs = [];\nfor (const t of txItems) {\n  if (t && typeof t === 'object' && ('id' in t)) {\n    if (seen.has(t.id)) continue;\n    seen.add(t.id); txs.push(t);\n  } else if (Array.isArray(t)) {\n    for (const r of t) { if (r && !seen.has(r.id)) { seen.add(r.id); txs.push(r); } }\n  }\n}\n\nconst txLines = txs.slice(0, 400).map(t =>\n  '#' + t.id + ' ' + t.data + ' ' + t.tipo + ' R$' + t.valor +\n  ' [' + (t.categoria || 'sem categoria') + '] ' +\n  ((t.historico || '') + ' ' + (t.observacao || '')).replace(/\\s+/g, ' ').trim().slice(0, 60)\n).join('\\n');\n\nconst msgLines = msgs.map((m, i) =>\n  'MSG' + (i + 1) + ' (de ' + m.sender +\n  (m.quoted ? ', respondendo ao aviso: \"' + m.quoted.slice(0, 140) + '\"' : '') +\n  '): ' + m.text\n).join('\\n');\n\nconst sys = [\n  'Voce e o assistente financeiro da Diagnostika Engenharia, dentro do grupo de WhatsApp Financeiro. Sua funcao e ajudar Rogerio e Claudemir respondendo perguntas sobre as financas da empresa, usando os DADOS abaixo.',\n  '',\n  'REGRAS DE NEGOCIO:',\n  '- Debito de R$ 108,39 = Taxa de ART (CREA).',\n  '- Creditos de ART costumam ser R$ 300 ou R$ 350 e tem condominio/cliente.',\n  '- Reembolsos (combustivel do Claudemir, apps/IAs do Rogerio) sao overhead, nao custo de projeto.',\n  '- Projetos acumulam varios custos ao longo do tempo.',\n  '',\n  'TRANSACOES RECENTES (ultimos 45 dias) [#id data tipo valor [categoria] historico/obs]:',\n  txLines || '(nenhuma)',\n  '',\n  'MENSAGENS NOVAS DO GRUPO:',\n  msgLines,\n  '',\n  'INSTRUCOES: Para CADA mensagem nova, decida:',\n  '- Se for PERGUNTA ou PEDIDO sobre as financas -> responda de forma curta e direta usando os dados. Some/filtre voce mesmo quando precisar (ex: total por categoria, por periodo, o que falta classificar, saldo aproximado). Se o dado nao estiver na lista, diga que nao encontrou no periodo.',\n  '- Se for conversa irrelevante, bom-dia, ou claramente nao for pra voce -> NAO responda.',\n  '',\n  'FORMATO DA RESPOSTA: responda SEMPRE em JSON puro, sem texto fora do JSON:',\n  '{\"acoes\":[{\"tipo\":\"responder\",\"texto\":\"...\"}]}',\n  '- Cada \"responder\" gera uma mensagem no grupo. Texto em portugues, PLANO (sem markdown, sem asteriscos), pode usar emoji.',\n  '- Valores em reais com virgula (ex: R$ 1.240,00).',\n  '- Se nada precisar de resposta, retorne {\"acoes\":[]}.'\n].join('\\n');\n\nconst body = {\n  model: 'gpt-4o-mini',\n  messages: [{ role: 'user', content: sys }],\n  response_format: { type: 'json_object' },\n  temperature: 0.3\n};\n\nreturn [{ json: { body, _msgs: msgs.length, _txs: txs.length } }];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "a5",
+      "name": "Montar prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "id": "a6",
+      "name": "IA (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "oxUNjZdVarEJYg3x",
+          "name": "OpenAI - Diagnóstika"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// \"Extrair resposta\" — lê o JSON do Gemini e gera 1 item por mensagem a enviar.\nconst GRUPO = '120363254845222563@g.us';\n\nconst resp = $input.first().json;\nlet txt = '';\ntry { txt = resp.choices[0].message.content; }\ncatch (e) { return [{ json: { _erro: 'ia_sem_resposta', raw: JSON.stringify(resp).slice(0, 300) } }]; }\n\nlet parsed = null;\ntry { parsed = JSON.parse(txt); }\ncatch (e) {\n  const m = txt.match(/\\{[\\s\\S]*\\}/);\n  if (m) { try { parsed = JSON.parse(m[0]); } catch (e2) {} }\n}\nif (!parsed) return [{ json: { _erro: 'json_invalido', txt: txt.slice(0, 300) } }];\n\nconst acoes = (parsed && parsed.acoes) || [];\nconst out = [];\nfor (const a of acoes) {\n  if (a && a.tipo === 'responder' && a.texto && String(a.texto).trim()) {\n    out.push({ json: { grupo: GRUPO, texto: String(a.texto).trim() } });\n  }\n}\nreturn out;\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "a7",
+      "name": "Extrair resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evo.84.46.248.23.sslip.io/message/sendText/diagnostika",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.grupo, text: $json.texto }) }}",
+        "options": {}
+      },
+      "id": "a8",
+      "name": "Notificar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "rT3fxrnBbDxkTWNw",
+          "name": "Evolution apikey"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Agendador": {
+      "main": [
+        [
+          {
+            "node": "Buscar msgs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar msgs": {
+      "main": [
+        [
+          {
+            "node": "Filtrar novas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar novas": {
+      "main": [
+        [
+          {
+            "node": "Buscar txs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar txs": {
+      "main": [
+        [
+          {
+            "node": "Montar prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar prompt": {
+      "main": [
+        [
+          {
+            "node": "IA (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Extrair resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair resposta": {
+      "main": [
+        [
+          {
+            "node": "Notificar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

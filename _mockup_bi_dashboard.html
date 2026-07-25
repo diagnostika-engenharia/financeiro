@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BI Dashboard — Prévia • Financeiro Diagnóstika</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --teal:#155B67; --teal2:#2C6E79; --teal-deep:#244B5B; --turq:#00B4AC;
+    --green:#16A34A; --orange:#E65100; --red:#C0392B; --blue:#1565C0; --amber:#B7600A; --purple:#6D5BD0;
+    --ink:#253235; --text2:#6B7B83; --bg:#eef2f4; --card:#fff; --gray3:#dbe3e7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .bar{background:var(--teal);color:#fff;padding:7px 16px;font-size:11.5px;display:flex;align-items:center;gap:8px}
+  .bar .dot{width:7px;height:7px;border-radius:50%;background:var(--turq)}
+  .wrap{max-width:1240px;margin:0 auto;padding:12px 16px 26px}
+
+  .hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:11px}
+  .hd .ti{display:flex;align-items:baseline;gap:10px}
+  h1{font-size:20px;color:var(--teal);letter-spacing:-.3px}
+  .hd .sub{color:var(--text2);font-size:12px}
+  .badge{background:#FFF3E0;color:var(--orange);font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;border:1px solid #f3d9bf}
+  .seg{display:inline-flex;background:#fff;border:1px solid var(--gray3);border-radius:9px;overflow:hidden;flex-wrap:wrap}
+  .seg button{border:0;background:transparent;padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer;border-right:1px solid var(--gray3)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--teal);color:#fff}
+  .seg button:not(.on):hover{background:#eef3f5}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:11px}
+  .kpi{background:var(--card);border-radius:11px;padding:11px 13px;border:1px solid var(--gray3);border-left:4px solid var(--teal)}
+  .kpi.g{border-left-color:var(--green)} .kpi.r{border-left-color:var(--red)} .kpi.b{border-left-color:var(--blue)} .kpi.o{border-left-color:var(--orange)} .kpi.t{border-left-color:var(--turq)}
+  .kpi label{font-size:9.5px;letter-spacing:.3px;color:var(--text2);font-weight:700;text-transform:uppercase;display:block;line-height:1.25}
+  .kpi .v{font-size:18px;font-weight:800;margin-top:4px;letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+  .kpi.g .v{color:var(--green)} .kpi.r .v{color:var(--red)} .kpi.b .v{color:var(--teal)} .kpi.o .v{color:var(--orange)} .kpi.t .v{color:var(--turq)}
+  .kpi .sub2{font-size:10px;margin-top:2px;color:var(--text2)}
+  .kpi .sub2 b.up{color:var(--green)} .kpi .sub2 b.down{color:var(--red)}
+
+  .card{background:var(--card);border-radius:11px;border:1px solid var(--gray3);overflow:hidden}
+  .card-hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 15px;border-bottom:1px solid var(--gray3)}
+  .card-hd h3{font-size:13.5px;color:var(--teal-deep)}
+  .card-hd .cap{font-size:10.5px;color:var(--text2);font-weight:400;margin-top:1px}
+  .card-bd{padding:11px 14px}
+
+  .fluxo{margin-bottom:11px}
+  .chart-box{position:relative;height:212px}
+  .donuts{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:11px}
+  .chart-box.dn{height:186px}
+
+  .seg-sm{display:inline-flex;border:1px solid var(--gray3);border-radius:7px;overflow:hidden;font-size:11px}
+  .seg-sm button{border:0;background:#fff;color:var(--text2);padding:4px 9px;cursor:pointer;font-weight:600;border-right:1px solid var(--gray3)}
+  .seg-sm button:last-child{border-right:0}
+  .seg-sm button.on{background:var(--turq);color:#fff}
+
+  .lists{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;padding:7px 15px;font-size:9.5px;letter-spacing:.3px;color:var(--text2);text-transform:uppercase;font-weight:700;border-bottom:1px solid var(--gray3)}
+  td{padding:8px 15px;border-bottom:1px solid #f1f5f7}
+  tr:last-child td{border-bottom:0}
+  td .money{font-weight:700;font-variant-numeric:tabular-nums}
+  .tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .tag.venc{background:#fdecec;color:var(--red)} .tag.pend{background:#fff3e0;color:var(--orange)}
+
+  @media(max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .donuts,.lists{grid-template-columns:1fr}
+    h1{font-size:18px}
+  }
+</style>
+</head>
+<body>
+  <div class="bar"><span class="dot"></span> Financeiro · Diagnóstika &nbsp;<span style="opacity:.65">— prévia do Dashboard BI (valores de exemplo)</span></div>
+
+  <div class="wrap">
+    <div class="hd">
+      <div class="ti"><h1>Dashboard</h1><span class="badge">BI · PRÉVIA</span><span class="sub">Visão geral financeira</span></div>
+      <div class="seg" id="seg-per">
+        <button data-p="mes">Este mês</button>
+        <button data-p="3">3 meses</button>
+        <button data-p="6" class="on">6 meses</button>
+        <button data-p="12">12 meses</button>
+        <button data-p="ano">Este ano</button>
+        <button data-p="tudo">Tudo</button>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card fluxo">
+      <div class="card-hd"><div><h3>Fluxo de caixa mensal</h3><div class="cap" id="fc-cap">entradas × saídas + saldo acumulado</div></div></div>
+      <div class="card-bd"><div class="chart-box"><canvas id="c-fluxo"></canvas></div></div>
+    </div>
+
+    <div class="donuts">
+      <div class="card">
+        <div class="card-hd">
+          <div><h3>Receita por categoria</h3></div>
+          <div class="seg-sm" id="seg-cat">
+            <button data-m="ambos" class="on">Ambos</button>
+            <button data-m="realizado">Realiz.</button>
+            <button data-m="previsto">Prev.</button>
+          </div>
+        </div>
+        <div class="card-bd"><div class="chart-box dn"><canvas id="c-cat"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div><h3>A Receber</h3><div class="cap">por situação</div></div></div>
+        <div class="card-bd"><div class="chart-box dn"><canvas id="c-receb"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div><h3>A Pagar</h3><div class="cap">por categoria</div></div></div>
+        <div class="card-bd"><div class="chart-box dn"><canvas id="c-pagar"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="lists">
+      <div class="card">
+        <div class="card-hd"><h3>Contas a Receber — Pendentes</h3></div>
+        <table><thead><tr><th>Cliente</th><th>Categoria</th><th>Venc.</th><th>Valor</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Portal Primavera</td><td>Assessoria</td><td>20/06</td><td><span class="money">R$ 1.750</span></td><td><span class="tag venc">⚠ Vencido</span></td></tr>
+          <tr><td>Morada Morumbi</td><td>Assessoria</td><td>10/07</td><td><span class="money">R$ 2.432</span></td><td><span class="tag pend">⏳ A vencer</span></td></tr>
+          <tr><td>Monte Carlo</td><td>ART</td><td>15/07</td><td><span class="money">R$ 350</span></td><td><span class="tag pend">⏳ A vencer</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-hd"><h3>Contas a Pagar — Pendentes</h3></div>
+        <table><thead><tr><th>Fornecedor</th><th>Categoria</th><th>Venc.</th><th>Valor</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Reembolso Rogério (Digitais)</td><td>Reembolsos</td><td>30/06</td><td><span class="money">R$ 2.066</span></td><td><span class="tag pend">⏳ Pendente</span></td></tr>
+          <tr><td>Anuidade CREA-SP</td><td>Impostos</td><td>05/07</td><td><span class="money">R$ 580</span></td><td><span class="tag pend">⏳ Pendente</span></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+
+<script>
+const C={teal:'#155B67',teal2:'#2C6E79',turq:'#00B4AC',green:'#16A34A',orange:'#E65100',red:'#C0392B',blue:'#1565C0',amber:'#B7600A',purple:'#6D5BD0',muted:'#6B7B83'};
+const BRL=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
+const BRLk=v=>'R$ '+(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:v%1000?1:0,maximumFractionDigits:1})+'k';
+
+// plugin: total no centro do donut
+const centerText={id:'centerText',afterDraw(ch){const o=ch.config.options.plugins.centerText;if(!o)return;
+  const a=ch.getDatasetMeta(0).data[0];if(!a)return;const{x,y}=a;const ctx=ch.ctx;ctx.save();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='700 15px Segoe UI';ctx.fillStyle='#244B5B';ctx.fillText(o.text,x,y-6);
+  ctx.font='600 9px Segoe UI';ctx.fillStyle='#6B7B83';ctx.fillText(o.sub||'total',x,y+9);ctx.restore();}};
+Chart.register(centerText);
+
+const MESES=['jul/25','ago/25','set/25','out/25','nov/25','dez/25','jan/26','fev/26','mar/26','abr/26','mai/26','jun/26'];
+const ENTRADAS=[5200,4800,7100,4800,6300,9200,4800,7900,5200,8600,4800,6100];
+const SAIDAS  =[3200,3600,4100,3400,3800,6300,3100,4200,3300,4700,3500,4200];
+const CAT_KEYS=['Assessoria','ART','Projeto','Laudo/Parecer','Vistoria'];
+const CAT_CORES={'Assessoria':C.turq,'ART':C.teal,'Projeto':C.green,'Laudo/Parecer':C.orange,'Vistoria':C.blue};
+const CAT_FRAC={'Assessoria':0.62,'ART':0.16,'Projeto':0.12,'Laudo/Parecer':0.06,'Vistoria':0.04};
+const SALDO_INICIAL=3200;
+const SALDO_BANCO=3208, SALDO_COFRE=1450;              // saldo em caixa = cofre + banco
+const AR={'A vencer':2782,'Vencido':1750,'Em dia':0};  // a receber por situação
+const AR_CORES=[C.blue,C.red,C.green];
+const AP={'Reembolsos':2066,'Impostos':580};           // a pagar por categoria
+const AP_CORES=[C.amber,C.purple,C.orange,C.muted];
+
+function idxDoPeriodo(p){
+  if(p==='tudo'||p==='12') return [0,12];
+  if(p==='mes') return [11,12];
+  if(p==='3') return [9,12];
+  if(p==='6') return [6,12];
+  if(p==='ano') return [6,12];
+  return [6,12];
+}
+
+let chFluxo,chCat,chReceb,chPagar;
+function destroy(){[chFluxo,chCat,chReceb,chPagar].forEach(c=>c&&c.destroy());}
+const donutOpts=(centro,subrot)=>({maintainAspectRatio:false,cutout:'62%',
+  plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:7,font:{size:10.5},padding:7}},
+    centerText:{text:centro,sub:subrot},
+    tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((s,x)=>s+x,0);return ` ${c.label}: ${BRL(c.raw)}${t?' ('+Math.round(c.raw/t*100)+'%)':''}`;}}}}});
+
+function render(p, catModo){
+  const [a,b]=idxDoPeriodo(p);
+  const meses=MESES.slice(a,b), ent=ENTRADAS.slice(a,b), sai=SAIDAS.slice(a,b);
+  const totEnt=ent.reduce((s,v)=>s+v,0), totSai=sai.reduce((s,v)=>s+v,0);
+  const result=totEnt-totSai, margem=totEnt?Math.round(result/totEnt*100):0;
+  const saldoCaixa=SALDO_BANCO+SALDO_COFRE;
+  const totAR=Object.values(AR).reduce((s,v)=>s+v,0), vencido=AR['Vencido'];
+  const totAP=Object.values(AP).reduce((s,v)=>s+v,0);
+  document.getElementById('fc-cap').textContent=`entradas × saídas + saldo acumulado — ${meses.length} ${meses.length>1?'meses':'mês'}`;
+
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi g"><label>Receita no período</label><div class="v">${BRL(totEnt)}</div><div class="sub2">realizada</div></div>
+    <div class="kpi r"><label>Despesa no período</label><div class="v">${BRL(totSai)}</div><div class="sub2">realizada</div></div>
+    <div class="kpi b"><label>Resultado</label><div class="v">${BRL(result)}</div><div class="sub2">margem <b class="${result>=0?'up':'down'}">${margem}%</b></div></div>
+    <div class="kpi t"><label>Saldo em caixa</label><div class="v">${BRL(saldoCaixa)}</div><div class="sub2">cofre + banco</div></div>
+    <div class="kpi o"><label>A receber vencido</label><div class="v">${BRL(vencido)}</div><div class="sub2">de ${BRL(totAR)} a receber</div></div>`;
+
+  destroy();
+  const gcfg={grid:{color:'#eef2f4'},ticks:{color:C.muted,font:{size:10}}};
+  const nogrid={grid:{display:false},ticks:{color:C.muted,font:{size:10}}};
+
+  let acc=SALDO_INICIAL; const saldo=ent.map((e,i)=>acc+=(e-sai[i]));
+  chFluxo=new Chart(document.getElementById('c-fluxo'),{data:{labels:meses,datasets:[
+    {type:'bar',label:'Entradas',data:ent,backgroundColor:C.green,borderRadius:4,order:2},
+    {type:'bar',label:'Saídas',data:sai,backgroundColor:C.orange,borderRadius:4,order:2},
+    {type:'line',label:'Saldo acumulado',data:saldo,borderColor:C.teal,backgroundColor:C.teal,borderWidth:3,tension:.35,pointRadius:2.5,order:1}
+  ]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:7,font:{size:11},padding:9}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': '+BRL(c.raw)}}},
+    scales:{x:nogrid,y:{...gcfg,ticks:{...gcfg.ticks,callback:v=>BRLk(v)}}}}});
+
+  const fatorModo = catModo==='realizado'?1 : catModo==='previsto'?0.35 : 1.25;
+  const cats=CAT_KEYS.map(k=>({k, v: totEnt*CAT_FRAC[k]*fatorModo})).filter(c=>c.v>0).sort((x,y)=>y.v-x.v);
+  const totCat=cats.reduce((s,c)=>s+c.v,0);
+  chCat=new Chart(document.getElementById('c-cat'),{type:'doughnut',
+    data:{labels:cats.map(c=>c.k),datasets:[{data:cats.map(c=>c.v),backgroundColor:cats.map(c=>CAT_CORES[c.k]),borderWidth:2,borderColor:'#fff'}]},
+    options:donutOpts(BRLk(totCat),'receita')});
+
+  const arK=Object.keys(AR).filter(k=>AR[k]>0);
+  chReceb=new Chart(document.getElementById('c-receb'),{type:'doughnut',
+    data:{labels:arK,datasets:[{data:arK.map(k=>AR[k]),backgroundColor:arK.map(k=>AR_CORES[Object.keys(AR).indexOf(k)]),borderWidth:2,borderColor:'#fff'}]},
+    options:donutOpts(BRLk(totAR),'a receber')});
+
+  const apK=Object.keys(AP);
+  chPagar=new Chart(document.getElementById('c-pagar'),{type:'doughnut',
+    data:{labels:apK,datasets:[{data:apK.map(k=>AP[k]),backgroundColor:apK.map((k,i)=>AP_CORES[i]),borderWidth:2,borderColor:'#fff'}]},
+    options:donutOpts(BRLk(totAP),'a pagar')});
+}
+
+let _per='6', _catModo='ambos';
+document.getElementById('seg-per').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#seg-per button').forEach(x=>x.classList.remove('on'));b.classList.add('on');_per=b.dataset.p;render(_per,_catModo);});
+document.getElementById('seg-cat').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#seg-cat button').forEach(x=>x.classList.remove('on'));b.classList.add('on');_catModo=b.dataset.m;render(_per,_catModo);});
+
+render('6','ambos');
+</script>
+</body>
+</html>
