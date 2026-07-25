@@ -2615,30 +2615,40 @@ async function loadPagar(){
     rows=data||[];
   }
 
-  // Mescla pagamentos de Pró-Labore (retiradas de sócios), quando habilitado
-  if((inclPL||cat==='Pró-Labore')&&st!=='Pendente'){
-    let qpl=sb.from('fin_pro_labore').select('*').eq('status','Pago');
-    if(de)qpl=qpl.gte('data_pagamento',de);
-    if(ate)qpl=qpl.lte('data_pagamento',ate);
-    const{data:plData}=await qpl;
-    const ids=(plData||[]).map(r=>r.id);
-    let itensPL={};
-    if(ids.length){
-      const{data:itens}=await sb.from('fin_pro_labore_itens').select('*').in('pro_labore_id',ids);
-      (itens||[]).forEach(it=>{
-        if(!itensPL[it.pro_labore_id])itensPL[it.pro_labore_id]={c:0,d:0};
-        if(it.tipo==='credito')itensPL[it.pro_labore_id].c+=it.valor;else itensPL[it.pro_labore_id].d+=it.valor;
+  // Mescla Pró-Labore (retiradas de sócios) quando habilitado:
+  // Aprovado = obrigação Pendente (vence no último dia da competência); Pago = histórico.
+  if(inclPL||cat==='Pró-Labore'){
+    let statusesPL;
+    if(!st) statusesPL=['Aprovado','Pago'];
+    else if(st==='Pendente') statusesPL=['Aprovado'];
+    else if(st==='Pago') statusesPL=['Pago'];
+    else statusesPL=[];
+    if(statusesPL.length){
+      const{data:plData}=await sb.from('fin_pro_labore').select('*').in('status',statusesPL);
+      const ids=(plData||[]).map(r=>r.id);
+      let itensPL={};
+      if(ids.length){
+        const{data:itens}=await sb.from('fin_pro_labore_itens').select('*').in('pro_labore_id',ids);
+        (itens||[]).forEach(it=>{
+          if(!itensPL[it.pro_labore_id])itensPL[it.pro_labore_id]={c:0,d:0};
+          if(it.tipo==='credito')itensPL[it.pro_labore_id].c+=it.valor;else itensPL[it.pro_labore_id].d+=it.valor;
+        });
+      }
+      const ultimoDiaComp=c=>{const[a,m]=(c||'').split('-').map(Number);if(!a||!m)return c;const d=new Date(a,m,0).getDate();return `${a}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;};
+      let plRows=(plData||[]).map(r=>{
+        const t=itensPL[r.id]||{c:r.valor_bruto,d:0};
+        const pago=r.status==='Pago';
+        const venc=pago?(r.data_pagamento||ultimoDiaComp(r.competencia)):ultimoDiaComp(r.competencia);
+        return{
+          id:'pl-'+r.id,plId:r.id,fornecedor:'Pró-Labore — '+r.socio_nome,categoria:'Pró-Labore',
+          data_vencimento:venc,data_pagamento:r.data_pagamento,valor:t.c-t.d,
+          status:pago?'Pago':'Pendente',estornado:false,num_controle:r.nr_controle,_isPL:true,
+        };
       });
+      if(de)plRows=plRows.filter(r=>r.data_vencimento&&r.data_vencimento>=de);
+      if(ate)plRows=plRows.filter(r=>r.data_vencimento&&r.data_vencimento<=ate);
+      rows=rows.concat(plRows);
     }
-    const plRows=(plData||[]).map(r=>{
-      const t=itensPL[r.id]||{c:r.valor_bruto,d:0};
-      return{
-        id:'pl-'+r.id,plId:r.id,fornecedor:'Pró-Labore — '+r.socio_nome,categoria:'Pró-Labore',
-        data_vencimento:r.data_pagamento,data_pagamento:r.data_pagamento,valor:t.c-t.d,
-        status:'Pago',estornado:r.estornado||false,num_controle:r.nr_controle,_isPL:true,
-      };
-    });
-    rows=rows.concat(plRows);
   }
 
   // KPIs
@@ -2674,7 +2684,8 @@ function renderPagar(){
       <td>${r.estornado?'<span class="badge venc">Estornado</span>':badgeSt(r.status,r.data_vencimento)}</td>
       <td style="white-space:nowrap">
         <button class="btn-icon" title="Visualizar" onclick="visualizarRelatorioPL(${r.plId})">👁</button>
-        ${!r.estornado?`<button class="btn btn-danger btn-sm" onclick="estornarPL(${r.plId})">Estornar</button>`:''}
+        ${r.status==='Pendente'?`<button class="btn btn-green btn-sm" onclick="pagarPL(${r.plId})">Pagar</button>`:''}
+        ${r.status==='Pago'&&!r.estornado?`<button class="btn btn-danger btn-sm" onclick="estornarPL(${r.plId})">Estornar</button>`:''}
       </td>
     </tr>`:`
     <tr>
