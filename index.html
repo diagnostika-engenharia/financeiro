@@ -4008,7 +4008,8 @@ function _nomeArquivoRel(){
   return `reembolso-${m}.png`;
 }
 async function shareWhatsAppImagem(){
-  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return MESES[parseInt(m)]+'/'+a;};
+  const _MS=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const fmtComp=c=>{if(!c)return'—';const[a,m]=c.split('-');return _MS[parseInt(m)]+'/'+a;};
   try{
     toast('Gerando imagem…');
     const blob=await _gerarImagemRel();
