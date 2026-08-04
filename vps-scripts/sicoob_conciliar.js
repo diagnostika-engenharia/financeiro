@@ -94,6 +94,36 @@ function solucoes(contas, alvoCent) {
 }
 function chaveMultiset(linhas) { return linhas.map(r => Math.round(+r.valor)).sort((a, b) => a - b).join('+'); }
 
+// reconstroi as linhas concretas (mais antigas de cada valor) a partir de uma chave multiset "2950+2950"
+function reconstruirAntigas(contas, chave) {
+  const porValor = new Map();
+  const sorted = [...contas].sort((a, b) => String(a.data_vencimento || '').localeCompare(String(b.data_vencimento || '')) || (a.id - b.id));
+  for (const r of sorted) { const v = Math.round(+r.valor); if (!porValor.has(v)) porValor.set(v, []); porValor.get(v).push(r); }
+  const need = new Map();
+  for (const v of chave.split('+')) need.set(v, (need.get(v) || 0) + 1);
+  const linhas = [];
+  for (const [v, q] of need) linhas.push(...(porValor.get(parseInt(v)) || []).slice(0, q));
+  return linhas;
+}
+
+// efetiva a baixa de N contas contra 1 credito (usado pelo match exato E pelo match liquido-de-ISS)
+async function efetivarBaixa(linhas, c, cliente, via, usadas, nota) {
+  console.log('  ✓ ' + (nota ? '(ISS retido) ' : '') + 'R$ ' + fmtBR(+c.valor) + ' ' + fmtDataBR(c.data) + (c.hora ? ' ' + c.hora : '') + ' | ' + cliente + ' (' + via + ') · ' + linhas.length + ' conta(s)');
+  for (const r of linhas) console.log('         #' + r.id + ' R$ ' + fmtCent(+r.valor) + ' · venc ' + fmtDataBR(r.data_vencimento) + ' · ' + competencia(r));
+  if (REAL) {
+    for (const r of linhas) await sb('PATCH', '/rest/v1/fin_contas_receber?id=eq.' + r.id, JSON.stringify({ status: 'Recebido', data_recebimento: c.data, forma_pagamento: 'PIX', transacao_id: c.id }));
+    await sb('PATCH', '/rest/v1/fin_transacoes_bancarias?id=eq.' + c.id, JSON.stringify({ status: 'conciliado', conta_receber_id: linhas[0].id }));
+    const det = linhas.map(r => '   • R$ ' + fmtCent(+r.valor) + ' — ' + competencia(r));
+    const msg = ['✅ Baixa automática em contas a receber',
+      '🏢 ' + cliente,
+      '💰 R$ ' + fmtBR(+c.valor) + ' · ' + fmtDataBR(c.data) + (c.hora ? ' ' + c.hora : ''),
+      (linhas.length > 1 ? '🧾 Pagamento agrupado — ' + linhas.length + ' contas quitadas:' : '🧾 Conta quitada:')]
+      .concat(det, [nota || '(soma exata; transação conciliada)']).join('\n');
+    try { await enviarWhatsapp(msg); await new Promise(s => setTimeout(s, 1200)); } catch (e) { console.error('  msg falhou: ' + e.message); }
+  }
+  for (const r of linhas) usadas.add(r.id);
+}
+
 // ====== ESTORNO ======
 async function estornar(txId) {
   const cr = JSON.parse((await sb('GET', '/rest/v1/fin_contas_receber?select=id,cliente,valor,descricao&transacao_id=eq.' + txId)).body) || [];
@@ -124,6 +154,18 @@ async function estornar(txId) {
   const receber = JSON.parse((await sb('GET',
     '/rest/v1/fin_contas_receber?select=id,cliente,categoria,descricao,valor,data_vencimento,status,estornado' +
     '&status=eq.Pendente&estornado=eq.false&order=data_vencimento')).body) || [];
+  // clientes com ISS retido na fonte: o deposito chega LIQUIDO (bruto - ISS), nunca bate o valor bruto da conta
+  const clientes = JSON.parse((await sb('GET', '/rest/v1/fin_clientes?select=nome,iss_retido,aliquota_iss')).body) || [];
+  function issInfo(clienteNome) {
+    const cn = toks(clienteNome);
+    let best = null;
+    for (const cl of clientes) {
+      if (!cl.iss_retido) continue;
+      const s = Math.max(score(cn, toks(cl.nome)), score(toks(cl.nome), cn));
+      if (s >= 0.6 && (!best || s > best.s)) best = { s, aliq: parseFloat(cl.aliquota_iss) || 0 };
+    }
+    return best ? { iss_retido: true, aliq: best.aliq } : { iss_retido: false, aliq: 0 };
+  }
 
   console.log('=== FASE R: CONCILIACAO ' + (REAL ? '(REAL)' : '(SIMULACAO)') + ' — creditos em aberto: ' + creditos.length + ' | contas a receber pendentes: ' + receber.length + ' ===');
 
@@ -162,8 +204,9 @@ async function estornar(txId) {
 
     const contas = grupos.get(cliente);
     if (contas.length > MAX_CONTAS_COMB) { console.log('  ! ' + cliente + ' tem ' + contas.length + ' contas pendentes, acima do limite de combinacao'); continue; }
+    const inf = issInfo(cliente); // cliente com ISS retido -> deposito chega liquido
 
-    // --- 2/3. combinacao exata (1<->1 e 1<->N) ---
+    // --- 2/3. combinacao exata (1<->1 e 1<->N) sobre o valor BRUTO da conta ---
     const sols = solucoes(contas, alvo);
     const chaves = new Set(sols.map(chaveMultiset));
 
@@ -171,33 +214,42 @@ async function estornar(txId) {
       // solucao unica (ou varias instancias do MESMO multiset) -> baixa as mais antigas
       const linhas = sols[0];
       baixados++; contasBaixadas += linhas.length;
-      console.log('  ✓ R$ ' + fmtBR(+c.valor) + ' ' + fmtDataBR(c.data) + (c.hora ? ' ' + c.hora : '') + ' | ' + desc);
-      console.log('      => ' + cliente + ' (' + via + ') · ' + linhas.length + ' conta(s):');
-      for (const r of linhas) console.log('         #' + r.id + ' R$ ' + fmtCent(+r.valor) + ' · venc ' + fmtDataBR(r.data_vencimento) + ' · ' + competencia(r));
-      if (REAL) {
-        for (const r of linhas) {
-          await sb('PATCH', '/rest/v1/fin_contas_receber?id=eq.' + r.id, JSON.stringify({ status: 'Recebido', data_recebimento: c.data, forma_pagamento: 'PIX', transacao_id: c.id }));
-          usadas.add(r.id);
-        }
-        await sb('PATCH', '/rest/v1/fin_transacoes_bancarias?id=eq.' + c.id, JSON.stringify({ status: 'conciliado', conta_receber_id: linhas[0].id }));
-        const det = linhas.map(r => '   • R$ ' + fmtCent(+r.valor) + ' — ' + competencia(r));
-        const msg = ['✅ Baixa automática em contas a receber',
-          '🏢 ' + cliente,
-          '💰 R$ ' + fmtBR(+c.valor) + ' · ' + fmtDataBR(c.data) + (c.hora ? ' ' + c.hora : ''),
-          (linhas.length > 1 ? '🧾 Pagamento agrupado — ' + linhas.length + ' contas quitadas:' : '🧾 Conta quitada:')]
-          .concat(det, ['(soma exata; transação conciliada)']).join('\n');
-        try { await enviarWhatsapp(msg); await new Promise(s => setTimeout(s, 1200)); } catch (e) { console.error('  msg falhou: ' + e.message); }
-      } else {
-        for (const r of linhas) usadas.add(r.id); // simulacao: evita reusar a mesma conta em 2 creditos
-      }
+      await efetivarBaixa(linhas, c, cliente, via, usadas, null);
       continue;
+    }
+
+    // --- 3b. ISS RETIDO: bruto nao bateu; tenta casar o valor LIQUIDO (bruto - ISS) ---
+    // Sem isto, o deposito liquido (ex.: Menotti R$2.764,03 = 2.825,33 - 2,17%) fica abaixo
+    // da conta bruta e era descartado como "ruido" na linha do filtro abaixo — nunca baixava.
+    if (!sols.length && inf.iss_retido && contas.length <= 14) {
+      const fator = 1 - inf.aliq / 100;
+      const net = r => Math.round(Math.round(+r.valor) * fator);
+      const matches = [];
+      for (let mask = 1; mask < (1 << contas.length); mask++) {
+        let s = 0, cnt = 0;
+        for (let i = 0; i < contas.length; i++) if (mask & (1 << i)) { s += net(contas[i]); cnt++; }
+        if (Math.abs(s - alvo) <= cnt + 1) matches.push(contas.filter((_, i) => mask & (1 << i))); // +-1 centavo de arredondamento por linha
+      }
+      const chavesN = new Set(matches.map(chaveMultiset));
+      if (matches.length && chavesN.size === 1) {
+        const linhas = reconstruirAntigas(contas, [...chavesN][0]);
+        const issTot = linhas.reduce((a, r) => a + (Math.round(+r.valor) - net(r)), 0);
+        baixados++; contasBaixadas += linhas.length;
+        await efetivarBaixa(linhas, c, cliente, via, usadas,
+          '(líquido de ISS retido na fonte R$ ' + fmtCent(issTot) + ' · ' + inf.aliq + '%; transação conciliada)');
+        continue;
+      }
+      // varias combinacoes liquidas possiveis -> nao baixa, cai no fluxo de pergunta abaixo
     }
 
     // --- 4/5. nao bate (c) ou ambiguo (d) -> NUNCA baixa, pergunta no grupo ---
     // Filtro de ruido: credito MENOR que a menor conta em aberto nao paga nem a mais barata
     // delas — quase sempre e outra receita (ART, vistoria, reembolso). Fica em silencio.
+    // Para cliente com ISS retido, o piso e a menor conta LIQUIDA (senao o proprio deposito
+    // legitimo cairia como ruido e nem seria perguntado).
     const menorConta = Math.min(...contas.map(r => Math.round(+r.valor)));
-    if (!sols.length && alvo < menorConta) {
+    const menorPiso = inf.iss_retido ? Math.round(menorConta * (1 - inf.aliq / 100)) : menorConta;
+    if (!sols.length && alvo < menorPiso) {
       console.log('  · R$ ' + fmtBR(+c.valor) + ' | ' + desc + ' -> abaixo da menor conta de ' + cliente + ' (R$ ' + fmtCent(menorConta) + '), nao e assessoria; ignoro');
       continue;
     }

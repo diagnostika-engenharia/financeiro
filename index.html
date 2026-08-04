@@ -4865,6 +4865,7 @@ function _dbToNfseCondo(r){
     faturamento_ativo:r.faturamento_ativo,
     tomador:{cnpj:r.cnpj,inscricao_municipal:r.inscricao_municipal||'',razao_social:r.razao_social||r.nome.toUpperCase(),endereco:r.endereco||'',numero:r.endereco_numero||'',bairro:r.bairro||'',municipio:r.cidade||'',cod_municipio:r.cod_municipio||'',cep:r.cep||'',uf:r.uf||'SP',email:r.email_financeiro||''},
     valor:valorReais, iss_retido:r.iss_retido?'1':'2',
+    venc_dia:r.dia_vencimento||null,
     parcelamento:r.parcelas_total?{ativo:true,parcela_atual:r.parcelas_emitidas||1,total:r.parcelas_total}:null,
     descricao:r.descricao_padrao||'Prestação de serviços técnicos de engenharia condominial, conforme contrato.\nPIX CNPJ: 54.027.948/0001-60\nVencimento {{vencimento}}',
     canal_envio:r.canal_envio, megazap:r.canal_envio==='megazap',
@@ -4941,15 +4942,17 @@ async function initNfse(){
   loadNfseHist();
 }
 
-function _nfseVencimento(){
+// Dia de vencimento: por cliente (fin_clientes.dia_vencimento) com fallback pro global do prestador.
+function _vencDia(c){ return (c&&c.venc_dia)||NFSE_PRESTADOR.vencimento_dia; }
+function _nfseVencimento(c){
   const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
-  return `${String(NFSE_PRESTADOR.vencimento_dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
+  return `${String(_vencDia(c)).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
 }
 function _nfseDescFinal(c){
   const st=_nfseEstado[c.id];
   let d=st.descricao
     .replace(/\{\{valor\}\}/g, (+st.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}))
-    .replace(/\{\{vencimento\}\}/g, _nfseVencimento())
+    .replace(/\{\{vencimento\}\}/g, _nfseVencimento(c))
     .replace(/\{\{parcela\}\}/g, st.parcela!=null?st.parcela:'');
   return d;
 }
@@ -5025,7 +5028,7 @@ function renderNfse(){
         </div>
         <div class="nfse-tom">
           <b>Tomador:</b> ${esc(t.razao_social)} · ${esc(t.email)}<br>
-          <b>Vencimento:</b> ${_nfseVencimento()} · <b>PIX:</b> ${NFSE_PRESTADOR.pix_chave} (${NFSE_PRESTADOR.pix_banco})<br>
+          <b>Vencimento:</b> ${_nfseVencimento(c)} · <b>PIX:</b> ${NFSE_PRESTADOR.pix_chave} (${NFSE_PRESTADOR.pix_banco})<br>
           <b>Envio:</b> ${esc(c.envio)}${c.obs?'<br><b>⚠ '+esc(c.obs)+'</b>':''}
           <br><button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="removerClienteCustom('${c.id}')">Desativar cliente</button>
         </div>
@@ -5065,10 +5068,10 @@ function toggleAmbiente(){
   renderNfse();
 }
 
-// vencimento em ISO (YYYY-MM-DD) p/ Contas a Receber
-function _nfseVencISO(){
+// vencimento em ISO (YYYY-MM-DD) p/ Contas a Receber — dia por cliente c/ fallback global
+function _nfseVencISO(c){
   const mes=+document.getElementById('nfse-mes').value, ano=+document.getElementById('nfse-ano').value;
-  return `${ano}-${String(mes).padStart(2,'0')}-${String(NFSE_PRESTADOR.vencimento_dia).padStart(2,'0')}`;
+  return `${ano}-${String(mes).padStart(2,'0')}-${String(_vencDia(c)).padStart(2,'0')}`;
 }
 
 // Cria a Conta a Receber (PRODUÇÃO) e devolve o id, ou null.
@@ -5079,7 +5082,7 @@ async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria,
       cliente:nome, categoria:categoria||'Outros',
       valor:Math.round((+valorNum)*100),
       descricao:(descricao||'').slice(0,500),
-      data_vencimento:vencISO, dia_vencimento:NFSE_PRESTADOR.vencimento_dia,
+      data_vencimento:vencISO, dia_vencimento:(+String(vencISO).slice(8,10))||NFSE_PRESTADOR.vencimento_dia,
       recorrente:false, lembrete_nota_fiscal:false,
       nota_fiscal_emitida:!!numeroNfse, numero_nfse:numeroNfse?String(numeroNfse):null,
       codigo_verificacao:codigoVerificacao||null
@@ -5123,7 +5126,7 @@ async function emitirNfse(){
       valor:(+st.valor).toFixed(2),
       iss_retido:c.iss_retido,
       descricao:descFinal,
-      vencimento:_nfseVencimento(),
+      vencimento:_nfseVencimento(c),
       parcela:st.parcela, megazap:!!c.megazap
     };
     try{
@@ -5133,7 +5136,7 @@ async function emitirNfse(){
       if(r.ok && j.ok && j.numero_nfse){
         // PRODUÇÃO → lança no Contas a Receber
         let crId=null;
-        if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO(),null,j.numero_nfse,j.codigo_verificacao); }
+        if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO(c),null,j.numero_nfse,j.codigo_verificacao); }
         // grava histórico (sempre)
         await _nfseGravarHistorico({
           condominio_id:c.id, nome:c.nome,
@@ -5327,7 +5330,7 @@ async function lancarMensalidades(){
   if(!confirm(`Lançar ${sel.length} mensalidade(s) de ${comp} no Contas a Receber?\n\n`+sel.map(c=>`• ${c.nome}: R$ ${(+_nfseEstado[c.id].valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')+`\n\nVenc. dia ${NFSE_PRESTADOR.vencimento_dia}, status Pendente. (Não emite nota — apenas lança a cobrança.)`)) return;
   let ok=0,fail=0;
   for(const c of sel){
-    const id=await _nfseCriarContaReceber(c.nome,_nfseEstado[c.id].valor,`Mensalidade de engenharia — ${comp}`,_nfseVencISO());
+    const id=await _nfseCriarContaReceber(c.nome,_nfseEstado[c.id].valor,`Mensalidade de engenharia — ${comp}`,_nfseVencISO(c));
     if(id) ok++; else fail++;
   }
   toast(`${ok} mensalidade(s) lançada(s)${fail?', '+fail+' falha(s)':''}`, fail>0);
