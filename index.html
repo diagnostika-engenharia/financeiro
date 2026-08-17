@@ -1592,7 +1592,9 @@ body.capturing .rel-acao{display:none!important}
         <option>Anexação</option><option>Laudo</option><option>Parecer</option><option>Outros</option>
       </select>
       <label style="font-size:12px;font-weight:600">Categoria</label>
-      <input id="cl-categoria" placeholder="ex: ART, Assessoria, Projeto…" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+      <select id="cl-categoria" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
+        <option value="">—</option>
+      </select>
       <label style="font-size:12px;font-weight:600">Projeto (agrupa receitas e despesas do mesmo trabalho)</label>
       <input id="cl-projeto" list="cl-projetos-list" onchange="_clCheckDup()" placeholder="ex: Projeto casa João da Silva" style="width:100%;box-sizing:border-box;margin:4px 0 4px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
       <datalist id="cl-projetos-list"></datalist>
@@ -5956,7 +5958,7 @@ async function abrirClassificar(id){
   document.getElementById('cl-resumo').innerHTML='<b>'+esc(t.historico||t.descricao||'')+'</b><br>'+(t.data?String(t.data).split('-').reverse().join('/'):'')+(t.hora?' '+esc(t.hora):'')+' · '+(t.tipo==='credito'?'Crédito':'Débito')+' · R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})+(t.observacao?'<br><small>'+esc(t.observacao)+'</small>':'');
   document.getElementById('cl-condominio').value=t.condominio||'';
   document.getElementById('cl-tiposervico').value=t.tipo_servico||'';
-  document.getElementById('cl-categoria').value=(t.categoria&&t.categoria!=='Não classificado')?t.categoria:'';
+  _clPopularCategorias(t.tipo==='credito',(t.categoria&&t.categoria!=='Não classificado')?t.categoria:'');
   document.getElementById('cl-projeto').value=t.projeto||'';
   document.getElementById('cl-dup-warn').style.display='none';
   try{ const dp=document.getElementById('cl-projetos-list'); const projs=[...new Set((_dreBankCache||[]).map(x=>x.projeto).filter(Boolean))].sort(); dp.innerHTML=projs.map(p=>'<option value="'+esc(p)+'">').join(''); }catch(e){}
@@ -5995,10 +5997,27 @@ function catCanonica(v){
   if(s.includes('laudo')||s.includes('parecer')) return 'Laudo/Parecer';
   return 'Outros';
 }
+// Opções canônicas da Categoria (valor = rótulo dominante já gravado no banco,
+// para o gráfico "Receita por categoria" [catCanonica] e a DRE consolidarem igual).
+const _CL_CAT_RECEITA=[['Receita de ART','ART'],['Assessoria','Assessoria'],['Receita de Projetos','Projeto'],['Receita de Vistoria','Vistoria'],['Laudo/Parecer','Laudo / Parecer'],['Recebimento PIX','Recebimento PIX (avulso)'],['Outros','Outros']];
+const _CL_CAT_DESPESA=[['Taxa de ART (CREA)','Taxa de ART (CREA)'],['Pagamento PIX','Pagamento PIX'],['Cartão de crédito','Cartão de crédito'],['Cartao/Compras','Cartão / Compras'],['Custo de projeto','Custo de projeto'],['Despesa com refeições','Refeições'],['Tarifas bancárias','Tarifas bancárias'],['Pró-labore','Pró-labore'],['Impostos e Tributos','Impostos e Tributos'],['Software e assinaturas','Software e assinaturas'],['Contabilidade','Contabilidade'],['Reembolsos','Reembolsos'],['Outros','Outros']];
+// Tipo de serviço (canônico) → valor gravado na Categoria
+const _CL_CANON2VAL={ART:'Receita de ART',Assessoria:'Assessoria',Projeto:'Receita de Projetos',Vistoria:'Receita de Vistoria','Laudo/Parecer':'Laudo/Parecer',Outros:'Outros'};
+function _clPopularCategorias(ehCred,cur){
+  const sel=document.getElementById('cl-categoria'); if(!sel) return;
+  const base=ehCred?_CL_CAT_RECEITA:_CL_CAT_DESPESA;
+  sel.innerHTML='<option value="">—</option>'+base.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('');
+  if(cur){
+    if(![...sel.options].some(o=>o.value===cur)) sel.insertAdjacentHTML('beforeend',`<option value="${esc(cur)}">${esc(cur)}</option>`);
+    sel.value=cur;
+  } else sel.value='';
+}
 function _clTipoServ(v){
   const cat=document.getElementById('cl-categoria'); if(!cat||cat.value) return;
   const c=catCanonica(v);
-  cat.value = c==='Outros' ? '' : c;
+  const target=_CL_CANON2VAL[c]||'';
+  if(target && ![...cat.options].some(o=>o.value===target)) cat.insertAdjacentHTML('beforeend',`<option value="${esc(target)}">${esc(target)}</option>`);
+  cat.value=target;
 }
 function _clCheckDup(){
   const warn=document.getElementById('cl-dup-warn');
@@ -7995,7 +8014,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260817-163758';
+const APP_BUILD='20260817-174846';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
