@@ -5794,6 +5794,7 @@ const _txComp=t=>t.competencia||(t.data?String(t.data).slice(0,7):'');
 // mapeia uma descrição do cofre para uma conta do plano de contas (DRE)
 function _cofreCat(desc,tipo){
   const d=(desc||'').toLowerCase();
+  if(/reembolso/.test(d) && /taxa|cart[óo]rio|matr[íi]cula|ficha/.test(d)) return 'Reembolso de taxas';
   if(/reembolso/.test(d)) return 'Reembolsos (cofre)';
   if(/pr[óo] ?labore|sal[áa]rio|pagamento.*claudemir|claudemir/.test(d)) return 'Pró-labore (cofre)';
   // recebimentos em espécie: rotear para a MESMA conta que o banco usa (merge no DRE;
@@ -7994,7 +7995,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260817-161841';
+const APP_BUILD='20260817-163758';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
