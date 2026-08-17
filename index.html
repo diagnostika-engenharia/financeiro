@@ -5796,7 +5796,12 @@ function _cofreCat(desc,tipo){
   const d=(desc||'').toLowerCase();
   if(/reembolso/.test(d)) return 'Reembolsos (cofre)';
   if(/pr[óo] ?labore|sal[áa]rio|pagamento.*claudemir|claudemir/.test(d)) return 'Pró-labore (cofre)';
-  if(/recebimento|cliente|receb/.test(d)) return 'Receita de serviços (cofre)';
+  // recebimentos em espécie: rotear para a MESMA conta que o banco usa (merge no DRE;
+  // cada linha do cofre mantém o selo COFRE). ART/serviço técnico têm conta própria;
+  // o restante ("recebimento/cliente") é entrada de projeto → "Receita de Projetos".
+  if(/\bart\b|taxa art/.test(d)) return 'Receita de ART';
+  if(/memorial|laudo|parecer|vistoria/.test(d)) return 'Serviços de Engenharia';
+  if(/recebimento|cliente|receb/.test(d)) return 'Receita de Projetos';
   if(/mercado|jos[ée]/.test(d)) return 'Outras entradas (cofre)';
   return tipo==='Entrada'?'Outras entradas (cofre)':'Outras saídas (cofre)';
 }
@@ -7989,7 +7994,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260804-162722';
+const APP_BUILD='20260817-161841';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
