@@ -125,6 +125,8 @@ create table if not exists public.fin_contas_receber (
   data_fim_recorrencia varchar(7),
   lembrete_nota_fiscal boolean not null default false,
   nota_fiscal_emitida  boolean not null default false,
+  numero_nfse          text,   -- nº da NFS-e emitida (rastreabilidade nota <-> cobrança)
+  codigo_verificacao   text,   -- código de verificação da NFS-e
   estornado            boolean not null default false,
   data_estorno         varchar(10),
   motivo_estorno       text,
@@ -132,6 +134,11 @@ create table if not exists public.fin_contas_receber (
   created_at           timestamptz not null default now(),
   updated_at           timestamptz not null default now()
 );
+-- Migração p/ bancos já criados antes destas colunas (o app grava-as ao emitir a nota;
+-- sem elas o insert do Contas a Receber falhava calado e a emissão não gerava cobrança).
+alter table public.fin_contas_receber
+  add column if not exists numero_nfse        text,
+  add column if not exists codigo_verificacao text;
 
 -- 6) Contas a Pagar
 create table if not exists public.fin_contas_pagar (

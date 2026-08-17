@@ -5078,6 +5078,16 @@ function _nfseVencISO(c){
 // Já grava o número da nota emitida — garante rastreabilidade (nota ↔ conta a receber ↔ extrato).
 async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria,numeroNfse,codigoVerificacao){
   try{
+    // Sem categoria explícita: herda a última que ESTE cliente já usou (mantém a mensalidade
+    // sempre no mesmo plano de contas — ex.: Assessoria; Matisse = Serviços de Engenharia).
+    // Só cai em 'Outros' se o cliente nunca teve conta a receber.
+    if(!categoria){
+      try{
+        const{data:ult}=await sb.from('fin_contas_receber')
+          .select('categoria').eq('cliente',nome).order('created_at',{ascending:false}).limit(1);
+        if(ult&&ult[0]&&ult[0].categoria) categoria=ult[0].categoria;
+      }catch(e){}
+    }
     const payload={
       cliente:nome, categoria:categoria||'Outros',
       valor:Math.round((+valorNum)*100),

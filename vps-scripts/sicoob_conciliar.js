@@ -152,7 +152,7 @@ async function estornar(txId) {
     '/rest/v1/fin_transacoes_bancarias?select=id,data,hora,valor,historico,observacao,categoria,condominio,status,conta_receber_id' +
     '&origem_arquivo=eq.sicoob_api&tipo=eq.credito&conta_receber_id=is.null&status=neq.conciliado&data=gte.' + desde + '&order=data')).body) || [];
   const receber = JSON.parse((await sb('GET',
-    '/rest/v1/fin_contas_receber?select=id,cliente,categoria,descricao,valor,data_vencimento,status,estornado' +
+    '/rest/v1/fin_contas_receber?select=id,cliente,categoria,descricao,valor,data_vencimento,status,estornado,created_at' +
     '&status=eq.Pendente&estornado=eq.false&order=data_vencimento')).body) || [];
   // clientes com ISS retido na fonte: o deposito chega LIQUIDO (bruto - ISS), nunca bate o valor bruto da conta
   const clientes = JSON.parse((await sb('GET', '/rest/v1/fin_clientes?select=nome,iss_retido,aliquota_iss')).body) || [];
@@ -185,7 +185,11 @@ async function estornar(txId) {
 
     // --- 1. identificar o CLIENTE ---
     // preferencia: condominio ja classificado na transacao; senao, nome do pagador no texto do extrato
-    const disp = receber.filter(r => !usadas.has(r.id));
+    // GUARDA TEMPORAL: um credito NAO pode quitar uma conta que so foi criada DEPOIS que o dinheiro
+    // entrou. Sem isto, uma nota emitida hoje (conta de agosto) casava com um PIX orfao de junho
+    // do mesmo condominio pelo valor — falso "Recebido" no mes errado. Compara data (ISO, lexicografico).
+    const disp = receber.filter(r => !usadas.has(r.id) &&
+      (!r.created_at || String(r.created_at).slice(0, 10) <= c.data));
     const grupos = new Map();
     for (const r of disp) { if (!grupos.has(r.cliente)) grupos.set(r.cliente, []); grupos.get(r.cliente).push(r); }
     let cliente = null, via = null;
