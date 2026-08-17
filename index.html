@@ -1389,7 +1389,7 @@ body.capturing .rel-acao{display:none!important}
       </div>
       <div class="form-2col">
         <div class="form-row"><label>👉 Próximo passo</label><input id="mpj-passo" placeholder="ex: Cobrar documentação"></div>
-        <div class="form-row"><label>Prazo do próximo passo</label><input type="date" id="mpj-prazo"></div>
+        <div class="form-row"><label>Prazo do próximo passo</label><input type="date" id="mpj-prazo" onchange="_pjPintaEntrada()"></div>
         <div class="form-row"><label>Valor contratado (R$)</label><input id="mpj-rtotal" inputmode="decimal" placeholder="0,00" oninput="_pjPintaEntrada()"></div>
         <div class="form-row"><label>Já recebido (R$) <small title="atualizado sozinho pelo feeder do extrato quando o PIX cai">ⓘ</small></label><input id="mpj-rreceb" inputmode="decimal" placeholder="0,00" oninput="_pjPintaEntrada()"></div>
       </div>
@@ -1426,6 +1426,7 @@ body.capturing .rel-acao{display:none!important}
         </div>
         <div id="mpj-entrada-box" style="margin-top:8px;border-radius:8px;padding:10px 12px;font-size:12.5px"></div>
         <div id="mpj-plano-prev" style="margin-top:8px;font-size:12.5px"></div>
+        <div id="mpj-saldo-sync"></div>
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary btn-sm" type="button" onclick="pjGerarParcelas()">💳 Gerar contas a receber</button>
           <a onclick="nav('receber')" style="font-size:11.5px;color:var(--turq);cursor:pointer">ver em A Receber →</a>
@@ -7197,7 +7198,7 @@ async function loadProjetos(force){
       sb.from('fin_projeto_docs').select('*').order('criado_em'),
       sb.from('fin_projeto_eventos').select('*').order('data',{ascending:false}),
       sb.from('fin_transacoes_bancarias').select('id,data,projeto,valor,tipo,tipo_categoria,categoria,historico').not('projeto','is',null),
-      sb.from('fin_contas_receber').select('id,projeto_id,cliente,descricao,valor,data_vencimento,data_recebimento,status').not('projeto_id','is',null)
+      sb.from('fin_contas_receber').select('id,projeto_id,cliente,descricao,valor,data_vencimento,data_recebimento,status,estornado').not('projeto_id','is',null)
     ]);
     _pjParcelas=(rpar&&!rpar.error)?(rpar.data||[]):[];
     if(rc.error||rp.error||rd.error){
@@ -7243,6 +7244,11 @@ const PJ_PARADO_DIAS=10;  // limiar do "parado há X dias" (selo, KPI, filtro e 
 // OU sem movimento há >= PJ_PARADO_DIAS dias
 const _pjParado=p=>_pjAtivo(p)&&(!(p.proximo_passo||'').trim()||(p.proximo_passo_prazo&&p.proximo_passo_prazo<hoje())||_pjParadoDias(p)>=PJ_PARADO_DIAS);
 const _pjAReceber=p=>Math.max(0,(+p.receita_total_centavos||0)-(+p.receita_recebida_centavos||0));
+// Quanto do saldo contratual JÁ está lançado como conta a receber PENDENTE (fonte de caixa real).
+const _pjParcelasPendCent=pid=>(_pjParcelas||[]).filter(r=>r.projeto_id===pid&&r.status!=='Recebido'&&!r.estornado).reduce((s,r)=>s+(+r.valor||0),0);
+// Saldo a receber que AINDA NÃO está no Contas a Receber = (contratado − recebido) − parcelas pendentes já lançadas.
+// É a lacuna entre o que Projetos mostra e o que o fluxo de caixa realmente enxerga.
+const _pjSaldoFora=p=>_pjSemValor(p)?0:Math.max(0,_pjAReceber(p)-_pjParcelasPendCent(p.id));
 // ── Regra do contrato: ENTRADA de 30% antes de começar ──────────
 // Status que significam "trabalho já começou" (não pode estar aqui sem entrada)
 const PJ_ST_INICIADO=['elaboracao','protocolo_prefeitura','analise','aprovado','finalizado','aguardando_pagamento','entregue'];
@@ -7422,7 +7428,7 @@ function _pjPintaDigest(rows){
 function _pjCardHtml(p){
   const c=_pjCliente(p.cliente_id), st=_pjStatusInfo(p.status);
   const docs=_pjDocsDe(p.id), rec=docs.filter(d=>d.status==='recebido').length;
-  const conta=_pjConta(p), aRec=_pjAReceber(p);
+  const conta=_pjConta(p), aRec=_pjAReceber(p), fora=_pjSaldoFora(p);
   const passoTxt=(p.proximo_passo||'').trim();
   const late=p.proximo_passo_prazo&&p.proximo_passo_prazo<hoje();
   const nx=passoTxt
@@ -7445,6 +7451,7 @@ function _pjCardHtml(p){
         :`<span style="background:#FFF3E0;border-color:#FFCC80;color:#E65100" title="entrada de ${_pjEntradaPct(p)}% = R$ ${_pjBrl(_pjEntradaExigida(p))}">⛔ entrada: falta R$ ${_pjBrl(_pjEntradaFalta(p))}</span>`}
       ${docs.length?`<span>📄 ${rec}/${docs.length} docs</span>`:''}
       ${aRec>0?`<span>💰 receber R$ ${_pjBrl(aRec)}</span>`:''}
+      ${fora>0?`<span style="background:#FFF3E0;border-color:#FFCC80;color:#E65100" title="saldo a receber que ainda NÃO está no Contas a Receber — abra o projeto e lance">💸 fora do A Receber R$ ${_pjBrl(fora)}</span>`:''}
       ${conta.custoExtrato>0?`<span>🔻 custo R$ ${_pjBrl(Math.round(conta.custoExtrato*100))}</span>`:''}
       ${_pjAtivo(p)&&_pjParadoDias(p)>=PJ_PARADO_DIAS?`<span style="background:#FDECEA;border-color:#F5C6C0;color:#B71C1C">⏳ parado ${_pjParadoDias(p)}d</span>`:''}
     </div>
@@ -7762,6 +7769,45 @@ function _pjPintaParcelasGeradas(pid){
     (rec?'<div style="text-align:right;font-size:11.5px;color:#1B5E20;margin-top:4px">recebido: R$ '+_pjBrl(rec)+'</div>':'');
 }
 
+// ── Ponte Projetos → Contas a Receber ───────────────────────────────
+// O card/dashboard mostram "a receber R$ X" (contratado − recebido), mas esse
+// número NÃO existe no fluxo de caixa até virar conta a receber de verdade.
+// Aqui a gente mostra a lacuna e deixa lançar o saldo em UM clique, sem exigir
+// o plano completo (entrada + data do aceite) — útil pro saldo "em espécie".
+function _pjPintaSaldoSync(p){
+  const el=document.getElementById('mpj-saldo-sync'); if(!el)return;
+  const fora=_pjSaldoFora(p);
+  if(fora<=0){ el.innerHTML=''; return; }
+  const venc=document.getElementById('mpj-prazo').value;
+  el.innerHTML=`<div style="background:#FFF3E0;border:1px solid #FFCC80;border-radius:8px;padding:9px 11px;margin-top:8px">
+    <b style="color:#E65100">💸 R$ ${_pjBrl(fora)} a receber ainda NÃO está no Contas a Receber</b>
+    <div style="color:var(--text2);margin:3px 0 7px">Contratado − já recebido − parcelas já lançadas. ${venc?'Vai lançar com vencimento <b>'+formatData(venc)+'</b> (Prazo do próximo passo).':'Sem data — entra como <b>a definir</b> (preencha o "Prazo do próximo passo" acima para dar vencimento).'}</div>
+    <button class="btn btn-primary btn-sm" type="button" onclick="pjSincronizarSaldo()">🔄 Lançar saldo no Contas a Receber</button>
+  </div>`;
+}
+// Lança o saldo que está fora como UMA conta a receber (categoria Projeto).
+async function pjSincronizarSaldo(){
+  const id=document.getElementById('mpj-id').value;
+  if(!id){toast('Salve o projeto primeiro',true);return;}
+  const p=_pjPlanoDoForm();
+  const fora=_pjSaldoFora(p);
+  if(fora<=0){toast('Não há saldo fora do Contas a Receber',true);return;}
+  const venc=document.getElementById('mpj-prazo').value||null;
+  const cli=(_pjCliente(p.cliente_id)||{}).nome||'Cliente';
+  const rot=(document.getElementById('mpj-codigo').value||'').trim();
+  if(!confirm('Lançar R$ '+_pjBrl(fora)+' como conta a receber deste projeto?\n\n'+(rot?rot+' — ':'')+'Saldo a receber'+(venc?'\nVencimento: '+formatData(venc):'\nSem data (a definir)')+'\n\nStatus: Pendente.'))return;
+  try{
+    const row={cliente:cli, categoria:'Projeto', projeto_id:id, descricao:(rot?rot+' — ':'')+'Saldo a receber',
+      valor:fora, data_vencimento:venc, dia_vencimento:venc?parseInt(String(venc).slice(8,10)):1, recorrente:false, status:'Pendente'};
+    const{data,error}=await sb.from('fin_contas_receber').insert(row).select();
+    if(error)throw error;
+    _pjParcelas=(_pjParcelas||[]).concat(data||[]);
+    await _pjEvento(id,'nota','Saldo de R$ '+_pjBrl(fora)+' lançado no Contas a Receber'+(venc?' (venc. '+formatData(venc)+')':' (a definir)')+'.');
+    _pjPintaEntrada(); pjRender();
+    toast('✅ Saldo lançado no Contas a Receber');
+  }catch(e){ toast('Erro: '+(e.message||e),true); }
+}
+
 // Painel da entrada no modal — recalcula ao vivo conforme se digita valor/%/recebido
 function _pjPintaEntrada(){
   const box=document.getElementById('mpj-entrada-box'); if(!box)return;
@@ -7769,6 +7815,7 @@ function _pjPintaEntrada(){
   const atual=_pjProjetos.find(x=>x.id===id)||{};
   const p=_pjPlanoDoForm();
   try{ _pjPintaPlano(); }catch(e){}
+  try{ _pjPintaSaldoSync(p); }catch(e){}
   if(_pjSemValor(p)){
     box.style.background='#FFF8E1'; box.style.border='1px solid #FFE082';
     box.innerHTML='<b style="color:#8D6E00">💰 Valor do contrato não informado</b><div style="color:var(--text2);margin-top:3px">Sem o valor não dá para cobrar a entrada de '+esc(String(p.entrada_percentual))+'%. Informe o contratado acima (ou diga o valor no grupo — o robô cadastra).</div>';
@@ -8014,7 +8061,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260817-174846';
+const APP_BUILD='20260817-175615';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
