@@ -17,6 +17,11 @@ const EVO_HOST = (CFG.evo_url || '').replace('http://', '').replace('https://', 
 const EVO_INSTANCE = CFG.evo_instance;
 const EVO_KEY = CFG.evo_apikey;
 const GRUPO = CFG.grupo_financeiro;
+// Corte por data do AVISO no grupo: transacoes com data ANTERIOR ao corte continuam
+// sincronizando/entrando no banco normalmente, mas NAO geram mensagem no grupo (evita
+// re-postar o backlog antigo enquanto o financeiro organiza os lancamentos). Override por
+// env NOTIFY_CUTOFF ou CFG.notify_cutoff. Formato ISO 'YYYY-MM-DD' (comparacao lexicografica).
+const NOTIFY_CUTOFF = process.env.NOTIFY_CUTOFF || CFG.notify_cutoff || '2026-08-28';
 
 const DRY_RUN = process.env.DRY_RUN === '1';   // nao grava, nao envia
 const SILENT = process.env.SILENT === '1';     // grava, mas NAO envia WhatsApp
@@ -226,8 +231,10 @@ function mapRow(t) {
   // WhatsApp (1 msg por transacao REALMENTE inserida) — pulado em modo silencioso.
   // Notifica a partir da resposta do INSERT (linhas que de fato entraram), nunca reavisa linha ja existente.
   if (SILENT) { console.log('Modo silencioso: sem WhatsApp.'); return; }
-  let enviadas = 0;
+  let enviadas = 0, suprimidas = 0;
   for (const r of inseridas) {
+    // CORTE POR DATA: backlog antigo (data < corte) entra no banco mas NAO posta no grupo.
+    if (r.data < NOTIFY_CUTOFF) { suprimidas++; console.log('  suprimido (data ' + r.data + ' < corte ' + NOTIFY_CUTOFF + '): R$ ' + fmtBR(r.valor) + ' | ' + r.historico); continue; }
     const m = montarMensagem(r);
     try {
       const st = await enviarWhatsapp(m);
@@ -236,7 +243,7 @@ function mapRow(t) {
     }
     catch (e) { const q = loadQ(); q.push(m); saveQ(q); console.error('WhatsApp falhou (' + e.message + ') -> aviso enfileirado'); }
   }
-  console.log('Mensagens enviadas: ' + enviadas + '/' + novas.length);
+  console.log('Mensagens enviadas: ' + enviadas + ' | suprimidas (data < ' + NOTIFY_CUTOFF + '): ' + suprimidas + ' | inseridas: ' + inseridas.length);
 })().then(() => {
   try { fs.writeFileSync('/home/node/.n8n/sicoob_fails.json', '0'); } catch (e) {}
 }).catch(async e => {
