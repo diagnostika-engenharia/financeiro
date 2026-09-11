@@ -677,7 +677,7 @@ body.capturing .rel-acao{display:none!important}
       <div class="page" id="page-nfse">
         <div class="page-header">
           <div><h2>Notas Fiscais (NFS-e)</h2><p>Emissão mensal — Prefeitura de Campinas (ABRASF 2.03)</p></div>
-          <button class="btn btn-outline btn-sm" onclick="renderNfse()">↺ Recarregar</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="abrirEnvioLoteNfse()">✉ Enviar e-mails das notas</button><button class="btn btn-outline btn-sm" onclick="renderNfse()">↺ Recarregar</button></div>
         </div>
 
         <!-- Banner ambiente -->
@@ -1671,6 +1671,24 @@ body.capturing .rel-acao{display:none!important}
       <button class="btn btn-outline" onclick="closeModal('modal-nfse-envio')">Cancelar</button>
       <button class="btn btn-outline" onclick="enviarNfseEmail('enviar')">Enviar agora</button>
       <button class="btn btn-primary" onclick="enviarNfseEmail('rascunho')">Criar rascunho no Gmail</button>
+    </div>
+  </div>
+</div>
+
+<!-- Envio em lote: escolher quais clientes recebem a NFS-e por e-mail -->
+<div class="modal-bg" id="modal-nfse-lote">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-hd"><h3>✉ Enviar e-mails das notas</h3><button onclick="closeModal('modal-nfse-lote')">×</button></div>
+    <div class="modal-bd">
+      <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Marque os clientes que devem receber a NFS-e por e-mail. Quem <b>não está cadastrado no sistema da Prefeitura de Campinas</b> (ou está com e-mail errado lá) vem primeiro e já marcado. O PDF oficial é baixado da Prefeitura e anexado; <b>Criar rascunhos</b> deixa tudo pronto no Gmail para conferir, <b>Enviar agora</b> envia direto.</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px"><b id="nl-contador"></b><span style="flex:1"></span><a href="#" onclick="nlMarcar('prioridade');return false">marcar só prioridade</a> · <a href="#" onclick="nlMarcar('todos');return false">todos</a> · <a href="#" onclick="nlMarcar('nenhum');return false">nenhum</a></div>
+      <div id="nl-lista" style="max-height:52vh;overflow:auto"></div>
+      <div id="nl-result"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-nfse-lote')">Fechar</button>
+      <button class="btn btn-outline" id="nl-btn-enviar" onclick="enviarLoteNfse('enviar')">Enviar agora</button>
+      <button class="btn btn-primary" id="nl-btn-rascunho" onclick="enviarLoteNfse('rascunho')">Criar rascunhos no Gmail</button>
     </div>
   </div>
 </div>
@@ -5050,13 +5068,9 @@ function _nfseAguardandoEnvio(){
   return out;
 }
 let _nfseFilaEnvio=[];
-function enviarTodasNfse(){
-  _nfseFilaEnvio=_nfseAguardandoEnvio().map(x=>x.u.id);
-  if(!_nfseFilaEnvio.length){ toast('Nenhuma nota aguardando envio'); return; }
-  abrirEnvioNfse(_nfseFilaEnvio.shift());
-}
-function abrirEnvioNfse(notaId){
-  const n=_nfseNotasById[notaId]; if(!n){ toast('Nota não encontrada — recarregue a página',true); return; }
+function enviarTodasNfse(){ abrirEnvioLoteNfse(); }
+// Monta os campos padrão do e-mail de uma nota (usado pelo modal individual e pelo envio em lote).
+function _nfseMontarEmail(n){
   const c=NFSE_CONDOS.find(x=>x.id===n.condominio_id)||{};
   const nome=n.nome||c.nome||n.tomador_razao||'';
   const mesServ=_nfseMesServico(n.competencia);
@@ -5065,15 +5079,11 @@ function abrirEnvioNfse(notaId){
   const parc=n.parcela&&c.parcelamento?` (parcela ${n.parcela}/${c.parcelamento.total})`:(n.parcela?` (parcela ${n.parcela})`:'');
   const liquido=/l[ií]quido/i.test(n.descricao||'');
   const e=_nfseEnvioDe(n);
-  document.getElementById('ne-nota-id').value=n.id;
-  document.getElementById('ne-titulo').textContent=`NFS-e nº ${n.numero_nfse} — ${nome}`;
-  document.getElementById('ne-para').value=(e&&e.para)||String((c.tomador&&c.tomador.email)||'').replace(/;/g,',').split(',').map(s=>s.trim()).filter(Boolean).join(', ');
-  document.getElementById('ne-cc').value=NFSE_EMAIL_CC;
-  document.getElementById('ne-comp').value=mesServ;
-  document.getElementById('ne-assunto').value=`NFS-e nº ${n.numero_nfse} — ${nome} — Competência ${mesServ}`;
-  document.getElementById('ne-obs').value='';
-  document.getElementById('ne-arquivo').value=`NFS-e ${n.numero_nfse} - ${_nfseNomeCurto(nome)} - ${mesServ.replace('/',' ')}.pdf`;
-  document.getElementById('ne-corpo').value=
+  const para=(e&&e.para)||String((c.tomador&&c.tomador.email)||'').replace(/;/g,',').split(',').map(s=>s.trim()).filter(Boolean).join(', ');
+  return { c, nome, mesServ, para, cc:NFSE_EMAIL_CC,
+    subject:`NFS-e nº ${n.numero_nfse} — ${nome} — Competência ${mesServ}`,
+    filename:`NFS-e ${n.numero_nfse} - ${_nfseNomeCurto(nome)} - ${mesServ.replace('/',' ')}.pdf`,
+    corpo:
 `Prezados,
 
 Segue anexa a Nota Fiscal de Serviços Eletrônica (NFS-e) emitida pela Diagnóstika Engenharia LTDA, referente aos serviços técnicos de engenharia prestados ao ${nome}.
@@ -5088,7 +5098,94 @@ Permanecemos à disposição para qualquer esclarecimento.
 Atenciosamente,
 Diagnóstika Engenharia LTDA
 CNPJ 54.027.948/0001-60
-diagnostikaengenharia@gmail.com`;
+diagnostikaengenharia@gmail.com` };
+}
+// Chamada ao motor n8n; devolve {ok, envio, gravado, aviso, erro}.
+async function _nfseChamarEnvio(n,modo,m){
+  const payload={ nota_id:n.id, numero:n.numero_nfse, codigo:n.codigo_verificacao, modo, to:m.para, cc:m.cc, subject:m.subject, corpo:m.corpo, filename:m.filename, competencia_servico:m.mesServ };
+  const r=await fetch(NFSE_ENVIAR_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+  const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(_){}
+  if(r.ok&&j.ok&&j.envio){ n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n; return j; }
+  return {ok:false,erro:j.erro||txt||('HTTP '+r.status)};
+}
+// ── Envio em lote: lista de clientes, prioridade para quem não recebe pela prefeitura ──
+function _nfseLoteItens(){
+  const comp=_nfseCompSel(); const itens=[];
+  NFSE_CONDOS.forEach(c=>{
+    if(c.faturamento_ativo===false) return;
+    const u=_nfseUltimas[c.id]; if(!u||u.ambiente!=='producao'||!u.numero_nfse) return;
+    const n=_nfseNotasById[u.id]||u; const m=_nfseMontarEmail(n);
+    itens.push({c,n,m,prio:!!c.entrega_email,daComp:n.competencia===comp,enviado:_nfseEnvioDe(n)});
+  });
+  // prioridade primeiro; dentro do grupo, quem ainda não foi enviado antes
+  itens.sort((a,b)=>(b.prio-a.prio)||((a.enviado?1:0)-(b.enviado?1:0))||a.c.nome.localeCompare(b.c.nome,'pt-BR'));
+  return itens;
+}
+let _nfseLote=[];
+function abrirEnvioLoteNfse(){
+  _nfseLote=_nfseLoteItens();
+  const box=document.getElementById('nl-lista'); document.getElementById('nl-result').innerHTML='';
+  if(!_nfseLote.length){ box.innerHTML='<div class="nfse-resultado">Nenhuma nota de produção encontrada nos clientes ativos.</div>'; }
+  else{
+    const comp=_nfseCompSel();
+    const linha=(it,i)=>`<div class="nfse-tom" id="nl-row-${i}" style="display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;margin:0 0 6px;padding:8px 10px${it.prio?';border-left:4px solid #1565C0':''}">
+      <input type="checkbox" id="nl-chk-${i}" ${it.prio&&!it.enviado?'checked':''} onchange="nlContar()">
+      <div><b>${esc(it.c.nome)}</b>${it.prio?'<span class="nfse-flag" style="background:#E3F2FD;color:#1565C0">sem entrega pela prefeitura</span>':''}<br>
+        <small style="color:var(--text2)">NFS-e nº <b>${esc(it.n.numero_nfse)}</b> · ${esc(it.n.competencia||'')}${it.daComp||!comp||/undefined/.test(comp)?'':' <span style="color:#b26a00">(não é da competência '+esc(comp)+' selecionada)</span>'} · R$ ${(+it.n.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</small><br>
+        <small>Para: <input id="nl-para-${i}" value="${esc(it.m.para)}" placeholder="e-mail do cliente" style="width:min(420px,100%);font-size:12px;padding:2px 6px"></small></div>
+      <div style="text-align:right;font-size:12px"><span id="nl-st-${i}">${_nfseEnvioPill(it.n)}</span><br><a href="#" onclick="closeModal('modal-nfse-lote');abrirEnvioNfse('${it.n.id}');return false" style="font-size:11px">✏ personalizar</a></div>
+    </div>`;
+    const prio=_nfseLote.map((it,i)=>it.prio?linha(it,i):'').join(''), resto=_nfseLote.map((it,i)=>it.prio?'':linha(it,i)).join('');
+    box.innerHTML=(prio?`<div style="font-size:12px;font-weight:600;margin:4px 0 6px">🔵 Prioridade — a prefeitura NÃO entrega a nota a estes clientes</div>${prio}`:`<div class="nfse-resultado" style="margin-bottom:8px">Nenhum cliente marcado como "envio manual por e-mail". Use o seletor <b>Envio</b> no card do cliente para marcar quem não está cadastrado na prefeitura.</div>`)
+      +(resto?`<div style="font-size:12px;font-weight:600;margin:12px 0 6px;color:var(--text2)">⚪ Recebem automaticamente pela prefeitura — marque só se quiser reforçar</div>${resto}`:'');
+  }
+  nlContar();
+  document.getElementById('modal-nfse-lote').classList.add('open');
+}
+function nlMarcar(q){ _nfseLote.forEach((it,i)=>{ const k=document.getElementById('nl-chk-'+i); if(k) k.checked=q==='todos'||(q==='prioridade'&&it.prio); }); nlContar(); }
+function nlSel(){ return _nfseLote.map((it,i)=>({it,i,k:document.getElementById('nl-chk-'+i)})).filter(x=>x.k&&x.k.checked); }
+function nlContar(){
+  const s=nlSel(); const n=s.length;
+  document.getElementById('nl-contador').textContent=n?`${n} selecionado(s)`:'nenhum selecionado';
+  document.getElementById('nl-btn-rascunho').textContent=n?`Criar ${n} rascunho(s) no Gmail`:'Criar rascunhos no Gmail';
+  document.getElementById('nl-btn-enviar').textContent=n?`Enviar agora (${n})`:'Enviar agora';
+}
+async function enviarLoteNfse(modo){
+  const sel=nlSel(); if(!sel.length){ toast('Marque ao menos um cliente',true); return; }
+  for(const x of sel){ x.it.m.para=document.getElementById('nl-para-'+x.i).value.trim(); if(!x.it.m.para){ toast('Falta o e-mail (Para) de '+x.it.c.nome,true); return; } }
+  if(modo==='enviar'){
+    const lista=sel.map(x=>`• ${x.it.c.nome} (nº ${x.it.n.numero_nfse}) → ${x.it.m.para}`).join('\n');
+    if(!confirm(`ENVIAR AGORA ${sel.length} e-mail(s) pela conta diagnostikaengenharia@gmail.com, com PDF anexado:\n\n${lista}\n\nConfirma?`)) return;
+    const ja=sel.filter(x=>x.it.enviado&&x.it.enviado.modo==='enviado');
+    if(ja.length&&!confirm(`ATENÇÃO: ${ja.length} nota(s) JÁ FORAM ENVIADAS antes:\n${ja.map(x=>'• '+x.it.c.nome+' em '+new Date(x.it.enviado.em).toLocaleString('pt-BR')).join('\n')}\n\nEnviar de novo mesmo assim?`)) return;
+  }
+  const btns=document.querySelectorAll('#modal-nfse-lote .modal-ft button'); btns.forEach(b=>b.disabled=true);
+  let ok=0, falhas=[];
+  for(const x of sel){
+    const st=document.getElementById('nl-st-'+x.i); st.innerHTML='⏳ '+(modo==='enviar'?'enviando…':'criando rascunho…');
+    try{
+      const j=await _nfseChamarEnvio(x.it.n,modo,x.it.m);
+      if(j.ok){ ok++; x.it.enviado=j.envio; st.innerHTML=_nfseEnvioPill(x.it.n); document.getElementById('nl-chk-'+x.i).checked=false; }
+      else{ falhas.push(x.it.c.nome+': '+j.erro); st.innerHTML='<span style="color:#c62828">✗ '+esc(j.erro)+'</span>'; }
+    }catch(err){ falhas.push(x.it.c.nome+': '+err.message); st.innerHTML='<span style="color:#c62828">✗ '+esc(err.message)+'</span>'; }
+  }
+  btns.forEach(b=>b.disabled=false); nlContar(); renderNfse(); loadNfseHist();
+  const r=document.getElementById('nl-result');
+  r.innerHTML=`<div class="nfse-resultado ${falhas.length?'erro':'ok'}" style="margin-top:8px">${ok} ${modo==='enviar'?'e-mail(s) enviado(s)':'rascunho(s) criado(s) no Gmail (diagnostikaengenharia@gmail.com) — abra o Gmail, confira e clique em Enviar'}${falhas.length?'<br>✗ Falhas: '+esc(falhas.join(' | ')):''}</div>`;
+  toast(ok+(modo==='enviar'?' e-mail(s) enviado(s)':' rascunho(s) criado(s)'),!!falhas.length&&!ok);
+}
+function abrirEnvioNfse(notaId){
+  const n=_nfseNotasById[notaId]; if(!n){ toast('Nota não encontrada — recarregue a página',true); return; }
+  const m=_nfseMontarEmail(n), nome=m.nome, e=_nfseEnvioDe(n);
+  document.getElementById('ne-nota-id').value=n.id;
+  document.getElementById('ne-titulo').textContent=`NFS-e nº ${n.numero_nfse} — ${nome}`;
+  document.getElementById('ne-para').value=m.para;
+  document.getElementById('ne-cc').value=m.cc;
+  document.getElementById('ne-comp').value=m.mesServ;
+  document.getElementById('ne-assunto').value=m.subject;
+  document.getElementById('ne-obs').value='';
+  document.getElementById('ne-arquivo').value=m.filename;
+  document.getElementById('ne-corpo').value=m.corpo;
   const st=document.getElementById('ne-status'); st.className='';
   st.innerHTML=e?`<div class="nfse-amb" style="background:${e.modo==='enviado'?'#e8f7ee':'#E3F2FD'};display:block;padding:8px 10px;font-size:12px;margin:0 0 8px">${e.modo==='enviado'?'✅ Esta nota <b>já foi enviada</b>':'📝 Já existe <b>rascunho</b> desta nota'} em ${new Date(e.em).toLocaleString('pt-BR')} para <b>${esc(e.para||'')}</b>. Um novo envio gera outro e-mail.</div>`:'';
   document.getElementById('ne-result').innerHTML='';
@@ -5168,7 +5265,7 @@ function renderNfse(){
   // Banner: notas emitidas de clientes com envio manual que ainda não foram e-mailadas
   const _aguard=_nfseAguardandoEnvio();
   if(_aguard.length){
-    _pendHtml+=`<div class="nfse-amb" style="background:#E3F2FD;border-left:4px solid #1565C0;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div style="flex:1"><strong>✉ ${_aguard.length} nota(s) aguardando envio manual por e-mail</strong><br><span>${_aguard.map(x=>esc(x.c.nome)+' (nº '+esc(x.u.numero_nfse)+')').join(', ')} — a prefeitura não entrega ao e-mail certo destes clientes.</span></div><button class="btn btn-primary btn-sm" onclick="enviarTodasNfse()">✉ Enviar todas</button></div>`;
+    _pendHtml+=`<div class="nfse-amb" style="background:#E3F2FD;border-left:4px solid #1565C0;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div style="flex:1"><strong>✉ ${_aguard.length} nota(s) aguardando envio manual por e-mail</strong><br><span>${_aguard.map(x=>esc(x.c.nome)+' (nº '+esc(x.u.numero_nfse)+')').join(', ')} — a prefeitura não entrega ao e-mail certo destes clientes.</span></div><button class="btn btn-primary btn-sm" onclick="abrirEnvioLoteNfse()">✉ Escolher e enviar</button></div>`;
   }
   cont.innerHTML=_pendHtml;
   NFSE_CONDOS.forEach(c=>{
@@ -8232,7 +8329,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260911-133153';
+const APP_BUILD='20260911-141502';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
