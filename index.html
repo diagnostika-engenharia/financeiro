@@ -5083,7 +5083,9 @@ function _nfseMontarEmail(n){
   const detalhe=(n.descricao||'').split(/\r?\n/).map(s=>s.trim()).filter(s=>/^(valor da mensalidade|desconto|valor l[ií]quido)/i.test(s))
     .map(s=>s.replace(/\s*-\s*parcela\s+(\d+)\s*\/\s*(\d+)\s*:/i,(m,a,b)=>` — ${ordinal(a)} de ${b} parcelas do desconto:`));
   const temDetalhe=detalhe.length>=2&&detalhe.some(s=>/l[ií]quido/i.test(s));
-  const parc=temDetalhe?'':(n.parcela&&c.parcelamento?` (${ordinal(n.parcela)} de ${c.parcelamento.total} parcelas do desconto)`:(n.parcela?` (parcela ${n.parcela})`:''));
+  // "parcelas do desconto" só quando a descrição fala em desconto (hoje só Menotti — Cláusula 9.3); demais clientes: parcela x de N.
+  const temDesconto=/desconto/i.test(n.descricao||'');
+  const parc=temDetalhe?'':(n.parcela&&c.parcelamento?` (${ordinal(n.parcela)} de ${c.parcelamento.total} parcelas${temDesconto?' do desconto':''})`:(n.parcela?` (parcela ${n.parcela})`:''));
   const blocoValor=temDetalhe?detalhe.join('\n'):`${liquido?'Valor líquido':'Valor'}: R$ ${valorFmt}${parc}`;
   const e=_nfseEnvioDe(n);
   const para=(e&&e.para)||String((c.tomador&&c.tomador.email)||'').replace(/;/g,',').split(',').map(s=>s.trim()).filter(Boolean).join(', ');
@@ -8336,7 +8338,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260911-151021';
+const APP_BUILD='20260911-151415';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
