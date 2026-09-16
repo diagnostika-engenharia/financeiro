@@ -1597,6 +1597,8 @@ body.capturing .rel-acao{display:none!important}
       <select id="cl-categoria" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
         <option value="">—</option>
       </select>
+      <label style="font-size:12px;font-weight:600">Competência (mês a que o lançamento pertence no DRE)</label>
+      <input id="cl-competencia" type="month" style="width:100%;box-sizing:border-box;margin:4px 0 10px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
       <label style="font-size:12px;font-weight:600">Projeto (agrupa receitas e despesas do mesmo trabalho)</label>
       <input id="cl-projeto" list="cl-projetos-list" onchange="_clCheckDup()" placeholder="ex: Projeto casa João da Silva" style="width:100%;box-sizing:border-box;margin:4px 0 4px;padding:7px 9px;border:1px solid var(--gray3);border-radius:8px">
       <datalist id="cl-projetos-list"></datalist>
@@ -6238,6 +6240,7 @@ async function abrirClassificar(id){
   document.getElementById('cl-tiposervico').value=t.tipo_servico||'';
   _clPopularCategorias(t.tipo==='credito',(t.categoria&&t.categoria!=='Não classificado')?t.categoria:'');
   document.getElementById('cl-projeto').value=t.projeto||'';
+  document.getElementById('cl-competencia').value=_txComp(t)||'';
   document.getElementById('cl-dup-warn').style.display='none';
   try{ const dp=document.getElementById('cl-projetos-list'); const projs=[...new Set((_dreBankCache||[]).map(x=>x.projeto).filter(Boolean))].sort(); dp.innerHTML=projs.map(p=>'<option value="'+esc(p)+'">').join(''); }catch(e){}
   _clCheckDup();
@@ -6319,6 +6322,9 @@ async function salvarClassificacao(){
   const btn=document.getElementById('cl-salvar-btn'); btn.disabled=true; btn.textContent='Salvando…';
   try{
     const upd={condominio,tipo_servico,categoria,tipo_categoria,projeto};
+    // competência editável e independente da data (auditoria DRE 16/09/2026, etapa 2)
+    const comp=(document.getElementById('cl-competencia')||{}).value||'';
+    if(/^\d{4}-\d{2}$/.test(comp)) upd.competencia=comp;
     if(!jaConc) upd.status='classificado';
     const {error}=await sb.from('fin_transacoes_bancarias').update(upd).eq('id',_clTxId);
     if(error)throw error;
@@ -8338,7 +8344,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260911-151415';
+const APP_BUILD='20260916-194017';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
