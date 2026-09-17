@@ -959,63 +959,29 @@ body.capturing .rel-acao{display:none!important}
 
       <!-- EXTRATOS & CONCILIAÇÃO -->
       <div class="page" id="page-extrato">
-        <div class="page-header">
-          <div><h2>Extratos &amp; Conciliação</h2><p>Sincronize com o Sicoob ou importe extrato manualmente</p></div>
-        </div>
-
-        <!-- Faixa compacta: sincronizacao discreta (esq) + saldo em destaque (dir) -->
-        <div class="card" id="sicoob-card" style="padding:8px 14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
-            <div style="font-size:12px;color:var(--text2);line-height:1.6">
+        <!-- Topo compacto (pedido do Rogério 17/09): título + sincronização + saldo numa linha,
+             filtros na linha de baixo, tudo num só card, para sobrar tela para os lançamentos -->
+        <div class="card" id="sicoob-card" style="padding:0;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 14px;border-bottom:1px solid var(--gray2)">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2);line-height:1.5">
+              <h2 style="font-size:16px;font-weight:800;color:var(--teal);margin:0 6px 0 0;white-space:nowrap">Extratos &amp; Conciliação</h2>
               <span class="sicoob-dot green" id="sicoob-dot"></span>
               <span id="sicoob-label">Sincronização automática ativa</span>
-              <span id="sicoob-last-sync"></span> · a cada 5 min (7h–0h)
-              <button class="btn btn-outline btn-sm" style="padding:2px 8px;margin-left:6px" id="btn-sicoob-sync" onclick="sicoobSync()">🔄 Atualizar</button>
-              <button class="btn btn-outline btn-sm" style="padding:2px 8px" onclick="document.getElementById('ex-input').click()">📄 Importar PDF</button>
+              <span id="sicoob-last-sync"></span> <span title="a cada 5 min, das 7h à 0h">· 5 min (7h–0h)</span>
+              <button class="btn btn-outline btn-sm" style="padding:2px 8px" id="btn-sicoob-sync" onclick="sicoobSync()">🔄 Atualizar</button>
+              <button class="btn btn-outline btn-sm" style="padding:2px 8px" onclick="document.getElementById('ex-input').click()" title="Importar extrato em PDF do Sicoob (conferido pelo saldo antes de importar)">📄 Importar PDF</button>
               <span id="sicoob-msg" style="display:none"></span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,rgba(14,92,92,.05),rgba(18,168,157,.10));border:1px solid rgba(14,92,92,.14);border-radius:10px;padding:5px 14px">
-              <div style="text-align:right">
-                <div style="text-transform:uppercase;font-weight:700;font-size:10px;color:var(--text2);letter-spacing:.3px">Saldo atual da empresa</div>
+            <div style="display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,rgba(14,92,92,.05),rgba(18,168,157,.10));border:1px solid rgba(14,92,92,.14);border-radius:10px;padding:3px 12px">
+              <div style="text-align:right;display:flex;align-items:baseline;gap:8px">
+                <span style="text-transform:uppercase;font-weight:700;font-size:10px;color:var(--text2);letter-spacing:.3px">Saldo atual da empresa</span>
                 <span id="ex-saldo-empresa" style="font-size:13px;color:var(--text2);font-weight:600">—</span>
               </div>
-              <button id="ex-saldo-eye" onclick="toggleSaldoOculto()" title="Esconder/mostrar saldo" style="border:none;background:transparent;cursor:pointer;font-size:18px;color:var(--text2);line-height:1">👁</button>
+              <button id="ex-saldo-eye" onclick="toggleSaldoOculto()" title="Esconder/mostrar saldo" style="border:none;background:transparent;cursor:pointer;font-size:16px;color:var(--text2);line-height:1">👁</button>
             </div>
           </div>
-        </div>
-
-        <!-- Fallback: Upload PDF manual -->
-        <details class="ex-pdf-fallback">
-          <summary>…ou importar extrato PDF manualmente</summary>
-          <div class="ex-upload-bar" id="ex-drop" onclick="document.getElementById('ex-input').click()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-            <div class="ex-upload-txt">
-              <b>Importar extrato (PDF)</b>
-              <small>Arraste aqui ou clique — Sicoob, conferido pelo saldo antes de importar</small>
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();document.getElementById('ex-input').click()">Selecionar PDF</button>
-            <input type="file" id="ex-input" accept=".pdf" multiple style="display:none" onchange="extratoArquivos(this.files)">
-          </div>
-        </details>
-        <div id="ex-status" style="font-size:13px;margin:8px 2px 0"></div>
-
-        <!-- Pré-visualização da importação -->
-        <div class="card" id="ex-preview-card" style="display:none;margin-bottom:16px">
-          <div class="card-hd"><h3>Pré-visualização — confira antes de importar</h3>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-outline btn-sm" onclick="cancelarExtrato()">Cancelar</button>
-              <button class="btn btn-primary btn-sm" id="ex-confirm-btn" onclick="confirmarImportExtrato()">Importar para o sistema</button>
-            </div>
-          </div>
-          <div class="card-bd">
-            <div id="ex-recon" class="ex-recon"></div>
-            <div id="ex-preview-lista" style="max-height:420px;overflow:auto"></div>
-          </div>
-        </div>
-
-        <!-- Filtros (período + tipo) — valem para lançamentos e conciliação -->
-        <div class="card" style="margin-top:16px">
-          <div class="card-bd" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:9px 16px">
+          <!-- Filtros (período + tipo) — valem para lançamentos e conciliação -->
+          <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:7px 14px">
             <span style="font-size:14px">🔍</span><input id="ex2-busca" oninput="_dreSetBusca(this.value)" placeholder="Buscar no extrato…" style="font-size:13px;padding:4px 8px;border-radius:8px;border:1px solid var(--gray3);width:200px">
             <span style="color:var(--gray3)">|</span>
             <label style="font-size:12px;color:var(--text2);font-weight:600">Tipo:</label>
@@ -1045,13 +1011,39 @@ body.capturing .rel-acao{display:none!important}
           </div>
         </div>
 
+        <!-- Área de soltar PDF (arrastar): fica escondida; o botão "Importar PDF" acima abre o seletor -->
+        <div class="ex-upload-bar" id="ex-drop" onclick="document.getElementById('ex-input').click()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <div class="ex-upload-txt">
+            <b>Importar extrato (PDF)</b>
+            <small>Arraste aqui ou clique — Sicoob, conferido pelo saldo antes de importar</small>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();document.getElementById('ex-input').click()">Selecionar PDF</button>
+          <input type="file" id="ex-input" accept=".pdf" multiple style="display:none" onchange="extratoArquivos(this.files)">
+        </div>
+        <div id="ex-status" style="font-size:13px;margin:0 2px 6px"></div>
+
+        <!-- Pré-visualização da importação -->
+        <div class="card" id="ex-preview-card" style="display:none;margin-bottom:16px">
+          <div class="card-hd"><h3>Pré-visualização — confira antes de importar</h3>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="cancelarExtrato()">Cancelar</button>
+              <button class="btn btn-primary btn-sm" id="ex-confirm-btn" onclick="confirmarImportExtrato()">Importar para o sistema</button>
+            </div>
+          </div>
+          <div class="card-bd">
+            <div id="ex-recon" class="ex-recon"></div>
+            <div id="ex-preview-lista" style="max-height:420px;overflow:auto"></div>
+          </div>
+        </div>
+
         <!-- Extrato unificado: classificar + conciliar na mesma lista -->
-        <div class="card" style="margin-top:16px">
-          <div class="card-hd"><h3>Lançamentos do extrato <span id="ex-modo-selo" style="font-size:11px;font-weight:700;color:var(--teal);background:var(--gray);border:1px solid var(--gray2);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle">Banco + Cofre</span></h3>
+        <div class="card">
+          <div class="card-hd" style="padding:7px 14px"><h3 style="font-size:14px">Lançamentos do extrato <span id="ex-modo-selo" style="font-size:11px;font-weight:700;color:var(--teal);background:var(--gray);border:1px solid var(--gray2);border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:middle">Banco + Cofre</span></h3>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><small style="color:var(--text2)">classifique e concilie pelo ✏️</small>
             <button class="btn btn-outline btn-sm" onclick="renderExtratoDRE(true);loadConciliacao()">↺ Atualizar</button></div>
           </div>
-          <div class="card-bd"><div id="ex-txns" style="max-height:600px;overflow:auto"></div></div>
+          <div class="card-bd"><div id="ex-txns" style="max-height:calc(100vh - 215px);min-height:400px;overflow:auto"></div></div>
         </div>
 
         <!-- Resumo da conciliação (a lista virou parte do extrato acima) -->
@@ -5715,9 +5707,11 @@ function initExtrato(){
 }
 function _exSetupDrop(){
   const dz=document.getElementById('ex-drop'); if(!dz) return;
-  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
-  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
-  dz.addEventListener('drop',e=>{ if(e.dataTransfer?.files?.length) extratoArquivos(e.dataTransfer.files); });
+  // a área de soltar fica oculta (topo compacto): aparece ao arrastar um arquivo sobre a página
+  const pg=document.getElementById('page-extrato')||dz;
+  ['dragenter','dragover'].forEach(ev=>pg.addEventListener(ev,e=>{ if(!e.dataTransfer||![...e.dataTransfer.types||[]].includes('Files')) return; e.preventDefault(); dz.style.display='flex'; dz.classList.add('drag'); }));
+  pg.addEventListener('dragleave',e=>{ if(e.relatedTarget && pg.contains(e.relatedTarget)) return; dz.classList.remove('drag'); dz.style.display='none'; });
+  pg.addEventListener('drop',e=>{ e.preventDefault(); dz.classList.remove('drag'); dz.style.display='none'; if(e.dataTransfer?.files?.length) extratoArquivos(e.dataTransfer.files); });
 }
 
 // Extrai texto posicional de um PDF via pdf.js
@@ -8544,7 +8538,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-160452';
+const APP_BUILD='20260917-161043';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
