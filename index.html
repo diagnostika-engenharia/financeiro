@@ -7465,11 +7465,15 @@ async function confirmarPagamentoPL(){
     } else {
       // Conta bancária — registrar transação de débito e atualizar saldo
       const contaId=parseInt(a.conta);
+      // plano de consistência, etapa 3 (D8): categoria no nome do plano de contas ('Pró-labore', que o DRE
+      // agrupa por sócio), competência do pró-labore (não a data do pagamento), status em minúsculas como o
+      // restante do app e hash determinístico p/ o upsert não duplicar em reimportações.
       const{error:eTx}=await sb.from('fin_transacoes_bancarias').insert({
         conta_bancaria_id:contaId,data:dt,tipo:'debito',
-        descricao:descPL,valor:a.valor/100,
-        categoria:'Pró-Labore',tipo_categoria:'Despesa',
-        status:'Conciliado',
+        historico:descPL,descricao:descPL,valor:a.valor/100,
+        categoria:'Pró-labore',tipo_categoria:'Despesa',competencia:pl.competencia,
+        status:'conciliado',origem_arquivo:'app_prolabore',hash:_exHash('pl|'+id+'|'+contaId+'|'+dt+'|'+a.valor),
+        observacao:'Pró-labore #'+id+' pago pelo app ('+forma+'). Se a mesma saída entrar pelo sync do Sicoob, excluir esta linha (não a do extrato).',
       });
       if(eTx)toast('Aviso banco: '+eTx.message,true);
       // Atualizar saldo da conta
@@ -7561,6 +7565,17 @@ function fecharDetalhePL(){document.getElementById('pl-detalhe-card').style.disp
 // ── GERAÇÃO AUTOMÁTICA DE PRÓ-LABORE ─────────────────────────
 const PL_BRUTO=750000; // R$7.500 em centavos
 const PL_CLAUDEMIR=PL_SOCIOS.find(s=>s.nome.startsWith('Claudemir'));
+// Acha a parcela do carro nas transações do mês de pagamento (débitos). Ordem: (1) linha já classificada
+// como 'Pró-labore (financ. veículo)'; (2) boleto DÉB.TIT cujo valor fica a ±15% da mediana das parcelas
+// já classificadas no razão (mesma régua do _carroInferir); (3) valor histórico 1.985,81.
+function _plAcharCarro(banco){
+  const cls=(banco||[]).find(t=>t.categoria===_CARRO_CAT); if(cls) return Object.assign({},cls,{_fonte:'classificada'});
+  const serie=(_dreBankCache||[]).filter(t=>t.categoria===_CARRO_CAT&&t.tipo==='debito').map(t=>+t.valor||0).filter(v=>v>0).sort((a,b)=>a-b);
+  const med=serie.length>=2?serie[Math.floor(serie.length/2)]:1985.81;
+  const cand=(banco||[]).find(t=>/D[ÉE]B\.?\s*TIT/i.test((t.historico||'')+' '+(t.descricao||''))&&/^(T[íi]tulo\/Boleto pago|N[ãa]o classificado)?$/.test(t.categoria||'')&&Math.abs((+t.valor||0)-med)/med<=0.15);
+  if(cand) return Object.assign({},cand,{_fonte:'serie'});
+  const fixo=(banco||[]).find(t=>Math.round(t.valor*100)===198581); return fixo?Object.assign({},fixo,{_fonte:'fixo'}):null;
+}
 const PL_ROGERIO=PL_SOCIOS.find(s=>s.nome.startsWith('Rogério'));
 
 async function gerarPLMes(compDefault,socioIdFiltro){
@@ -7636,13 +7651,16 @@ async function gerarPLMes(compDefault,socioIdFiltro){
         alertas.push('Fatura do cartão NÃO encontrada no banco');
       }
 
-      // 3. Financiamento carro R$1.985,81 (dia ~23, DÉB.TIT) — parcela PESSOAL do Claudemir,
-      // confirmada como recorrente contra o extrato; entra automaticamente como desconto.
-      const financ=banco.find(t=>Math.round(t.valor*100)===198581);
-      if(financ){
-        itens.push({tipo:'debito',descricao:'Financiamento carro (pessoal)',valor:198581,data:financ.data});
+      // 3. Financiamento do carro — parcela PESSOAL do Claudemir, valor VARIA mês a mês (D9, etapa 3):
+      //    primeiro a linha já classificada como 'Pró-labore (financ. veículo)' no mês de pagamento;
+      //    senão, o boleto DÉB.TIT do mês cujo valor fica na série das parcelas conhecidas (mesma régua do
+      //    _carroInferir do DRE); 1.985,81 fica só como último recurso.
+      const carroPago=_plAcharCarro(banco);
+      if(carroPago){
+        itens.push({tipo:'debito',descricao:'Financiamento carro (pessoal)'+(carroPago._fonte==='serie'?' — reconhecido pela série de parcelas; confirme':''),valor:Math.round(carroPago.valor*100),data:carroPago.data});
+        if(carroPago._fonte==='serie') alertas.push('Parcela do carro reconhecida pela série ('+_dreR(+carroPago.valor)+'); confira e classifique a linha no extrato');
       } else {
-        alertas.push('Financiamento carro R$1.985,81 NÃO localizado no banco');
+        alertas.push('Parcela do carro NÃO localizada no banco neste mês');
       }
 
       // Cofre: SOMENTE pró-labore/adiantamento do Claudemir (nunca reembolsos)
@@ -7693,7 +7711,8 @@ async function gerarPLMes(compDefault,socioIdFiltro){
       const cartaoRog=banco.filter(t=>{
         if(!t.descricao)return false;
         const d=t.descricao.toUpperCase();
-        return d.includes('DÉB.TIT')&&Math.round(t.valor*100)!==198581;
+        const carro=_plAcharCarro(banco);
+        return d.includes('DÉB.TIT')&&!(carro&&carro.id===t.id);
       });
       // Não adicionar automaticamente — pode ser de outra coisa
       if(cartaoRog.length){
@@ -8662,7 +8681,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-181533';
+const APP_BUILD='20260917-182005';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
