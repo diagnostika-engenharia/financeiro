@@ -5946,14 +5946,42 @@ function _exTabela(txns,preview){
   return `<table class="nfse-hist-tbl"><thead><tr><th>Data</th><th>Histórico</th><th>Categoria / Condomínio</th><th>Tipo</th><th style="text-align:right">Valor</th>${preview?'':'<th>Status</th><th></th>'}</tr></thead><tbody>`+
     txns.map(t=>`<tr>
       <td style="white-space:nowrap">${esc(t.dataBR||(t.data?t.data.slice(8,10)+'/'+t.data.slice(5,7):''))}${t.hora?' <small style="color:var(--text2)">'+esc(t.hora)+'</small>':''}</td>
-      <td>${t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:2px 7px;margin-right:6px;font-size:10px;font-weight:800;letter-spacing:.3px;vertical-align:middle">'+COFRE_ICO+' COFRE</span>':''}${esc(t.historico||t.descricao||'')}</td>
+      <td>${t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:2px 7px;margin-right:6px;font-size:10px;font-weight:800;letter-spacing:.3px;vertical-align:middle">'+COFRE_ICO+' COFRE</span>':''}${_exSelo(t)}${esc(t.historico||t.descricao||'')}</td>
       <td>${esc(t.categoria||'—')}${t.categoria==='Não classificado'?' <span class="nfse-flag" style="background:#FFF3E0;color:#E65100">revisar</span>':''}${t.condominio?'<br><small style="color:var(--teal)">🏢 '+esc(t.condominio)+(t.tipo_servico?' · '+esc(t.tipo_servico):'')+'</small>':''}${t.projeto?'<br><small style="color:var(--turq)">📁 '+esc(t.projeto)+'</small>':''}</td>
       <td><span class="ex-tag ${t.tipo==='C'?'cred':'deb'}">${t.tipo==='C'?'crédito':'débito'}</span></td>
       <td style="text-align:right;color:${t.tipo==='C'?'var(--green)':'var(--red)'}">${_saldoOculto?'••••':((t.tipo==='C'?'+':'−')+' R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}))}</td>
       ${preview?'':`<td style="white-space:nowrap;font-size:11px;line-height:1.5">${(t.categoria&&t.categoria!=='Não classificado')?'<span style="color:var(--green)">🏷️ classif.</span>':'<span style="color:#E65100">⚠️ a classif.</span>'}<br>${t._cofre?'<span style="color:#8A7100;font-weight:700">'+COFRE_ICO+' cofre</span>':(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id)?'<span style="color:var(--green)">🔗 conciliado</span>':'<span style="color:var(--text2)">○ a conciliar</span>'}</td>`}
-      ${preview?'':`<td style="text-align:right;white-space:nowrap">${t.id?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}${(t.id&&!t._cofre)?'<button title="Dividir lançamento em categorias" onclick="dividirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✂️</button>':''}${(t.id&&!t._cofre)?'<button title="Excluir / estornar transação" onclick="excluirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">🗑️</button>':''}</td>`}
+      ${preview?'':`<td style="text-align:right;white-space:nowrap">${t._inf?'<button title="Gravar a sugestão do sistema nesta linha (categoria + competência)" onclick="confirmarInferencia('+t.id+')" style="cursor:pointer;border:1px solid #7C3AED;color:#7C3AED;background:#F5F3FF;border-radius:6px;font-size:11px;font-weight:700;padding:2px 7px;margin-right:4px">✔ Confirmar</button>':''}${_exIdReal(t)?'<button title="Classificar / conciliar" onclick="abrirClassificar('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✏️</button>':''}${(_exIdReal(t)&&!t._cofre)?'<button title="Dividir lançamento em categorias" onclick="dividirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">✂️</button>':''}${(_exIdReal(t)&&!t._cofre)?'<button title="Excluir / estornar transação" onclick="excluirTransacaoBancaria('+t.id+')" style="cursor:pointer;border:none;background:none;font-size:15px">🗑️</button>':''}</td>`}
     </tr>`).join('')+`</tbody></table>`;
 }
+// id real = linha gravada em fin_transacoes_bancarias (número). Linhas sintéticas do razão
+// (parc-…, prov-…, prev-…) não têm o que editar/dividir/excluir — plano de consistência, etapa 2.
+const _exIdReal=t=>typeof t.id==='number'&&!t._parc&&!t._prev;
+// selos de origem na lista do extrato (mesma semântica do DRE): INFERIDO / PARCELA / ESTORNO / PROVISÃO / PREVISTO
+function _exSelo(t){
+  const tag=(txt,cor,tit)=>'<span title="'+esc(tit)+'" style="display:inline-block;background:'+cor+';color:#fff;border-radius:6px;padding:2px 7px;margin-right:6px;font-size:10px;font-weight:800;letter-spacing:.3px;vertical-align:middle">'+txt+'</span>';
+  if(t._parc) return tag(t.tipo==='C'||t.tipo==='credito'?'ESTORNO':'PARCELA','#0F766E','Regra de parcelamento do sistema (fin_parcelamentos) aplicada pelo razão');
+  if(t._inf==='carro') return tag('INFERIDO','#7C3AED','Parcela do carro reconhecida pela série mensal de boletos — gravado: '+((t._orig&&t._orig.categoria)||'sem categoria')+' · clique em Confirmar para gravar');
+  if(t._prov) return tag('PROVISÃO','#9A3412','Provisão do regime de competência (alvo − realizado)');
+  if(t._prev) return tag('PREVISTO','#1D4ED8','Nota/boleto pendente (regime de competência)');
+  return '';
+}
+// Grava a sugestão de uma linha INFERIDA (categoria + competência) na transação real, com trilha
+// de auditoria na observação. A inferência some sozinha na próxima renderização (linha já classificada).
+async function confirmarInferencia(id){
+  const t=(_ledgerUltimo||[]).find(x=>x.id===id&&x._inf&&x._sugestao);
+  if(!t){ toast('Sugestão não encontrada — recarregue o extrato',true); return; }
+  const s=t._sugestao;
+  if(!confirm('Confirmar sugestão do sistema?\n\n'+(t.historico||t.descricao||'')+' — R$ '+(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})+'\n\nCategoria: '+((t._orig&&t._orig.categoria)||'—')+' → '+s.categoria+'\nCompetência: '+((t._orig&&t._orig.competencia)||String(t.data||'').slice(0,7))+' → '+s.competencia+'\n\nMotivo: '+s.motivo)) return;
+  const upd={categoria:s.categoria, competencia:s.competencia, tipo_categoria:'Despesa', status:'classificado',
+    observacao:((await _txnObservacao(id))+' | '+s.motivo+' · confirmado no app em '+hoje()).replace(/^\s*\|\s*/,'').trim()};
+  const {error}=await sb.from('fin_transacoes_bancarias').update(upd).eq('id',id);
+  if(error){ toast('Erro ao confirmar: '+error.message,true); return; }
+  toast('Sugestão gravada: '+s.categoria+' · '+_compLabel(s.competencia));
+  await renderExtratoDRE(true); if(typeof loadConciliacao==='function') loadConciliacao();
+}
+async function _txnObservacao(id){ const t=(_dreBankCache||[]).find(x=>x.id===id); return (t&&t.observacao)||''; }
+let _ledgerUltimo=[];   // último conjunto renderizado pelo extrato (para os botões da lista acharem linhas derivadas)
 
 // Divide um único lançamento bancário em 2+ linhas categorizadas, mantendo o valor total
 // (ex: fatura de cartão que mistura despesa da empresa + desconto pessoal do sócio) — sem gerar dinheiro novo.
@@ -6311,7 +6339,13 @@ function _carroInferir(all){
     const comp=(meses.includes(c1)&&!temCarro.has(c1))?c1:(meses.includes(c2)&&!temCarro.has(c2))?c2:null;
     if(!comp) return t;
     temCarro.add(comp); usados.add(t);
-    return Object.assign({},t,{categoria:_CARRO_CAT, competencia:comp, _inf:'carro', observacao:((t.observacao||'')+' · parcela do carro inferida pelo DRE (série mensal ~'+_dreR(med)+'); classifique a linha para confirmar').trim()});
+    // cópia com a sugestão aplicada (o cache e o banco ficam intactos); _orig guarda o que está gravado
+    // e _sugestao é o que o botão "Confirmar" grava — plano de consistência, etapa 2.
+    const motivo='parcela do carro inferida pelo DRE (série mensal ~'+_dreR(med)+')';
+    return Object.assign({},t,{categoria:_CARRO_CAT, competencia:comp, _inf:'carro',
+      _orig:{categoria:t.categoria||null, competencia:t.competencia||null},
+      _sugestao:{categoria:_CARRO_CAT, competencia:comp, motivo},
+      observacao:((t.observacao||'')+' · '+motivo+'; confirme a linha no extrato para gravar').trim()});
   });
 }
 function _setModoMov(m){
@@ -6426,7 +6460,7 @@ async function renderExtratoDRE(force){
   const L=await _ledger({regime:_dreRegime, modo});
   if(L.erro){ const msg=/relation|does not exist/i.test(L.erro.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(L.erro.message);
     if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
-  const all=L.all;
+  const all=L.all; _ledgerUltimo=all;
   _renderSaldoEmpresa(modo);            // KPI de saldo atual da empresa conforme o modo
   // chips de meses (do mais antigo para o mais recente) + chip "Todos"
   const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort();
@@ -6471,6 +6505,7 @@ async function renderExtratoDRE(force){
 // ── Classificação manual de lançamento ──
 let _clTxId=null;
 async function abrirClassificar(id){
+  if(typeof id!=='number'){ toast('Esta linha é gerada pelo sistema (parcelamento/provisão) — edite a regra de origem, não a linha',true); return; }
   _clTxId=id;
   const t=(_dreBankCache||[]).find(x=>x.id===id);
   if(!t){ toast('Lançamento não encontrado',true); return; }
@@ -8627,7 +8662,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-181314';
+const APP_BUILD='20260917-181533';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
