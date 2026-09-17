@@ -330,6 +330,12 @@ body.capturing .rel-acao{display:none!important}
 .dre-tbl tbody .dre-sec td:first-child{background:var(--gray);text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;color:var(--text2)}
 .dre-tbl .dre-cat td:first-child{padding-left:22px;color:var(--text)}
 .dre-tbl .dre-cat td{color:var(--text2)}
+.dre-tbl .dre-detail td{background:var(--gray);font-size:12px;padding:5px 10px}
+.dre-tbl .dre-detail td:first-child{padding-left:34px;white-space:normal;min-width:260px}
+.dre-tbl .dre-sub td{background:var(--white);font-size:12.5px;color:var(--text2)}
+.dre-tbl .dre-sub td:first-child{padding-left:34px;font-weight:600;white-space:nowrap;min-width:0}
+.dre-tbl .dre-lvl2 td:first-child{padding-left:48px}
+.dre-tbl .dre-det-mes td{background:var(--gray2,#e9edf0);font-weight:700;color:var(--text2);font-size:11.5px;border-top:1px solid var(--gray3)}
 .dre-tbl .dre-tot td{border-top:1px solid var(--gray3);font-weight:700;color:var(--text)}
 .dre-tbl .dre-res td{border-top:2px solid var(--teal);border-bottom:2px solid var(--teal);font-weight:800}
 .dre-tbl .dre-mg td{font-size:11px;color:var(--text2)}
@@ -6102,11 +6108,21 @@ function _cofreCat(desc,tipo){
 // converte linhas do livro-caixa do cofre em "transações" no mesmo formato do DRE
 // (valor centavos→reais; Entrada=crédito/Receita, Saída=débito/Despesa). Ignora
 // linhas de "Saldo anterior" (saldo de abertura, não é movimento de resultado).
+// competência de uma linha do cofre pela referência escrita na descrição
+// ("ref 02/2026", "ref 2026-05", "— maio de 2026"); sem referência, mês da data.
+const _MES_NOME={janeiro:1,fevereiro:2,marco:3,março:3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+function _cofreComp(desc,data){
+  const d=(desc||'').toLowerCase(); let m;
+  if((m=d.match(/ref\.?\s*(\d{2})\/(\d{4})/))) return m[2]+'-'+m[1];
+  if((m=d.match(/ref\.?\s*(\d{4})-(\d{2})/))) return m[1]+'-'+m[2];
+  if((m=d.match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/))) return m[2]+'-'+String(_MES_NOME[m[1]]).padStart(2,'0');
+  return String(data||'').slice(0,7);
+}
 function _cofreComoTxns(rows){
   return (rows||[])
     .filter(r=>!/saldo anterior/i.test(r.descricao||''))
     .map(r=>({
-      data:r.data, competencia:String(r.data||'').slice(0,7),
+      data:r.data, competencia:_cofreComp(r.descricao,r.data),
       historico:'Cofre · '+(r.descricao||'Movimentação'),
       categoria:_cofreCat(r.descricao,r.tipo),
       tipo: r.tipo==='Entrada'?'credito':'debito',
@@ -6163,8 +6179,22 @@ async function _carregarPrevistos(){
 //         emitidas no mês; sem NF na tabela, 15,5% sobre a receita de Assessoria do mês
 //  ART:   taxa do CREA ≈ 40% da receita de ART do mês (média jan–ago/26 = 39%)
 //  média: reembolsos, refeições, compras e cadista = média dos 6 meses anteriores
-const _PROV_FIXAS=[['Pró-labore',15000,'2 sócios × 7.500 (PIX + carro + cartão)',['Pró-labore','Pró-labore (financ. veículo)','Cartão de crédito']],
-  ['Software e assinaturas',259.80,'MegaZap',null],['Tarifas bancárias',119.90,'pacote Sicoob',null],['Contabilidade',550,'Veiga & Postal',null]];
+// Pró-labore: 7.500/mês por sócio. Tudo que compõe a retirada de cada sócio (PIX, parcela do
+// carro, fatura do cartão, cofre) entra na subconta dele; a provisão fecha a diferença.
+const _PL_CATS=['Pró-labore','Pró-labore (financ. veículo)','Cartão de crédito','Pró-labore (cofre)'];
+const _PL_ALVO=7500, _PL_SOCIOS=['Claudemir','Rogério'];
+function _proLaboreSocio(t){
+  if(t._socio) return t._socio;
+  const s=((t.descricao||'')+' '+(t.observacao||'')+' '+(t.historico||'')).toLowerCase();
+  if(/claudemir|994\.288/.test(s)) return 'Claudemir';
+  if(/rog[ée]rio|937\.788|rosemeire|rosemary/.test(s)) return 'Rogério';
+  if(t.categoria==='Pró-labore (financ. veículo)'||t.categoria==='Cartão de crédito') return 'Claudemir';
+  const v=Math.round(+t.valor||0); if(v===1621||v===1518) return 'Claudemir';   // PIX mensal do Claudemir
+  return 'Rogério';
+}
+// grupos do DRE: várias contas do banco viram UMA conta com subcontas
+const _DRE_GRUPOS={'Pró-labore':{cats:_PL_CATS, sub:_proLaboreSocio, label:s=>'Pró-labore '+s}};
+const _PROV_FIXAS=[['Software e assinaturas',259.80,'MegaZap',null],['Tarifas bancárias',119.90,'pacote Sicoob',null],['Contabilidade',550,'Veiga & Postal',null]];
 const _PROV_MEDIA=['Reembolsos','Despesa com refeições','Cartão/Compras','Custo de projeto - Cadista'];
 const _PROV_DAS=0.155, _PROV_DCTF=178.31, _PROV_ART=0.40;
 function _provisoesComoTxns(all){
@@ -6172,18 +6202,21 @@ function _provisoesComoTxns(all){
   const meses=[...new Set(all.map(_txComp).filter(m=>/^\d{4}-\d{2}$/.test(m)&&m>='2026-01'&&m<=mesAtual))].sort();
   if(!meses.length) return [];
   // realizado por mês × categoria (despesas, sinal positivo) e receitas por categoria
-  const real={}, rec={};
+  const real={}, rec={}, pl={};
   all.forEach(t=>{ const m=_txComp(t); if(!m) return; const c=t.categoria||'Não classificado';
-    if(_txNat(t)==='Despesa'){ (real[m]=real[m]||{}); real[m][c]=(real[m][c]||0)+_txSig(t); }
+    if(_txNat(t)==='Despesa'){ (real[m]=real[m]||{}); real[m][c]=(real[m][c]||0)+_txSig(t);
+      if(_PL_CATS.includes(c)){ const s=_proLaboreSocio(t); (pl[m]=pl[m]||{}); pl[m][s]=(pl[m][s]||0)+_txSig(t); } }
     else { (rec[m]=rec[m]||{}); rec[m][c]=(rec[m][c]||0)+_txSig(t); } });
   const R=(m,c)=>(real[m]&&real[m][c])||0;
   const nfMes={}; ((_prevCache&&_prevCache.nfse)||[]).forEach(n=>{ const m=String(n.created_at||'').slice(0,7); nfMes[m]=(nfMes[m]||0)+(+n.valor||0); });
   const ultimoDia=m=>{ const [y,mm]=m.split('-').map(Number); return m+'-'+String(new Date(y,mm,0).getDate()).padStart(2,'0'); };
   const out=[];
-  const push=(m,cat,alvo,realizado,regra)=>{ const v=Math.round((alvo-realizado)*100)/100; if(v<=0.005) return;
-    out.push({ id:'prov-'+cat+'-'+m, _prev:true, _prov:true, data:ultimoDia(m), competencia:m, tipo:'debito', tipo_categoria:'Despesa', valor:v, categoria:cat, condominio:null,
-      historico:'Provisão · '+regra+(realizado?' · já realizado '+_dreR(realizado):''), descricao:'', observacao:'Provisão (regime de competência): alvo '+_dreR(alvo)+' − realizado '+_dreR(realizado) }); };
+  const push=(m,cat,alvo,realizado,regra,extra)=>{ const v=Math.round((alvo-realizado)*100)/100; if(v<=0.005) return;
+    out.push(Object.assign({ id:'prov-'+cat+'-'+((extra&&extra._socio)||'')+m, _prev:true, _prov:true, data:ultimoDia(m), competencia:m, tipo:'debito', tipo_categoria:'Despesa', valor:v, categoria:cat, condominio:null,
+      historico:'Provisão · '+regra+(realizado?' · já realizado '+_dreR(realizado):''), descricao:'', observacao:'Provisão (regime de competência): alvo '+_dreR(alvo)+' − realizado '+_dreR(realizado) }, extra||{})); };
   meses.forEach(m=>{
+    // pró-labore por sócio: 7.500 − tudo que ele já retirou no mês (PIX, carro, cartão, cofre)
+    _PL_SOCIOS.forEach(s=>push(m,'Pró-labore',_PL_ALVO,(pl[m]&&pl[m][s])||0,'pró-labore '+s+' '+_dreR(_PL_ALVO)+'/mês',{_socio:s}));
     _PROV_FIXAS.forEach(([cat,alvo,regra,cats])=>push(m,cat,alvo,(cats||[cat]).reduce((s,c)=>s+R(m,c),0),regra+' '+_dreR(alvo)+'/mês'));
     // impostos: DAS 15,5% sobre NF emitida (ou assessoria) + DCTFWeb fixa
     const baseNF=nfMes[m]||0, baseAss=(rec[m]&&rec[m]['Assessoria'])||0;
@@ -6452,32 +6485,43 @@ async function salvarClassificacao(){
   finally{ btn.disabled=false; btn.textContent='Salvar'; }
 }
 
-function _dreDetailHtml(lista){
-  if(!lista.length) return '<div style="padding:10px 16px;color:var(--text2);font-size:12px">Nenhum lançamento.</div>';
-  // agrupa por mês de competência (mais recente primeiro) quando a lista cobre mais de um mês
+// Detalhe de uma categoria como LINHAS da própria tabela do DRE: data + descrição na coluna
+// "Conta", valor na coluna do mês correspondente; do mais antigo para o mais novo, com um
+// subtotal por mês (pedido do Rogério, 17/09/2026).
+function _dreDetailRows(lista, meses, idx, extraCls){
+  const ncols=meses.length+3;
+  const cls=`dre-detail dre-det-${idx}`+(extraCls?' '+extraCls:'');
+  if(!lista.length) return `<tr class="${cls}" style="display:none"><td colspan="${ncols}" style="padding:8px 22px;color:var(--text2);font-size:12px;text-align:left">Nenhum lançamento.</td></tr>`;
   const porMes={}; lista.forEach(t=>{ const m=_txComp(t)||'—'; (porMes[m]=porMes[m]||[]).push(t); });
-  const mesesDet=Object.keys(porMes).sort().reverse();
-  if(mesesDet.length>1){
-    return mesesDet.map(m=>{ const l=porMes[m]; const tot=l.reduce((s,t)=>s+(+t.valor||0),0);
-      return `<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--gray2,#e9edf0);font-size:11.5px;font-weight:700;color:var(--text2);border-top:1px solid var(--gray3)"><span>${_compLabel(m)} · ${l.length} lançamento${l.length>1?'s':''}</span><span>${_dreR(tot)}</span></div>`+_dreDetailHtml(l); }).join('');
-  }
-  const linhas=lista.map(t=>{
-    // identificação: quem (condomínio/cliente) + projeto/serviço na frente; histórico bruto do banco vira complemento
-    const quem=t._prev?'':(t.condominio||t.cliente||t.fornecedor||'');
-    const extra=[t.projeto?('proj. '+t.projeto):'', t.tipo_servico||''].filter(Boolean).join(' · ');
-    const hist=t.historico||t.descricao||'—';
-    const desc=quem?`<b>${esc(quem)}</b>${extra?' · '+esc(extra):''}<span style="color:var(--text2)"> · ${esc(hist)}</span>`:esc(hist);
-    const dt=t.data?String(t.data).split('-').reverse().join('/'):'—';
-    const cofreTag=t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">COFRE</span>':'';
-    const prevTag=t._prov?'<span title="Regime de competência: despesa provisionada (alvo − já realizado no mês)" style="display:inline-flex;align-items:center;background:#B45309;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PROVISÃO</span>':t._prev?'<span title="Regime de competência: nota/boleto ainda não pago" style="display:inline-flex;align-items:center;background:#5B5FC7;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PREVISTO</span>':'';
-    return `<tr><td style="padding:6px 10px;white-space:nowrap;font-size:12px;color:var(--text2)">${dt}</td><td style="padding:6px 10px;font-size:12px">${cofreTag}${prevTag}${desc}</td><td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`;
-  }).join('');
-  return `<table style="width:100%;border-collapse:collapse">${linhas}</table>`;
+  const mesesDet=Object.keys(porMes).sort();                     // mais antigo primeiro
+  const vazio=meses.map(()=>'<td></td>').join('');
+  const celulasMes=(m,html)=>meses.map(x=>`<td>${x===m?html:''}</td>`).join('');
+  let out='';
+  mesesDet.forEach(m=>{
+    const l=porMes[m].slice().sort((a,b)=>((a.data||'')+(a.hora||'')).localeCompare((b.data||'')+(b.hora||'')));
+    const tot=l.reduce((s,t)=>s+(+t.valor||0),0);
+    if(mesesDet.length>1 || meses.length>1)
+      out+=`<tr class="${cls} dre-det-mes" style="display:none"><td>${_compLabel(m)} · ${l.length} lançamento${l.length>1?'s':''}</td>${celulasMes(m,_dreR(tot))}<td></td><td></td><td></td></tr>`;
+    l.forEach(t=>{
+      const quem=t._prev?'':(t.condominio||t.cliente||t.fornecedor||'');
+      const extra=[t.projeto?('proj. '+t.projeto):'', t.tipo_servico||''].filter(Boolean).join(' · ');
+      const hist=t.historico||t.descricao||'—';
+      const desc=quem?`<b>${esc(quem)}</b>${extra?' · '+esc(extra):''}<span style="color:var(--text2)"> · ${esc(hist)}</span>`:esc(hist);
+      const dt=t.data?String(t.data).split('-').reverse().join('/'):'—';
+      const cofreTag=t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">COFRE</span>':'';
+      const prevTag=t._prov?'<span title="Regime de competência: despesa provisionada (alvo − já realizado no mês)" style="display:inline-flex;align-items:center;background:#B45309;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PROVISÃO</span>':t._prev?'<span title="Regime de competência: nota/boleto ainda não pago" style="display:inline-flex;align-items:center;background:#5B5FC7;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PREVISTO</span>':'';
+      const val=`<span style="font-weight:600">${_dreR(+t.valor)}</span>`;
+      out+=`<tr class="${cls}" style="display:none"><td><span style="color:var(--text2);margin-right:8px">${dt}</span>${cofreTag}${prevTag}${desc}</td>${celulasMes(m,val)}<td></td><td></td><td></td></tr>`;
+    });
+  });
+  return out;
 }
 function _dreToggleDetail(idx){
-  const row=document.getElementById('dre-det-'+idx);
-  if(!row)return;
-  row.style.display=row.style.display==='none'?'table-row':'none';
+  const rows=document.querySelectorAll('.dre-det-'+idx);
+  if(!rows.length)return;
+  const show=rows[0].style.display==='none';
+  rows.forEach(r=>{ r.style.display=show?'table-row':'none'; });
+  if(!show) document.querySelectorAll('.dre-par-'+idx).forEach(r=>{ r.style.display='none'; });   // fecha netos
 }
 
 // rótulo de competência 'AAAA-MM' → 'mar/26'
@@ -6493,12 +6537,17 @@ function _dreRender(txns){
   const meses=[...new Set(txns.map(_txComp).filter(Boolean))].sort();
   const sec={Receita:{}, Despesa:{}};
   const catTxns={Receita:{}, Despesa:{}};
+  const subSec={Receita:{}, Despesa:{}}, subTxns={Receita:{}, Despesa:{}};   // subcontas (grupos)
   txns.forEach(t=>{
     const nat=_txNat(t);
-    const cat=t.categoria||'Não classificado';
+    let cat=t.categoria||'Não classificado', sub=null;
+    const grp=Object.entries(_DRE_GRUPOS).find(([g,d])=>d.cats.includes(cat));
+    if(grp){ sub=grp[1].label(grp[1].sub(t)); cat=grp[0]; }
     const m=_txComp(t)||'—';
     (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+_txSig(t);
     (catTxns[nat][cat]=catTxns[nat][cat]||[]).push(t);
+    if(sub){ const ss=(subSec[nat][cat]=subSec[nat][cat]||{}); (ss[sub]=ss[sub]||{}); ss[sub][m]=(ss[sub][m]||0)+_txSig(t);
+      const st=(subTxns[nat][cat]=subTxns[nat][cat]||{}); (st[sub]=st[sub]||[]).push(t); }
   });
   const somaMes=obj=>meses.map(m=>obj[m]||0);
   const totLinha=obj=>meses.reduce((s,m)=>s+(obj[m]||0),0);
@@ -6538,10 +6587,19 @@ function _dreRender(txns){
     cats.forEach(([cat,obj])=>{
       const arr=somaMes(obj), tot=totLinha(obj);
       const idx=_dreRowIdx++;
-      const lista=(catTxns[nat][cat]||[]).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+      const lista=(catTxns[nat][cat]||[]).slice();
       window._dreDetailTxns[idx]=lista;
       body+=`<tr class="dre-cat" style="cursor:pointer" onclick="_dreToggleDetail(${idx})"><td>▸ ${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
-      body+=`<tr class="dre-detail" id="dre-det-${idx}" style="display:none"><td colspan="${ncols}" style="padding:0;background:var(--gray)">${_dreDetailHtml(lista)}</td></tr>`;
+      if(subSec[nat][cat]){
+        // conta com subcontas: 1º nível abre as subcontas; cada subconta abre seus lançamentos
+        Object.keys(subSec[nat][cat]).sort().forEach(sub=>{
+          const sObj=subSec[nat][cat][sub], sArr=somaMes(sObj), sTot=totLinha(sObj);
+          const sIdx=_dreRowIdx++; const sLista=subTxns[nat][cat][sub];
+          window._dreDetailTxns[sIdx]=sLista;
+          body+=`<tr class="dre-detail dre-det-${idx} dre-sub" style="display:none;cursor:pointer" onclick="_dreToggleDetail(${sIdx})"><td>▸ ${esc(sub)}</td>${cellMes(sArr)}<td>${_dreR(sTot)}</td><td>${fmtAV(avPct(sTot))}</td><td>${fmtAH(ah(sArr))}</td></tr>`;
+          body+=_dreDetailRows(sLista, meses, sIdx, 'dre-par-'+idx+' dre-lvl2');
+        });
+      } else body+=_dreDetailRows(lista, meses, idx);
     });
   });
   // resultado líquido
@@ -8468,7 +8526,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-153847';
+const APP_BUILD='20260917-155500';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
