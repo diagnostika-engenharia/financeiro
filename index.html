@@ -1058,6 +1058,11 @@ body.capturing .rel-acao{display:none!important}
         <div class="page-header">
           <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado (Banco + Cofre) por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <style>#ex-regime button.on{background:var(--teal);color:#fff;font-weight:700}</style>
+            <div id="ex-regime" style="display:inline-flex;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;font-size:12.5px" title="Caixa: só o que entrou/saiu do banco e cofre. Competência: soma também as notas emitidas e boletos ainda não pagos, no mês do fato gerador.">
+              <button type="button" data-regime="caixa" onclick="_setRegime('caixa')" class="on" style="border:0;padding:5px 10px;background:none;cursor:pointer">Caixa</button>
+              <button type="button" data-regime="competencia" onclick="_setRegime('competencia')" style="border:0;border-left:1px solid var(--gray3);padding:5px 10px;background:none;cursor:pointer">Competência</button>
+            </div>
             <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer;user-select:none">
               <input type="checkbox" id="ex-inc-cofre" checked onchange="_setModoMov(this.checked?'ambos':'banco')" style="cursor:pointer"> <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg> Incluir Cofre (dinheiro)
             </label>
@@ -6118,6 +6123,51 @@ function toggleSaldoOculto(){
 let _modoMov='ambos';   // 'banco' | 'cofre' | 'ambos' — visão da movimentação (compartilhado DRE + Extrato)
 let _saldoBancoCents=null;   // cache do saldo das contas bancárias ativas
 const _MODO_SELO={banco:'Só Banco', cofre:'Só Cofre', ambos:'Banco + Cofre'};
+// ── Regime do DRE (auditoria 16/09/2026, etapa 3): 'caixa' = só o que passou pelo banco/cofre;
+// 'competencia' = soma também as notas emitidas (fin_contas_receber) e boletos (fin_contas_pagar)
+// ainda NÃO pagos, no mês do fato gerador. Quando o pagamento cai no extrato e a conta é baixada,
+// a linha prevista some e a do banco assume (sem dupla contagem).
+let _dreRegime=(function(){ try{ return localStorage.getItem('dre_regime')==='competencia'?'competencia':'caixa'; }catch(e){ return 'caixa'; } })();
+let _prevCache=null;   // {receber:[], pagar:[]} pendentes
+function _setRegime(v){
+  _dreRegime=(v==='competencia')?'competencia':'caixa';
+  try{ localStorage.setItem('dre_regime',_dreRegime); }catch(e){}
+  document.querySelectorAll('[data-regime]').forEach(b=>b.classList.toggle('on', b.dataset.regime===_dreRegime));
+  renderExtratoDRE();
+}
+const _mesAnt=m=>{ if(!/^\d{4}-\d{2}$/.test(m||'')) return m; let [y,mm]=m.split('-').map(Number); mm--; if(mm===0){ y--; mm=12; } return y+'-'+String(mm).padStart(2,'0'); };
+// categorias cujo fato gerador é o mês ANTERIOR ao vencimento (mesma regra aplicada ao extrato em 16/09)
+const _RECUA_RE=/assessor|mensalidade|mensais|pr[óo].?labore|imposto|tributo|das\b|cart[ãa]o|contabil|reembolso/i;
+async function _carregarPrevistos(){
+  try{
+    const [rc,pg]=await Promise.all([
+      sb.from('fin_contas_receber').select('id,cliente,categoria,descricao,valor,data_vencimento,numero_nfse').eq('status','Pendente').eq('estornado',false),
+      sb.from('fin_contas_pagar').select('id,fornecedor,categoria,descricao,valor,data_vencimento').eq('status','Pendente').eq('estornado',false)
+    ]);
+    _prevCache={receber:rc.data||[], pagar:pg.data||[]};
+  }catch(e){ _prevCache={receber:[],pagar:[]}; }
+}
+// transforma pendências em lançamentos "previstos" para o DRE. Pula a pendência se já existe no
+// extrato um lançamento do mesmo valor, sem vínculo, até 60 dias do vencimento (pago sem baixa).
+function _previstosComoTxns(bank){
+  if(!_prevCache) return [];
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\b(condominio|edificio|residencial|portal|cond|ed|res)\b/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  const mesmoQuem=(a,b)=>{ const x=norm(a), y=norm(b); if(!x||!y) return true; return x.includes(y)||y.includes(x)||x.split(' ').some(w=>w.length>3&&y.includes(w)); };
+  const jaNoBanco=(c,tipo,idCol,quem)=>(bank||[]).some(t=>t.tipo===tipo && !t[idCol] && Math.round(+t.valor*100)===Math.round(+c.valor) && t.data && (()=>{ const dd=(new Date(t.data)-new Date(c.data_vencimento))/86400000; return dd>=-15 && dd<=90; })() && mesmoQuem(t.condominio,quem)); // pago de 15 dias antes a 90 depois do vencimento
+  const mk=(c,tipo,nat,quem,idCol)=>{
+    if(!c.data_vencimento || jaNoBanco(c,tipo,idCol,quem)) return null;
+    const venc=String(c.data_vencimento).slice(0,10);
+    const recua=_RECUA_RE.test((c.categoria||'')+' '+(c.descricao||''));
+    const comp=recua?_mesAnt(venc.slice(0,7)):venc.slice(0,7);
+    const cat=c.categoria||(nat==='Receita'?'Assessoria':'Outros');
+    return { id:'prev-'+(nat==='Receita'?'r':'p')+c.id, _prev:true, data:venc, competencia:comp, tipo, tipo_categoria:nat,
+      valor:(+c.valor||0)/100, categoria:cat, condominio:nat==='Receita'?(c.cliente||null):null,
+      historico:(nat==='Receita'?'A receber · ':'A pagar · ')+(quem||'—')+(c.numero_nfse?' · NF '+c.numero_nfse:'')+' · venc '+venc.split('-').reverse().join('/'),
+      descricao:c.descricao||'', observacao:'Previsto (regime de competência): ainda não pago' };
+  };
+  return _prevCache.receber.map(c=>mk(c,'credito','Receita',c.cliente,'conta_receber_id'))
+    .concat(_prevCache.pagar.map(c=>mk(c,'debito','Despesa',c.fornecedor,'conta_pagar_id'))).filter(Boolean);
+}
 function _setModoMov(m){
   _modoMov=['banco','cofre','ambos'].includes(m)?m:'ambos';
   const dre=document.getElementById('ex-inc-cofre'); if(dre)dre.checked=(_modoMov!=='banco');
@@ -6165,7 +6215,7 @@ function _dreOnDe(v){ _dreDe=v||''; _dreAplicar(); }
 function _dreOnAte(v){ _dreAte=v||''; _dreAplicar(); }
 function _dreLimparPeriodo(){ _dreDe=''; _dreAte=''; _dreAplicar(); }
 async function renderExtratoDRE(force){
-  if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; }
+  if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; _prevCache=null; }
   const modo=_modoMov;                 // 'banco' | 'cofre' | 'ambos'
   const incCofre=modo!=='banco';
   // mantém os controles (checkbox do DRE + botão-segmento do Extrato) em sincronia
@@ -6188,6 +6238,12 @@ async function renderExtratoDRE(force){
   const cofreTxns = incCofre ? _cofreComoTxns(_cofreCache) : [];
   const bankTxns = modo==='cofre' ? [] : (data||[]);   // 'Só Cofre' esconde o banco
   let all=bankTxns.concat(cofreTxns);
+  // regime de competência: acrescenta notas/boletos pendentes no mês do fato gerador
+  document.querySelectorAll('[data-regime]').forEach(b=>b.classList.toggle('on', b.dataset.regime===_dreRegime));
+  if(_dreRegime==='competencia' && modo!=='cofre'){
+    if(_prevCache===null) await _carregarPrevistos();
+    all=all.concat(_previstosComoTxns(bankTxns));
+  }
   _renderSaldoEmpresa(modo);            // KPI de saldo atual da empresa conforme o modo
   // chips de meses (do mais antigo para o mais recente) + chip "Todos"
   const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort();
@@ -6207,7 +6263,7 @@ async function renderExtratoDRE(force){
   const _pdl=document.getElementById('ex2-projetos-list'); if(_pdl){ const _pj=[...new Set(all.map(t=>t.projeto).filter(Boolean))].sort(); _pdl.innerHTML=_pj.map(p=>'<option value="'+esc(p)+'">').join(''); }
   if(document.getElementById('ex-so-pendentes')?.checked){
     txns = txns.filter(t=>{
-      if(t._cofre) return false;   // cofre não concilia (sem contraparte externa) — nunca "pendente"
+      if(t._cofre||t._prev) return false;   // cofre/previsto não concilia (sem contraparte externa) — nunca "pendente"
       const naoClass=(!t.categoria||t.categoria==='Não classificado');
       const conciliado=(t.status==='conciliado'||t.conta_receber_id||t.conta_pagar_id);
       const temConta=!conciliado && (typeof _ccMatch==='function') && _ccMatch(t,(t.tipo==='credito')?(_ccReceber||[]):(_ccPagar||[]));
@@ -6226,7 +6282,8 @@ async function renderExtratoDRE(force){
   cats.innerHTML = _dreRender(txns);
   // ordena a LISTA cronologicamente (banco + cofre juntos), mais recente no topo
   const txnsOrd = txns.slice().sort((a,b)=>{ const ka=(a.data||'')+' '+(a.hora||''); const kb=(b.data||'')+' '+(b.hora||''); return kb.localeCompare(ka); });
-  txnsBox.innerHTML = txnsOrd.length? _exTabela(txnsOrd.map(t=>({...t,tipo:t.tipo==='credito'?'C':'D'})),false) : '<p class="empty">Nenhum lançamento importado.</p>';
+  const txnsLista = txnsOrd.filter(t=>!t._prev); // previstos só entram no DRE (não têm ações de classificar/conciliar)
+  txnsBox.innerHTML = txnsLista.length? _exTabela(txnsLista.map(t=>({...t,tipo:t.tipo==='credito'?'C':'D'})),false) : '<p class="empty">Nenhum lançamento importado.</p>';
 }
 
 // ── Classificação manual de lançamento ──
@@ -6346,7 +6403,8 @@ function _dreDetailHtml(lista){
     const desc=t.historico||t.descricao||'—';
     const dt=t.data?String(t.data).split('-').reverse().join('/'):'—';
     const cofreTag=t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">COFRE</span>':'';
-    return `<tr><td style="padding:6px 10px;white-space:nowrap;font-size:12px;color:var(--text2)">${dt}</td><td style="padding:6px 10px;font-size:12px">${cofreTag}${esc(desc)}</td><td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`;
+    const prevTag=t._prev?'<span title="Regime de competência: nota/boleto ainda não pago" style="display:inline-flex;align-items:center;background:#5B5FC7;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PREVISTO</span>':'';
+    return `<tr><td style="padding:6px 10px;white-space:nowrap;font-size:12px;color:var(--text2)">${dt}</td><td style="padding:6px 10px;font-size:12px">${cofreTag}${prevTag}${esc(desc)}</td><td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`;
   }).join('');
   return `<table style="width:100%;border-collapse:collapse">${linhas}</table>`;
 }
@@ -8344,7 +8402,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260916-194017';
+const APP_BUILD='20260917-000548';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
