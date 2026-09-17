@@ -117,6 +117,17 @@ function natKeyStr(data, hora, valor, tipoCD, historico) {
   return data + '|' + (hora || '') + '|' + Number(valor).toFixed(2) + '|' + tipoCD + '|' + (historico || '').trim();
 }
 
+// Competencia = mes do fato gerador. Regra espelhada do app (index.html _RECUA_RE, 16/09/2026):
+// assessoria, mensalidades, pro-labore, impostos, cartao, contabilidade e reembolsos pagos no mes M
+// referem-se ao mes M-1. Aplica-se ao historico + beneficiario (descInfComplementar). Vale SO na
+// insercao (upsert ignore-duplicates): competencia editada no app nunca e sobrescrita pelo sync.
+const RECUA_RE = /assessor|mensalidade|mensais|pr[óo].?labore|imposto|tributo|das\b|cart[ãa]o|contabil|reembolso|veiga|postal/i;
+function mesAnterior(m) { let y = +m.slice(0, 4), mm = +m.slice(5, 7); mm--; if (mm === 0) { y--; mm = 12; } return y + '-' + String(mm).padStart(2, '0'); }
+function competenciaDe(data, historico, observacao) {
+  const m = data.slice(0, 7);
+  return RECUA_RE.test((historico || '') + ' ' + (observacao || '')) ? mesAnterior(m) : m;
+}
+
 function mapRow(t) {
   const data = String(t.data || '').split('T')[0];
   const tipoCD = String(t.tipo).toUpperCase() === 'CREDITO' ? 'C' : 'D';
@@ -129,7 +140,7 @@ function mapRow(t) {
   return {
     conta: CONTA_LABEL, data, historico, descricao: historico, valor, tipo,
     categoria: 'Não classificado', tipo_categoria: tipoCD === 'C' ? 'Receita' : 'Despesa',
-    status: 'classificado', competencia: data.slice(0, 7), origem_arquivo: 'sicoob_api',
+    status: 'classificado', competencia: competenciaDe(data, historico, observacao), origem_arquivo: 'sicoob_api',
     observacao, hora, hash: exHash(idUnico)
   };
 }
