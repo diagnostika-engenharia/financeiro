@@ -76,22 +76,11 @@ begin
       where status='Pago' and coalesce(estornado,false)=false
         and to_char(data_pagamento::date,'YYYY-MM')=comp),
 
-    -- DRE da competência a partir do extrato conciliado/importado
-    'dre', (
-      select jsonb_build_object(
-        'receitas_total', round(coalesce(sum(valor) filter (where tipo='credito'),0),2),
-        'despesas_total', round(coalesce(sum(valor) filter (where tipo='debito'),0),2),
-        'resultado', round(coalesce(sum(case when tipo='credito' then valor else -valor end),0),2),
-        'por_categoria', coalesce((
-          select jsonb_agg(c) from (
-            select jsonb_build_object('natureza',tipo_categoria,'categoria',categoria,
-              'total',round(sum(valor),2),'n',count(*)) c
-            from public.fin_transacoes_bancarias
-            where competencia=comp
-            group by tipo_categoria,categoria
-            order by sum(valor) desc) t), '[]'::jsonb)
-      ) from public.fin_transacoes_bancarias where competencia=comp
-    ),
+    -- DRE da competência pelo livro razão único (fin_ledger, _migra_ledger.sql — etapa 4b):
+    -- banco ∪ cofre ∪ carro inferido ∪ parcelamentos, mesma régua do DRE do app (regime caixa)
+    'dre', public.fin_ledger_totais(comp, 'caixa'),
+    -- mesma competência no regime de competência (inclui títulos pendentes; sem provisões)
+    'dre_competencia', public.fin_ledger_totais(comp, 'competencia'),
 
     'conciliacao', (
       select jsonb_build_object(
