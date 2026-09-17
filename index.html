@@ -6400,11 +6400,15 @@ async function salvarClassificacao(){
 function _dreDetailHtml(lista){
   if(!lista.length) return '<div style="padding:10px 16px;color:var(--text2);font-size:12px">Nenhum lançamento.</div>';
   const linhas=lista.map(t=>{
-    const desc=t.historico||t.descricao||'—';
+    // identificação: quem (condomínio/cliente) + projeto/serviço na frente; histórico bruto do banco vira complemento
+    const quem=t._prev?'':(t.condominio||t.cliente||t.fornecedor||'');
+    const extra=[t.projeto?('proj. '+t.projeto):'', t.tipo_servico||''].filter(Boolean).join(' · ');
+    const hist=t.historico||t.descricao||'—';
+    const desc=quem?`<b>${esc(quem)}</b>${extra?' · '+esc(extra):''}<span style="color:var(--text2)"> · ${esc(hist)}</span>`:esc(hist);
     const dt=t.data?String(t.data).split('-').reverse().join('/'):'—';
     const cofreTag=t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">COFRE</span>':'';
     const prevTag=t._prev?'<span title="Regime de competência: nota/boleto ainda não pago" style="display:inline-flex;align-items:center;background:#5B5FC7;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PREVISTO</span>':'';
-    return `<tr><td style="padding:6px 10px;white-space:nowrap;font-size:12px;color:var(--text2)">${dt}</td><td style="padding:6px 10px;font-size:12px">${cofreTag}${prevTag}${esc(desc)}</td><td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`;
+    return `<tr><td style="padding:6px 10px;white-space:nowrap;font-size:12px;color:var(--text2)">${dt}</td><td style="padding:6px 10px;font-size:12px">${cofreTag}${prevTag}${desc}</td><td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:600">R$ ${(+t.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`;
   }).join('');
   return `<table style="width:100%;border-collapse:collapse">${linhas}</table>`;
 }
@@ -8402,7 +8406,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-000548';
+const APP_BUILD='20260917-150112';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
