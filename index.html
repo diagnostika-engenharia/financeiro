@@ -6122,7 +6122,7 @@ function _cofreComoTxns(rows){
   return (rows||[])
     .filter(r=>!/saldo anterior/i.test(r.descricao||''))
     .map(r=>({
-      data:r.data, competencia:_cofreComp(r.descricao,r.data),
+      data:r.data, competencia:_cofreComp((r.descricao||'')+' '+(r.observacao||''),r.data),   // "ref MM/AAAA" vale na descrição OU na observação
       historico:'Cofre · '+(r.descricao||'Movimentação'),
       categoria:_cofreCat(r.descricao,r.tipo),
       tipo: r.tipo==='Entrada'?'credito':'debito',
@@ -6267,6 +6267,60 @@ function _previstosComoTxns(bank){
   return _prevCache.receber.map(c=>mk(c,'credito','Receita',c.cliente,'conta_receber_id'))
     .concat(_prevCache.pagar.map(c=>mk(c,'debito','Despesa',c.fornecedor,'conta_pagar_id'))).filter(Boolean);
 }
+// ── Cruzamento com o sistema (auditoria 17/09/2026): o DRE não lê só o extrato ──
+// 1) Parcelamentos (fin_parcelamentos, ex.: drone no cartão pessoal do Claudemir): a fatura
+//    entra inteira na subconta do sócio, mas a parcela do bem é despesa da empresa. Para cada
+//    competência coberta pela regra, o DRE gera um ESTORNO na subconta do sócio e um DÉBITO na
+//    conta do bem (Imobilizado / Equipamentos) — mesmo antes de o fechamento mensal ser feito.
+let _dreParcCache=null;
+function _parcelamentosComoTxns(all){
+  const regras=_dreParcCache||[]; if(!regras.length) return [];
+  const hoje=new Date(); const mesAtual=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
+  const out=[], usados=new Set();
+  regras.forEach(r=>{
+    const socio=String(r.socio_nome||'').split(' ')[0]; const p=+r.valor_parcela||0; const n=+r.total_parcelas||0;
+    if(!p||!n||!/^\d{4}-\d{2}$/.test(r.competencia_inicio||'')) return;
+    let [y,mm]=r.competencia_inicio.split('-').map(Number);
+    for(let i=1;i<=n;i++){
+      const comp=y+'-'+String(mm).padStart(2,'0'); mm++; if(mm===13){ mm=1; y++; }
+      if(comp>mesAtual) break;
+      const fat=all.find(t=>!usados.has(t) && !t._prev && !t._parc && t.categoria==='Cartão de crédito' && _txNat(t)==='Despesa' && _txComp(t)===comp && (+t.valor||0)>=p && _proLaboreSocio(t)===socio);
+      if(!fat) continue;   // fatura ainda não chegou no extrato: sem estorno (a subconta segue o extrato)
+      usados.add(fat);
+      const lab=r.descricao+' parcela '+i+'/'+n;
+      out.push({ id:'parc-'+r.id+'-'+comp+'-e', _parc:true, _socio:socio, data:fat.data, competencia:comp, tipo:'credito', tipo_categoria:'Despesa', valor:p, categoria:'Cartão de crédito', condominio:null,
+        historico:'Estorno · '+lab+' (despesa da empresa, não onera o sócio)', descricao:'', observacao:'Regra de parcelamento #'+r.id+' aplicada pelo DRE à fatura '+(fat.id||'') });
+      out.push({ id:'parc-'+r.id+'-'+comp+'-d', _parc:true, data:fat.data, competencia:comp, tipo:'debito', tipo_categoria:'Despesa', valor:p, categoria:r.categoria||'Imobilizado / Equipamentos', condominio:null,
+        historico:lab+' · cartão '+socio, descricao:'', observacao:'Regra de parcelamento #'+r.id+' (fatura '+(fat.id||'')+')' });
+    }
+  });
+  return out;
+}
+// 2) Parcela do carro do Claudemir por SÉRIE, não por valor fixo: boleto (DÉB.TIT) mensal cujo
+//    valor fica perto das parcelas já conhecidas. Se um mês não tem parcela categorizada e existe
+//    um boleto assim pago no mês seguinte, o DRE o trata como a parcela (selo INFERIDO), com
+//    competência do mês em falta. Não grava nada: ao classificar a linha, a inferência some.
+const _CARRO_CAT='Pró-labore (financ. veículo)';
+function _carroInferir(all){
+  const conhecidas=all.filter(t=>t.categoria===_CARRO_CAT&&!t._prev).map(t=>+t.valor||0).filter(v=>v>0);
+  if(conhecidas.length<2) return all;
+  const med=conhecidas.slice().sort((a,b)=>a-b)[Math.floor(conhecidas.length/2)];
+  const temCarro=new Set(all.filter(t=>t.categoria===_CARRO_CAT).map(_txComp));
+  const meses=[...new Set(all.map(_txComp).filter(m=>/^\d{4}-\d{2}$/.test(m)&&m>='2026-01'))].sort();
+  const usados=new Set();
+  return all.map(t=>{
+    if(t._prev||t._cofre||t.tipo!=='debito'||usados.has(t)) return t;
+    if(!/^(T[íi]tulo\/Boleto pago|N[ãa]o classificado)?$/.test(t.categoria||'')) return t;
+    if(!/D[ÉE]B\.?\s*TIT/i.test((t.historico||'')+' '+(t.descricao||''))) return t;
+    const v=+t.valor||0; if(Math.abs(v-med)/med>0.15) return t;
+    // parcela normal: paga no mês seguinte à competência; paga atrasada: dois meses depois
+    const mesPag=String(t.data||'').slice(0,7); const c1=_mesAnt(mesPag), c2=_mesAnt(c1);
+    const comp=(meses.includes(c1)&&!temCarro.has(c1))?c1:(meses.includes(c2)&&!temCarro.has(c2))?c2:null;
+    if(!comp) return t;
+    temCarro.add(comp); usados.add(t);
+    return Object.assign({},t,{categoria:_CARRO_CAT, competencia:comp, _inf:'carro', observacao:((t.observacao||'')+' · parcela do carro inferida pelo DRE (série mensal ~'+_dreR(med)+'); classifique a linha para confirmar').trim()});
+  });
+}
 function _setModoMov(m){
   _modoMov=['banco','cofre','ambos'].includes(m)?m:'ambos';
   const dre=document.getElementById('ex-inc-cofre'); if(dre)dre.checked=(_modoMov!=='banco');
@@ -6314,7 +6368,7 @@ function _dreOnDe(v){ _dreDe=v||''; _dreAplicar(); }
 function _dreOnAte(v){ _dreAte=v||''; _dreAplicar(); }
 function _dreLimparPeriodo(){ _dreDe=''; _dreAte=''; _dreAplicar(); }
 async function renderExtratoDRE(force){
-  if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; _prevCache=null; }
+  if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; _prevCache=null; _dreParcCache=null; }
   const modo=_modoMov;                 // 'banco' | 'cofre' | 'ambos'
   const incCofre=modo!=='banco';
   // mantém os controles (checkbox do DRE + botão-segmento do Extrato) em sincronia
@@ -6337,6 +6391,12 @@ async function renderExtratoDRE(force){
   const cofreTxns = incCofre ? _cofreComoTxns(_cofreCache) : [];
   const bankTxns = modo==='cofre' ? [] : (data||[]);   // 'Só Cofre' esconde o banco
   let all=bankTxns.concat(cofreTxns);
+  // cruzamento com o sistema (vale nos dois regimes): parcela do carro por série + parcelamentos (drone)
+  if(modo!=='cofre'){
+    if(_dreParcCache===null){ try{ const{data:pc}=await sb.from('fin_parcelamentos').select('*'); _dreParcCache=pc||[]; }catch(e){ _dreParcCache=[]; } }
+    all=_carroInferir(all);
+    all=all.concat(_parcelamentosComoTxns(all));
+  }
   // regime de competência: acrescenta notas/boletos pendentes no mês do fato gerador
   document.querySelectorAll('[data-regime]').forEach(b=>b.classList.toggle('on', b.dataset.regime===_dreRegime));
   if(_dreRegime==='competencia' && modo!=='cofre'){
@@ -6522,8 +6582,11 @@ function _dreDetailRows(lista, meses, idx, extraCls){
       const dt=t.data?String(t.data).split('-').reverse().join('/'):'—';
       const cofreTag=t._cofre?'<span style="display:inline-flex;align-items:center;gap:3px;background:#8A7100;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">COFRE</span>':'';
       const prevTag=t._prov?'<span title="Regime de competência: despesa provisionada (alvo − já realizado no mês)" style="display:inline-flex;align-items:center;background:#B45309;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PROVISÃO</span>':t._prev?'<span title="Regime de competência: nota/boleto ainda não pago" style="display:inline-flex;align-items:center;background:#5B5FC7;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">PREVISTO</span>':'';
-      const val=`<span style="font-weight:600">${_dreR(+t.valor)}</span>`;
-      out+=`<tr class="${cls}" style="display:none"><td><span style="color:var(--text2);margin-right:8px">${dt}</span>${cofreTag}${prevTag}${desc}</td>${celulasMes(m,val)}<td></td><td></td><td></td></tr>`;
+      const tag=(txt,bg,tit)=>`<span title="${esc(tit)}" style="display:inline-flex;align-items:center;background:${bg};color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px;font-size:9.5px;font-weight:800">${txt}</span>`;
+      const sysTag=t._parc?tag(t.tipo==='credito'?'ESTORNO':'PARCELA','#0F766E','Regra de parcelamento do sistema (fin_parcelamentos) aplicada pelo DRE'):t._inf==='carro'?tag('INFERIDO','#7C3AED','Parcela do carro reconhecida pela série mensal de boletos; classifique a linha para confirmar'):'';
+      const sig=(t._parc&&t.tipo==='credito')?'− ':'';
+      const val=`<span style="font-weight:600">${sig}${_dreR(+t.valor)}</span>`;
+      out+=`<tr class="${cls}" style="display:none"><td><span style="color:var(--text2);margin-right:8px">${dt}</span>${cofreTag}${prevTag}${sysTag}${desc}</td>${celulasMes(m,val)}<td></td><td></td><td></td></tr>`;
     });
   });
   return out;
@@ -6608,7 +6671,10 @@ function _dreRender(txns){
           const sObj=subSec[nat][cat][sub], sArr=somaMes(sObj), sTot=totLinha(sObj);
           const sIdx=_dreRowIdx++; const sLista=subTxns[nat][cat][sub];
           window._dreDetailTxns[sIdx]=sLista;
-          body+=`<tr class="dre-detail dre-det-${idx} dre-sub" style="display:none;cursor:pointer" onclick="_dreToggleDetail(${sIdx})"><td>▸ ${esc(sub)}</td>${cellMes(sArr)}<td>${_dreR(sTot)}</td><td>${fmtAV(avPct(sTot))}</td><td>${fmtAH(ah(sArr))}</td></tr>`;
+          // alerta: retirada do sócio acima do pró-labore fixo em algum mês (a provisão só fecha para cima)
+          const acima=(cat==='Pró-labore')?meses.filter((m,i)=>sArr[i]>_PL_ALVO+0.005).map(_compLabel):[];
+          const alerta=acima.length?`<span title="Retirada acima de ${_dreR(_PL_ALVO)} em: ${acima.join(', ')}" style="margin-left:8px;background:#B91C1C;color:#fff;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800">⚠ acima de 7.500: ${acima.join(', ')}</span>`:'';
+          body+=`<tr class="dre-detail dre-det-${idx} dre-sub" style="display:none;cursor:pointer" onclick="_dreToggleDetail(${sIdx})"><td>▸ ${esc(sub)}${alerta}</td>${cellMes(sArr)}<td>${_dreR(sTot)}</td><td>${fmtAV(avPct(sTot))}</td><td>${fmtAH(ah(sArr))}</td></tr>`;
           body+=_dreDetailRows(sLista, meses, sIdx, 'dre-par-'+idx+' dre-lvl2');
         });
       } else body+=_dreDetailRows(lista, meses, idx);
@@ -8538,7 +8604,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-161043';
+const APP_BUILD='20260917-172629';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
