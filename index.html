@@ -2345,6 +2345,7 @@ function _dashDonut(id,emptyId,labels,valores,cores,centro,sub){
 let _dashTok=0;
 async function loadDash(){
   _dashSaldoPromise=null;            // revalida saldo a cada refresh
+  _dreBankCache=null; _cofreCache=null;   // razão relê banco+cofre (sync a cada 5 min); derivados são recalculados
   const tok=++_dashTok;              // token: descarta respostas de períodos já trocados
   const {de,ate}=_biRange();
   _loadDashRealizado(de,ate,tok);    // KPIs realizados + fluxo de caixa (transações + cofre)
@@ -2359,27 +2360,23 @@ function _txNat(t){ return (t&&t.tipo_categoria==='Despesa')?'Despesa':(t&&t.tip
 function _txSig(t){ const nat=_txNat(t); const natural=(nat==='Receita')?'credito':'debito'; return ((t&&t.tipo===natural)?1:-1)*(+((t&&t.valor)||0)); }
 
 // realizado no período: receita/despesa/resultado + fluxo de caixa mensal
+// Lê do livro razão único (_ledger): mesmo regime, mesmo modo e mesmas linhas derivadas do DRE,
+// para o KPI do Dashboard bater com o DRE do mesmo período (plano de consistência, etapa 1).
 async function _loadDashRealizado(de,ate,tok){
   const gr=id=>document.getElementById(id);
-  let qt=sb.from('fin_transacoes_bancarias').select('data,valor,tipo,competencia,tipo_categoria,categoria');
-  let qc=sb.from('fin_livro_caixa_cofre').select('data,valor,tipo,descricao');
-  if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
-  if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
-  let tx=[],cf=[];
-  try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }catch(e){}
+  let all=[];
+  try{ const L=await _ledger({de,ate}); all=L.all; }catch(e){}
   if(tok!=null && tok!==_dashTok) return;    // período mudou — descarta resultado obsoleto
-  const all=tx.concat(_cofreComoTxns(cf));   // tudo em REAIS
-  const rec=all.filter(t=>_txNat(t)==='Receita').reduce((s,t)=>s+_txSig(t),0);
-  const desp=all.filter(t=>_txNat(t)==='Despesa').reduce((s,t)=>s+_txSig(t),0);
+  const {rec,desp}=_ledgerTotais(all);       // tudo em REAIS, sinal contábil (estorno reduz despesa)
   const result=rec-desp, margem=rec?Math.round(result/rec*100):0;
   if(gr('kpi-bi-receita'))gr('kpi-bi-receita').textContent=_fmtR(rec);
   if(gr('kpi-bi-despesa'))gr('kpi-bi-despesa').textContent=_fmtR(desp);
   if(gr('kpi-bi-resultado')){gr('kpi-bi-resultado').textContent=_fmtR(result);gr('kpi-bi-resultado').style.color=result<0?'var(--red)':'var(--green)';}
   if(gr('kpi-bi-resultado-sub'))gr('kpi-bi-resultado-sub').innerHTML='margem <b style="color:'+(result<0?'var(--red)':'var(--green)')+'">'+margem+'%</b>';
   const meses=[...new Set(all.map(_txComp).filter(Boolean))].sort();
-  const ent=meses.map(m=>all.filter(t=>_txComp(t)===m&&t.tipo==='credito').reduce((s,t)=>s+(+t.valor||0),0));
-  const sai=meses.map(m=>all.filter(t=>_txComp(t)===m&&t.tipo==='debito').reduce((s,t)=>s+(+t.valor||0),0));
-  const cap=gr('dash-fluxo-cap'); if(cap)cap.textContent='entradas × saídas + resultado acumulado — '+meses.length+(meses.length===1?' mês':' meses');
+  const ent=meses.map(m=>_ledgerTotais(all.filter(t=>_txComp(t)===m)).rec);
+  const sai=meses.map(m=>_ledgerTotais(all.filter(t=>_txComp(t)===m)).desp);
+  const cap=gr('dash-fluxo-cap'); if(cap)cap.textContent='receitas × despesas + resultado acumulado — '+meses.length+(meses.length===1?' mês':' meses')+' · '+(_dreRegime==='competencia'?'competência':'caixa')+' · '+(_MODO_SELO[_modoMov]||'').toLowerCase();
   const cv=gr('dash-fluxo-chart'),emp=gr('dash-fluxo-empty');
   if(!cv||typeof Chart==='undefined')return;
   if(_dashCharts.fluxo){_dashCharts.fluxo.destroy();_dashCharts.fluxo=null;}
@@ -2389,8 +2386,8 @@ async function _loadDashRealizado(de,ate,tok){
   const net=ent.map((e,i)=>e-sai[i]);
   let acc=0; const resLine=net.map(n=>acc+=n);
   _dashCharts.fluxo=new Chart(cv,{data:{labels:meses.map(_compLabel),datasets:[
-    {type:'bar',label:'Entradas',data:ent,backgroundColor:'#16A34A',borderRadius:3,order:2,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.62},
-    {type:'bar',label:'Saídas',data:sai,backgroundColor:'#E65100',borderRadius:3,order:2,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.62},
+    {type:'bar',label:'Receitas',data:ent,backgroundColor:'#16A34A',borderRadius:3,order:2,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.62},
+    {type:'bar',label:'Despesas',data:sai,backgroundColor:'#E65100',borderRadius:3,order:2,maxBarThickness:18,barPercentage:0.7,categoryPercentage:0.62},
     {type:'line',label:'Resultado acumulado',data:resLine,borderColor:'#155B67',backgroundColor:'#155B67',borderWidth:3,tension:.35,pointRadius:2.5,order:1}
   ]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:7,font:{size:11},padding:9}},
@@ -2447,16 +2444,12 @@ async function loadDashCategorias(){
   const {de,ate}=_biRange();
   const acc={};
   if(_dashCatModo==='realizado'){
-    // Realizado = mesma fonte do KPI "Receita no período" (banco + cofre), não só contas a receber formais
-    let qt=sb.from('fin_transacoes_bancarias').select('valor,tipo,categoria,data,tipo_categoria');
-    let qc=sb.from('fin_livro_caixa_cofre').select('valor,tipo,descricao,data');
-    if(de){qt=qt.gte('data',de);qc=qc.gte('data',de);}
-    if(ate){qt=qt.lte('data',ate);qc=qc.lte('data',ate);}
-    let tx=[],cf=[];
-    try{ const r=await Promise.all([qt,qc]); tx=r[0].data||[]; cf=r[1].data||[]; }
+    // Realizado = mesma fonte do KPI "Receita no período": o livro razão único (_ledger)
+    let all=[];
+    try{ const L=await _ledger({de,ate}); if(L.erro) throw L.erro; all=L.all; }
     catch(e){ if(_dashCharts['dash-cat-chart']){_dashCharts['dash-cat-chart'].destroy();_dashCharts['dash-cat-chart']=null;} canvas.style.display='none'; if(empty){empty.style.display='';empty.textContent='Erro ao carregar receitas.';} return; }
     if(myTok!==_catTok) return;
-    const all=tx.concat(_cofreComoTxns(cf)).filter(t=>_txNat(t)==='Receita');
+    all=all.filter(t=>_txNat(t)==='Receita');
     all.forEach(t=>{ const c=catCanonica(t.categoria); acc[c]=(acc[c]||0)+Math.round(_txSig(t)*100); });
   } else {
     // Previsto/Ambos = contas a receber (por data de vencimento)
@@ -6367,6 +6360,59 @@ function _dreSetTipo(v){ _dreTipo=v||'todos'; _dreAplicar(); }
 function _dreOnDe(v){ _dreDe=v||''; _dreAplicar(); }
 function _dreOnAte(v){ _dreAte=v||''; _dreAplicar(); }
 function _dreLimparPeriodo(){ _dreDe=''; _dreAte=''; _dreAplicar(); }
+// ── LIVRO RAZÃO ÚNICO (plano de consistência 17/09/2026, etapa 1) ──────────────
+// Toda tela que soma dinheiro (DRE, lista do Extrato, Dashboard, resumo da Conciliação, Projetos)
+// lê deste único montador. Fontes, na ordem: banco → cofre → inferência do carro → parcelamentos
+// → [competência] previstos (notas/boletos pendentes) → provisões. Nunca grava nada.
+//   opts.regime  'caixa'|'competencia' (padrão: _dreRegime)   opts.modo 'banco'|'cofre'|'ambos' (padrão: _modoMov)
+//   opts.derivados=false  → só banco+cofre crus (para telas que precisam do id real)
+//   opts.de / opts.ate    → recorte por MÊS DE COMPETÊNCIA ('AAAA-MM-DD'; usa só AAAA-MM), nos dois regimes —
+//                           é o mesmo balde que o DRE usa nas colunas, então Dashboard e DRE fecham mês a mês.
+//                           (o regime 'caixa' significa "só o que passou pelo banco/cofre", não "coluna por data")
+// Retorna {all, bank, cofre, erro}. Caches: _dreBankCache/_cofreCache/_dreParcCache/_prevCache (renderExtratoDRE(true) zera).
+function _ledgerPeriodo(all,de,ate){
+  if(!de&&!ate) return all;
+  const dm=de?String(de).slice(0,7):'', am=ate?String(ate).slice(0,7):'';
+  return all.filter(t=>{ const c=_txComp(t); return c && (!dm||c>=dm) && (!am||c<=am); });
+}
+async function _ledger(opts){
+  opts=opts||{};
+  const regime=opts.regime||_dreRegime, modo=opts.modo||_modoMov, derivados=opts.derivados!==false;
+  if(_dreBankCache===null){   // promise compartilhada: Dashboard dispara KPI + categorias ao mesmo tempo → 1 consulta
+    _ledger._bankP=_ledger._bankP||sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(2000);
+    const {data:d,error}=await _ledger._bankP; _ledger._bankP=null;
+    if(error) return {all:[],bank:[],cofre:[],erro:error};
+    if(_dreBankCache===null) _dreBankCache=d||[];
+  }
+  if(modo!=='banco' && _cofreCache===null){
+    _ledger._cofreP=_ledger._cofreP||sb.from('fin_livro_caixa_cofre').select('*');
+    try{ const{data:cf}=await _ledger._cofreP; if(_cofreCache===null) _cofreCache=cf||[]; }catch(e){ _cofreCache=[]; }
+    _ledger._cofreP=null;
+  }
+  const cofre = modo!=='banco' ? _cofreComoTxns(_cofreCache) : [];
+  const bank  = modo==='cofre' ? [] : (_dreBankCache||[]);   // 'Só Cofre' esconde o banco
+  let all=bank.concat(cofre);
+  if(derivados && modo!=='cofre'){
+    // cruzamento com o sistema (vale nos dois regimes): parcela do carro por série + parcelamentos (drone)
+    if(_dreParcCache===null){ try{ const{data:pc}=await sb.from('fin_parcelamentos').select('*'); _dreParcCache=pc||[]; }catch(e){ _dreParcCache=[]; } }
+    all=_carroInferir(all);
+    all=all.concat(_parcelamentosComoTxns(all));
+    if(regime==='competencia'){
+      // regime de competência: notas/boletos pendentes no mês do fato gerador + provisões (alvo − realizado)
+      if(_prevCache===null) await _carregarPrevistos();
+      all=all.concat(_previstosComoTxns(bank));
+      all=all.concat(_provisoesComoTxns(all));
+    }
+  }
+  return {all:_ledgerPeriodo(all,opts.de,opts.ate), bank, cofre, erro:null};
+}
+// Totais de um conjunto do razão (mesma régua em todas as telas): receita/despesa com sinal contábil (_txSig)
+function _ledgerTotais(txns){
+  const rec=txns.filter(t=>_txNat(t)==='Receita').reduce((s,t)=>s+_txSig(t),0);
+  const desp=txns.filter(t=>_txNat(t)==='Despesa').reduce((s,t)=>s+_txSig(t),0);
+  return {rec, desp, res:rec-desp, n:txns.length};
+}
+
 async function renderExtratoDRE(force){
   if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; _prevCache=null; _dreParcCache=null; }
   const modo=_modoMov;                 // 'banco' | 'cofre' | 'ambos'
@@ -6375,35 +6421,12 @@ async function renderExtratoDRE(force){
   const _dreChk=document.getElementById('ex-inc-cofre'); if(_dreChk)_dreChk.checked=incCofre;
   document.querySelectorAll('[data-modomov]').forEach(b=>b.classList.toggle('on', b.dataset.modomov===modo));
   const _selo=document.getElementById('ex-modo-selo'); if(_selo)_selo.textContent=_MODO_SELO[modo];
-  const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
-  let data=_dreBankCache;
-  if(data===null){
-    const {data:d,error}=await sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(2000);
-    if(error){ const msg=/relation|does not exist/i.test(error.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(error.message);
-      if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
-    _dreBankCache=d||[]; data=_dreBankCache;
-  }
-  // carrega o cofre (cache) e consolida com o banco se o toggle estiver ligado
-  if(incCofre && _cofreCache===null){
-    try{ const{data:cf}=await sb.from('fin_livro_caixa_cofre').select('*'); _cofreCache=cf||[]; }
-    catch(e){ _cofreCache=[]; }
-  }
-  const cofreTxns = incCofre ? _cofreComoTxns(_cofreCache) : [];
-  const bankTxns = modo==='cofre' ? [] : (data||[]);   // 'Só Cofre' esconde o banco
-  let all=bankTxns.concat(cofreTxns);
-  // cruzamento com o sistema (vale nos dois regimes): parcela do carro por série + parcelamentos (drone)
-  if(modo!=='cofre'){
-    if(_dreParcCache===null){ try{ const{data:pc}=await sb.from('fin_parcelamentos').select('*'); _dreParcCache=pc||[]; }catch(e){ _dreParcCache=[]; } }
-    all=_carroInferir(all);
-    all=all.concat(_parcelamentosComoTxns(all));
-  }
-  // regime de competência: acrescenta notas/boletos pendentes no mês do fato gerador
   document.querySelectorAll('[data-regime]').forEach(b=>b.classList.toggle('on', b.dataset.regime===_dreRegime));
-  if(_dreRegime==='competencia' && modo!=='cofre'){
-    if(_prevCache===null) await _carregarPrevistos();
-    all=all.concat(_previstosComoTxns(bankTxns));
-    all=all.concat(_provisoesComoTxns(all));   // provisões de despesa (alvo − realizado), por mês
-  }
+  const cats=document.getElementById('ex-dre-cats'), txnsBox=document.getElementById('ex-txns');
+  const L=await _ledger({regime:_dreRegime, modo});
+  if(L.erro){ const msg=/relation|does not exist/i.test(L.erro.message)?'Tabelas ainda não criadas — rode _setup_tabelas_financeiro.sql.':esc(L.erro.message);
+    if(cats)cats.innerHTML='<p class="empty">'+msg+'</p>'; if(txnsBox)txnsBox.innerHTML=''; return; }
+  const all=L.all;
   _renderSaldoEmpresa(modo);            // KPI de saldo atual da empresa conforme o modo
   // chips de meses (do mais antigo para o mais recente) + chip "Todos"
   const comps=[...new Set(all.map(_txComp).filter(Boolean))].sort();
@@ -6430,11 +6453,10 @@ async function renderExtratoDRE(force){
       return naoClass||!!temConta;
     });
   }
-  const rec=txns.filter(t=>_txNat(t)==='Receita').reduce((s,t)=>s+_txSig(t),0);
-  const desp=txns.filter(t=>_txNat(t)==='Despesa').reduce((s,t)=>s+_txSig(t),0);
+  const {rec,desp,res}=_ledgerTotais(txns);
   document.getElementById('ex-kpi-rec').textContent='R$ '+rec.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('ex-kpi-desp').textContent='R$ '+desp.toLocaleString('pt-BR',{minimumFractionDigits:2});
-  const res=rec-desp; const resEl=document.getElementById('ex-kpi-res');
+  const resEl=document.getElementById('ex-kpi-res');
   resEl.textContent=(res<0?'− R$ ':'R$ ')+Math.abs(res).toLocaleString('pt-BR',{minimumFractionDigits:2});
   resEl.style.color=res<0?'var(--red)':'var(--green)';
   document.getElementById('ex-kpi-n').textContent=txns.length;
@@ -6703,15 +6725,16 @@ function _ccMatch(txn,contas){
   return cands.slice().sort((a,b)=>_ccDias(a.data_vencimento,txn.data)-_ccDias(b.data_vencimento,txn.data))[0];
 }
 async function loadConciliacao(){
-  _saldoBancoCents=null; // forca reler o saldo do banco (sync atualiza a cada 5 min)
-  const [tx,rc,pg]=await Promise.all([
-    sb.from('fin_transacoes_bancarias').select('*').order('data',{ascending:false}).limit(1000),
+  _saldoBancoCents=null; _dreBankCache=null; // forca reler o saldo e o extrato do banco (sync atualiza a cada 5 min)
+  // resumo da conciliação lê o banco cru do livro razão (sem cofre/derivados: só o que tem contraparte externa)
+  const [L,rc,pg]=await Promise.all([
+    _ledger({modo:'banco',regime:'caixa',derivados:false}),
     sb.from('fin_contas_receber').select('id,cliente,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false),
     sb.from('fin_contas_pagar').select('id,fornecedor,categoria,valor,data_vencimento,status,estornado').eq('status','Pendente').eq('estornado',false)
   ]);
-  if(tx.error){ return; }
+  if(L.erro){ return; }
   _ccReceber=rc.data||[]; _ccPagar=pg.data||[];
-  let txns=tx.data||[];
+  let txns=L.bank;
   if(_dreDe||_dreAte) txns=txns.filter(t=> t.data && (!_dreDe||String(t.data)>=_dreDe) && (!_dreAte||String(t.data)<=_dreAte));
   if(_dreTipo && _dreTipo!=='todos') txns=txns.filter(t=> t.tipo===_dreTipo);
   _ccTxnDatas={}; txns.forEach(t=>{ _ccTxnDatas[t.id]=t.data; });
@@ -7740,7 +7763,7 @@ async function loadProjetos(force){
       sb.from('fin_projetos').select('*').order('criado_em'),
       sb.from('fin_projeto_docs').select('*').order('criado_em'),
       sb.from('fin_projeto_eventos').select('*').order('data',{ascending:false}),
-      sb.from('fin_transacoes_bancarias').select('id,data,projeto,valor,tipo,tipo_categoria,categoria,historico').not('projeto','is',null),
+      _ledger({modo:'banco',regime:'caixa',derivados:false}).then(L=>({error:L.erro,data:L.bank.filter(t=>t.projeto)})),   // livro razão único (etapa 1)
       sb.from('fin_contas_receber').select('id,projeto_id,cliente,descricao,valor,data_vencimento,data_recebimento,status,estornado').not('projeto_id','is',null)
     ]);
     _pjParcelas=(rpar&&!rpar.error)?(rpar.data||[]):[];
@@ -7778,7 +7801,7 @@ function _pjTxnsDe(p){
 }
 function _pjConta(p){
   let rec=0,custo=0;
-  _pjTxnsDe(p).forEach(t=>{ const v=Math.abs(+t.valor||0); if(_txNat(t)==='Receita')rec+=v; else custo+=v; });
+  _pjTxnsDe(p).forEach(t=>{ const v=_txSig(t); if(_txNat(t)==='Receita')rec+=v; else custo+=v; });   // mesma régua do DRE (estorno reduz)
   return {receitaExtrato:rec,custoExtrato:custo};
 }
 const _pjAtivo=p=>!['entregue'].includes(p.status);
@@ -8604,7 +8627,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-173335';
+const APP_BUILD='20260917-181314';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
