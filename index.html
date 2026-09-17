@@ -6293,27 +6293,39 @@ function _previstosComoTxns(bank){
 //    entra inteira na subconta do sócio, mas a parcela do bem é despesa da empresa. Para cada
 //    competência coberta pela regra, o DRE gera um ESTORNO na subconta do sócio e um DÉBITO na
 //    conta do bem (Imobilizado / Equipamentos) — mesmo antes de o fechamento mensal ser feito.
-let _dreParcCache=null;
+//    Etapa 4b (17/09): as parcelas ficam PERSISTIDAS em fin_parcelas (uma linha por parcela, com
+//    transacao_id da fatura que a quitou). O DRE lê dali; a série só é regenerada da regra quando
+//    o parcelamento ainda não tem parcelas gravadas (fallback). Ao casar uma parcela sem vínculo
+//    com a fatura, grava transacao_id (idempotente: só onde ainda é null).
+let _dreParcCache=null, _dreParcelasCache=null;
 function _parcelamentosComoTxns(all){
   const regras=_dreParcCache||[]; if(!regras.length) return [];
+  const persist=_dreParcelasCache||[];
   const hoje=new Date(); const mesAtual=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
   const out=[], usados=new Set();
   regras.forEach(r=>{
     const socio=String(r.socio_nome||'').split(' ')[0]; const p=+r.valor_parcela||0; const n=+r.total_parcelas||0;
-    if(!p||!n||!/^\d{4}-\d{2}$/.test(r.competencia_inicio||'')) return;
-    let [y,mm]=r.competencia_inicio.split('-').map(Number);
-    for(let i=1;i<=n;i++){
-      const comp=y+'-'+String(mm).padStart(2,'0'); mm++; if(mm===13){ mm=1; y++; }
-      if(comp>mesAtual) break;
-      const fat=all.find(t=>!usados.has(t) && !t._prev && !t._parc && t.categoria==='Cartão de crédito' && _txNat(t)==='Despesa' && _txComp(t)===comp && (+t.valor||0)>=p && _proLaboreSocio(t)===socio);
-      if(!fat) continue;   // fatura ainda não chegou no extrato: sem estorno (a subconta segue o extrato)
-      usados.add(fat);
-      const lab=r.descricao+' parcela '+i+'/'+n;
-      out.push({ id:'parc-'+r.id+'-'+comp+'-e', _parc:true, _socio:socio, data:fat.data, competencia:comp, tipo:'credito', tipo_categoria:'Despesa', valor:p, categoria:'Cartão de crédito', condominio:null,
-        historico:'Estorno · '+lab+' (despesa da empresa, não onera o sócio)', descricao:'', observacao:'Regra de parcelamento #'+r.id+' aplicada pelo DRE à fatura '+(fat.id||'') });
-      out.push({ id:'parc-'+r.id+'-'+comp+'-d', _parc:true, data:fat.data, competencia:comp, tipo:'debito', tipo_categoria:'Despesa', valor:p, categoria:r.categoria||'Imobilizado / Equipamentos', condominio:null,
-        historico:lab+' · cartão '+socio, descricao:'', observacao:'Regra de parcelamento #'+r.id+' (fatura '+(fat.id||'')+')' });
+    let parcelas=persist.filter(x=>+x.parcelamento_id===+r.id).sort((a,b)=>a.numero-b.numero)
+      .map(x=>({ numero:+x.numero, comp:x.competencia, valor:+x.valor||p, categoria:x.categoria||r.categoria, _row:x }));
+    if(!parcelas.length){   // fallback: regra sem parcelas gravadas → série calculada
+      if(!p||!n||!/^\d{4}-\d{2}$/.test(r.competencia_inicio||'')) return;
+      let [y,mm]=r.competencia_inicio.split('-').map(Number);
+      for(let i=1;i<=n;i++){ parcelas.push({ numero:i, comp:y+'-'+String(mm).padStart(2,'0'), valor:p, categoria:r.categoria }); mm++; if(mm===13){ mm=1; y++; } }
     }
+    const total=Math.max(n, parcelas.length);
+    parcelas.forEach(pc=>{
+      const comp=pc.comp; if(!comp||comp>mesAtual) return;
+      let fat=pc._row&&pc._row.transacao_id ? all.find(t=>!t._prev&&!t._parc&&String(t.id)===String(pc._row.transacao_id)) : null;
+      if(!fat) fat=all.find(t=>!usados.has(t) && !t._prev && !t._parc && t.categoria==='Cartão de crédito' && _txNat(t)==='Despesa' && _txComp(t)===comp && (+t.valor||0)>=pc.valor && _proLaboreSocio(t)===socio);
+      if(!fat) return;   // fatura ainda não chegou no extrato: sem estorno (a subconta segue o extrato)
+      usados.add(fat);
+      if(pc._row && !pc._row.transacao_id && fat.id && typeof sb!=='undefined'){ pc._row.transacao_id=fat.id; try{ sb.from('fin_parcelas').update({transacao_id:fat.id}).eq('id',pc._row.id).is('transacao_id',null).then(()=>{}); }catch(e){} }
+      const lab=r.descricao+' parcela '+pc.numero+'/'+total;
+      out.push({ id:'parc-'+r.id+'-'+comp+'-e', _parc:true, _socio:socio, data:fat.data, competencia:comp, tipo:'credito', tipo_categoria:'Despesa', valor:pc.valor, categoria:'Cartão de crédito', condominio:null,
+        historico:'Estorno · '+lab+' (despesa da empresa, não onera o sócio)', descricao:'', observacao:'Regra de parcelamento #'+r.id+' aplicada pelo DRE à fatura '+(fat.id||'') });
+      out.push({ id:'parc-'+r.id+'-'+comp+'-d', _parc:true, data:fat.data, competencia:comp, tipo:'debito', tipo_categoria:'Despesa', valor:pc.valor, categoria:pc.categoria||'Imobilizado / Equipamentos', condominio:null,
+        historico:lab+' · cartão '+socio, descricao:'', observacao:'Regra de parcelamento #'+r.id+' (fatura '+(fat.id||'')+(pc._row?', parcela #'+pc._row.id+' persistida':'')+')' });
+    });
   });
   return out;
 }
@@ -6429,6 +6441,7 @@ async function _ledger(opts){
   if(derivados && modo!=='cofre'){
     // cruzamento com o sistema (vale nos dois regimes): parcela do carro por série + parcelamentos (drone)
     if(_dreParcCache===null){ try{ const{data:pc}=await sb.from('fin_parcelamentos').select('*'); _dreParcCache=pc||[]; }catch(e){ _dreParcCache=[]; } }
+    if(_dreParcelasCache===null){ try{ const{data:pp}=await sb.from('fin_parcelas').select('*'); _dreParcelasCache=pp||[]; }catch(e){ _dreParcelasCache=[]; } }
     all=_carroInferir(all);
     all=all.concat(_parcelamentosComoTxns(all));
     if(regime==='competencia'){
@@ -6448,7 +6461,7 @@ function _ledgerTotais(txns){
 }
 
 async function renderExtratoDRE(force){
-  if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; _prevCache=null; _dreParcCache=null; }
+  if(force){ _dreBankCache=null; _cofreCache=null; _saldoBancoCents=null; _prevCache=null; _dreParcCache=null; _dreParcelasCache=null; }
   const modo=_modoMov;                 // 'banco' | 'cofre' | 'ambos'
   const incCofre=modo!=='banco';
   // mantém os controles (checkbox do DRE + botão-segmento do Extrato) em sincronia
@@ -8681,7 +8694,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-182005';
+const APP_BUILD='20260917-185525';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
