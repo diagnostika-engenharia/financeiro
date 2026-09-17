@@ -337,6 +337,11 @@ body.capturing .rel-acao{display:none!important}
 .dre-tbl .dre-lvl2 td:first-child{padding-left:48px}
 .dre-tbl .dre-det-mes td{background:var(--gray2,#e9edf0);font-weight:700;color:var(--text2);font-size:11.5px;border-top:1px solid var(--gray3)}
 .dre-tbl .dre-tot td{border-top:1px solid var(--gray3);font-weight:700;color:var(--text)}
+/* cabeçalho travado: a tabela rola dentro da própria caixa e os meses ficam visíveis */
+#ex-dre-cats.dre-fixo{max-height:calc(100vh - 150px);overflow:auto}
+#ex-dre-cats.dre-fixo .dre-tbl thead th{position:sticky;top:0;background:var(--white);z-index:2;box-shadow:0 2px 0 var(--gray3)}
+#ex-dre-cats.dre-fixo .dre-tbl thead th:first-child{z-index:3}
+#dre-fixo-btn.on{background:var(--teal);color:#fff;border-color:var(--teal)}
 .dre-tbl .dre-res td{border-top:2px solid var(--teal);border-bottom:2px solid var(--teal);font-weight:800}
 .dre-tbl .dre-mg td{font-size:11px;color:var(--text2)}
 .dre-av{font-size:10.5px;color:var(--gray4)}
@@ -1075,6 +1080,7 @@ body.capturing .rel-acao{display:none!important}
               <button type="button" data-regime="caixa" onclick="_setRegime('caixa')" class="on">Caixa</button>
               <button type="button" data-regime="competencia" onclick="_setRegime('competencia')">Competência</button>
             </div>
+            <button type="button" id="dre-fixo-btn" onclick="_dreFixoToggle()" title="Trava a linha dos meses no topo enquanto a tabela rola" style="border:1px solid var(--gray3);border-radius:8px;background:#fff;color:var(--text2);padding:5px 10px;font-size:12.5px;cursor:pointer">📌 Travar cabeçalho</button>
             <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer;user-select:none">
               <input type="checkbox" id="ex-inc-cofre" checked onchange="_setModoMov(this.checked?'ambos':'banco')" style="cursor:pointer"> <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10.5" cy="12" r="3"/><path d="M10.5 12v-2.2"/><path d="M17 9.4v5.2"/></svg> Incluir Cofre (dinheiro)
             </label>
@@ -6149,6 +6155,18 @@ const _MODO_SELO={banco:'Só Banco', cofre:'Só Cofre', ambos:'Banco + Cofre'};
 // 'competencia' = soma também as notas emitidas (fin_contas_receber) e boletos (fin_contas_pagar)
 // ainda NÃO pagos, no mês do fato gerador. Quando o pagamento cai no extrato e a conta é baixada,
 // a linha prevista some e a do banco assume (sem dupla contagem).
+// cabeçalho do DRE travado (meses visíveis ao rolar) — preferência salva
+function _dreFixoAplicar(){
+  let on=false; try{ on=localStorage.getItem('dre_fixo')==='1'; }catch(e){}
+  const box=document.getElementById('ex-dre-cats'), btn=document.getElementById('dre-fixo-btn');
+  if(box) box.classList.toggle('dre-fixo',on);
+  if(btn){ btn.classList.toggle('on',on); btn.textContent=on?'📌 Cabeçalho travado':'📌 Travar cabeçalho'; }
+}
+function _dreFixoToggle(){
+  let on=false; try{ on=localStorage.getItem('dre_fixo')==='1'; localStorage.setItem('dre_fixo',on?'0':'1'); }catch(e){}
+  _dreFixoAplicar();
+}
+document.addEventListener('DOMContentLoaded',_dreFixoAplicar);
 let _dreRegime=(function(){ try{ return localStorage.getItem('dre_regime')==='competencia'?'competencia':'caixa'; }catch(e){ return 'caixa'; } })();
 let _prevCache=null;   // {receber:[], pagar:[]} pendentes
 function _setRegime(v){
@@ -8526,7 +8544,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-155500';
+const APP_BUILD='20260917-160452';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
