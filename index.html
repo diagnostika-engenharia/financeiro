@@ -2319,10 +2319,10 @@ function _getSaldoCaixaCents(){
       try{
         const[{data:bk},{data:cf}]=await Promise.all([
           sb.from('fin_contas_bancarias').select('saldo').eq('ativa',true),
-          sb.from('fin_livro_caixa_cofre').select('valor,tipo')
+          sb.from('fin_livro_caixa_cofre').select('id,data,tipo,valor')
         ]);
         const banco=(bk||[]).reduce((s,r)=>s+(+r.saldo||0),0);
-        const cofre=(cf||[]).reduce((s,r)=>s+(r.tipo==='Entrada'?(+r.valor||0):-(+r.valor||0)),0);
+        const cofre=_cofreSaldos(cf||[]).saldo;
         return banco+cofre;
       }catch(e){ return 0; }
     })();
@@ -2839,10 +2839,10 @@ async function _mpagCarregarFontes(valorCents){
   let saldoCofre=0, contas=[];
   try{
     const[cf,cb]=await Promise.all([
-      sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1),
+      _cofreSaldoAtual(),
       sb.from('fin_contas_bancarias').select('id,nome,banco,saldo').eq('ativa',true).order('id')
     ]);
-    saldoCofre=(cf.data&&cf.data[0])?cf.data[0].saldo_atual||0:0;
+    saldoCofre=cf||0;
     contas=cb.data||[];
   }catch(e){}
   // Só contas REAIS (com saldo != 0) — mesma regra do Pró-labore. Esconde contas zeradas.
@@ -4653,6 +4653,7 @@ setInterval(()=>{
 // ═══════════════════════════════════════════════════════════════
 
 function renderCofreLateral(rows) {
+  const _sa = _cofreSaldos(rows).atual;   // saldo derivado (não o gravado)
   const now = new Date();
   const anoMes = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
@@ -4661,9 +4662,9 @@ function renderCofreLateral(rows) {
   let entMes=0, saiMes=0;
   doMes.forEach(r => { if(r.tipo==='Entrada') entMes+=r.valor; else saiMes+=r.valor; });
 
-  // Saldo inicial do mês = saldo_atual do último lançamento anterior ao mês
+  // Saldo inicial do mês = saldo derivado do último lançamento anterior ao mês
   const antMes = rows.filter(r => r.data && r.data < anoMes+'-01');
-  const saldoIni = antMes.length ? antMes[antMes.length-1].saldo_atual : 0;
+  const saldoIni = antMes.length ? _sa(antMes[antMes.length-1]) : 0;
   const variacao = entMes - saiMes;
 
   const elEnt = document.getElementById('cofre-kpi-ent');
@@ -4695,9 +4696,9 @@ function renderCofreLateral(rows) {
     if(!doM.length) {
       // usa saldo do último anterior
       const ant = rows.filter(r => r.data && r.data < m+'-01');
-      return ant.length ? ant[ant.length-1].saldo_atual : null;
+      return ant.length ? _sa(ant[ant.length-1]) : null;
     }
-    return doM[doM.length-1].saldo_atual;
+    return _sa(doM[doM.length-1]);
   });
 
   const labelsEl = document.getElementById('cofre-spark-labels');
@@ -4773,8 +4774,9 @@ async function loadCofre() {
   if(error){toast('Erro ao carregar cofre',true);return;}
   const rows = data||[];
 
-  // Saldo atual = última movimentação
-  const saldo = rows.length ? rows[rows.length-1].saldo_atual : 0;
+  // Saldo atual = soma corrida em ordem (data,id) — mesma regra do razão (fin_ledger.saldo_acumulado)
+  const _cs = _cofreSaldos(rows), _sa = _cs.atual;
+  const saldo = _cs.saldo;
   document.getElementById('cofre-saldo').textContent = fmt(saldo);
   document.getElementById('cofre-saldo').style.color = saldo < 0 ? 'var(--red)' : 'var(--teal)';
   const hoje2 = new Date().toLocaleDateString('pt-BR');
@@ -4801,7 +4803,7 @@ async function loadCofre() {
         <div class="cf-icon" style="background:${corVal}">${sinal}</div>
         <div class="cf-main">
           <div class="cf-desc">${esc(r.descricao)}</div>
-          <div class="cf-sub">${formatData(r.data)} · Saldo ${fmt(r.saldo_atual)}</div>
+          <div class="cf-sub">${formatData(r.data)} · Saldo ${fmt(_sa(r))}</div>
         </div>
         <div class="cf-val" style="color:${corVal}">${sinal} ${fmt(r.valor)}</div>
         <svg class="cf-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -4810,7 +4812,7 @@ async function loadCofre() {
         <div class="cf-dgrid">
           <div><span>Tipo</span><b style="color:${corVal}">${r.tipo}</b></div>
           <div><span>Valor</span><b>${fmt(r.valor)}</b></div>
-          <div><span>Saldo após</span><b style="color:var(--teal)">${fmt(r.saldo_atual)}</b></div>
+          <div><span>Saldo após</span><b style="color:var(--teal)">${fmt(_sa(r))}</b></div>
           <div><span>Origem</span><b>${origemBadge}</b></div>
         </div>
         ${r.observacao ? `<div class="cf-obs"><span>Observação</span><div>${esc(r.observacao)}</div></div>` : ''}
@@ -4862,15 +4864,14 @@ async function salvarMovCofre() {
 }
 
 async function recalcularTodosSaldosCofre() {
-  const {data:rows} = await sb.from('fin_livro_caixa_cofre')
-    .select('id,tipo,valor')
-    .order('data',{ascending:true}).order('id',{ascending:true});
+  // Regrava saldo_anterior/saldo_atual (colunas legadas, só exibição) a partir da mesma janela de _cofreSaldos; só linhas divergentes.
+  const {data:rows} = await sb.from('fin_livro_caixa_cofre').select('id,data,tipo,valor,saldo_anterior,saldo_atual');
   if(!rows || !rows.length) return;
-  let saldo = 0;
-  for(const r of rows) {
-    const saldoAnterior = saldo;
-    saldo = r.tipo === 'Entrada' ? saldo + r.valor : saldo - r.valor;
-    await sb.from('fin_livro_caixa_cofre').update({saldo_anterior:saldoAnterior,saldo_atual:saldo}).eq('id',r.id);
+  const cs=_cofreSaldos(rows);
+  for(const r of cs.ord) {
+    const v=cs.map.get(r.id);
+    if(r.saldo_anterior===v.ant && r.saldo_atual===v.atual) continue;
+    await sb.from('fin_livro_caixa_cofre').update({saldo_anterior:v.ant,saldo_atual:v.atual}).eq('id',r.id);
   }
 }
 
@@ -6142,10 +6143,25 @@ function _cofreComp(desc,data){
   if((m=d.match(/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/))) return m[2]+'-'+String(_MES_NOME[m[1]]).padStart(2,'0');
   return String(data||'').slice(0,7);
 }
+// Saldo do cofre DERIVADO (janela em ordem data,id sobre TODAS as linhas, inclusive "Saldo anterior") — espelha
+// fin_ledger v3.saldo_acumulado / fin_saldos(). saldo_anterior/saldo_atual gravados na tabela são só exibição/legado:
+// lançamentos retroativos (ex.: ids 41–43 datados de fev/2026 inseridos depois do id 40) quebravam a leitura "último por id".
+function _cofreSaldos(rows){
+  const ord=[...(rows||[])].sort((a,b)=>String(a.data||'').localeCompare(String(b.data||''))||((+a.id||0)-(+b.id||0)));
+  const map=new Map(); let s=0;
+  for(const r of ord){ const ant=s; s+=r.tipo==='Entrada'?(+r.valor||0):-(+r.valor||0); map.set(r.id,{ant,atual:s}); }
+  return {map, saldo:s, ord, atual:r=>(map.get(r&&r.id)||{atual:0}).atual};   // centavos
+}
+async function _cofreSaldoAtual(){   // centavos — única forma de ler "saldo do cofre" fora da tela do cofre
+  const {data,error}=await sb.from('fin_livro_caixa_cofre').select('id,data,tipo,valor');
+  if(error) throw error;
+  return _cofreSaldos(data||[]).saldo;
+}
 function _cofreComoTxns(rows){
+  const _sa=_cofreSaldos(rows).atual;
   return (rows||[])
     .filter(r=>!/saldo anterior/i.test(r.descricao||''))
-    .map(r=>({
+    .map(r=>({ _id:r.id, saldo_acumulado:_sa(r)/100,
       data:r.data, competencia:_cofreComp((r.descricao||'')+' '+(r.observacao||''),r.data),   // "ref MM/AAAA" vale na descrição OU na observação
       historico:'Cofre · '+(r.descricao||'Movimentação'),
       categoria:_cofreCat(r.descricao,r.tipo),
@@ -7238,8 +7254,7 @@ async function _plLoadContas(){
   document.getElementById('mpl-pagamento').style.display='block';
 
   // Buscar saldo do cofre
-  const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
-  const saldoCofre=ultCofre?.saldo_atual||0;
+  const saldoCofre=await _cofreSaldoAtual().catch(()=>0);
 
   // Buscar contas bancárias com saldo (da própria tabela), só as que têm saldo ou transações
   const{data:contas}=await sb.from('fin_contas_bancarias').select('id,nome,banco,saldo').eq('ativa',true).order('id');
@@ -7536,13 +7551,12 @@ async function confirmarPagamentoPL(){
   // Debitar de cada conta selecionada
   for(const a of alocacoes){
     if(a.conta==='cofre'){
-      const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
-      const saldoAnt=ultCofre?.saldo_atual||0;
       await sb.from('fin_livro_caixa_cofre').insert({
         data:dt,tipo:'Saída',descricao:descPL,valor:a.valor,
-        saldo_anterior:saldoAnt,saldo_atual:saldoAnt-a.valor,
+        saldo_anterior:0,saldo_atual:0,   // derivado: recalculado abaixo em ordem (data,id)
         user_id:pl.socio_id,origem:'Automático',
       });
+      await recalcularTodosSaldosCofre();
     } else {
       // Conta bancária — registrar transação de débito e atualizar saldo
       const contaId=parseInt(a.conta);
@@ -7587,18 +7601,17 @@ async function estornarPL(id){
     const descPL=`Pró labore ${pl.socio_nome} ref ${pl.competencia}`;
     const{data:lancCofre}=await sb.from('fin_livro_caixa_cofre').select('id,valor').eq('descricao',descPL).eq('tipo','Saída').limit(1);
     if(lancCofre&&lancCofre.length){
-      const{data:ultCofre}=await sb.from('fin_livro_caixa_cofre').select('saldo_atual').order('id',{ascending:false}).limit(1).single();
-      const saldoAnt=ultCofre?.saldo_atual||0;
       await sb.from('fin_livro_caixa_cofre').insert({
         data:hoje(),
         tipo:'Entrada',
         descricao:`Estorno: ${descPL}`,
         valor:lancCofre[0].valor,
-        saldo_anterior:saldoAnt,
-        saldo_atual:saldoAnt+lancCofre[0].valor,
+        saldo_anterior:0,
+        saldo_atual:0,   // derivado: recalculado após o insert
         user_id:pl.socio_id,
         origem:'Automático',
       });
+      await recalcularTodosSaldosCofre();
     }
   }
 
@@ -8762,7 +8775,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260922-095916';
+const APP_BUILD='20260922-153847';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
