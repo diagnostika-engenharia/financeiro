@@ -1060,7 +1060,7 @@ body.capturing .rel-acao{display:none!important}
       <!-- DRE (página própria) -->
       <div class="page" id="page-dre">
         <div class="page-header">
-          <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado (Banco + Cofre) por plano de contas, com análise vertical (AV%) e horizontal (AH%)</p></div>
+          <div><h2>DRE — Demonstração do Resultado</h2><p>Resultado consolidado (Banco + Cofre) no modelo ITG 1000 para ME/EPP no Simples Nacional, com análise vertical (AV%) e horizontal (AH%)</p></div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
             <style>
               #ex-regime button{border:0;padding:5px 12px;background:#fff;color:var(--text2);cursor:pointer;font-size:12.5px}
@@ -1103,12 +1103,13 @@ body.capturing .rel-acao{display:none!important}
           <div class="card ex-kpi"><span>Receitas</span><b class="val-green" id="ex-kpi-rec">R$ 0,00</b></div>
           <div class="card ex-kpi"><span>Despesas</span><b style="color:var(--red)" id="ex-kpi-desp">R$ 0,00</b></div>
           <div class="card ex-kpi"><span>Resultado</span><b id="ex-kpi-res">R$ 0,00</b></div>
+          <div class="card ex-kpi" title="LAJIDA/EBITDA = resultado operacional antes do resultado financeiro + depreciação e amortização. Indicador de natureza não contábil (Resolução CVM 156/2022), apresentado fora da DRE."><span>EBITDA</span><b id="ex-kpi-ebitda">R$ 0,00</b><div style="font-size:10.5px;color:var(--text2);margin-top:2px" id="ex-kpi-ebitda-sub">—</div></div>
           <div class="card ex-kpi"><span>Lançamentos</span><b id="ex-kpi-n">0</b></div>
         </div>
 
         <div class="card" style="margin-top:16px">
           <div class="card-hd"><h3>DRE — Demonstração do Resultado</h3>
-            <span style="font-size:11.5px;color:var(--text2)">AV% = análise vertical (% da receita) · AH% = análise horizontal (último mês vs anterior)</span>
+            <span style="font-size:11.5px;color:var(--text2)">Modelo ITG 1000 (Anexo 3, Res. CFC 1.418/12) · AV% = % da receita líquida · AH% = último mês vs anterior</span>
           </div>
           <div class="card-bd"><div id="ex-dre-cats" style="overflow-x:auto"><p class="empty">Sem dados ainda. Importe um extrato.</p></div></div>
         </div>
@@ -6237,10 +6238,11 @@ function _provisoesComoTxns(all){
   const meses=[...new Set(all.map(_txComp).filter(m=>/^\d{4}-\d{2}$/.test(m)&&m>='2026-01'&&m<=mesAtual))].sort();
   if(!meses.length) return [];
   // realizado por mês × categoria (despesas, sinal positivo) e receitas por categoria
-  const real={}, rec={}, pl={};
+  const real={}, rec={}, pl={}, trib={};
   all.forEach(t=>{ const m=_txComp(t); if(!m) return; const c=t.categoria||'Não classificado';
     if(_txNat(t)==='Despesa'){ (real[m]=real[m]||{}); real[m][c]=(real[m][c]||0)+_txSig(t);
-      if(_PL_CATS.includes(c)){ const s=_proLaboreSocio(t); (pl[m]=pl[m]||{}); pl[m][s]=(pl[m][s]||0)+_txSig(t); } }
+      if(_PL_CATS.includes(c)){ const s=_proLaboreSocio(t); (pl[m]=pl[m]||{}); pl[m][s]=(pl[m][s]||0)+_txSig(t); }
+      if(c==='Impostos e Tributos'){ const k=_tribTipo(t); (trib[m]=trib[m]||{}); trib[m][k]=(trib[m][k]||0)+_txSig(t); } }
     else { (rec[m]=rec[m]||{}); rec[m][c]=(rec[m][c]||0)+_txSig(t); } });
   const R=(m,c)=>(real[m]&&real[m][c])||0;
   const nfMes={}; ((_prevCache&&_prevCache.nfse)||[]).forEach(n=>{ const m=String(n.created_at||'').slice(0,7); nfMes[m]=(nfMes[m]||0)+(+n.valor||0); });
@@ -6257,7 +6259,8 @@ function _provisoesComoTxns(all){
     const baseNF=nfMes[m]||0, baseAss=(rec[m]&&rec[m]['Assessoria'])||0;
     const base=baseNF||baseAss;
     const das=Math.round(base*_PROV_DAS*100)/100;
-    push(m,'Impostos e Tributos',das+_PROV_DCTF,R(m,'Impostos e Tributos'),'DAS 15,5% × '+(baseNF?'NFs emitidas ':'assessoria ')+_dreR(base)+' + DCTFWeb '+_dreR(_PROV_DCTF));
+    push(m,'Impostos e Tributos',das,(trib[m]&&trib[m].DAS)||0,'DAS 15,5% × '+(baseNF?'NFs emitidas ':'assessoria ')+_dreR(base),{descricao_dre:'DAS — Simples Nacional (provisão)'});
+    push(m,'Impostos e Tributos',_PROV_DCTF,(trib[m]&&trib[m].DCTF)||0,'DCTFWeb — INSS sobre pró-labore '+_dreR(_PROV_DCTF),{descricao_dre:'DCTFWeb — INSS sobre pró-labore (provisão)'});
     // taxa de ART proporcional à receita de ART
     const recArt=(rec[m]&&rec[m]['Receita de ART'])||0;
     if(recArt>0) push(m,'Taxa de ART (CREA)',recArt*_PROV_ART,R(m,'Taxa de ART (CREA)'),'taxa CREA ≈ 40% da receita de ART '+_dreR(recArt));
@@ -6603,7 +6606,7 @@ function catCanonica(v){
 // Opções canônicas da Categoria (valor = rótulo dominante já gravado no banco,
 // para o gráfico "Receita por categoria" [catCanonica] e a DRE consolidarem igual).
 const _CL_CAT_RECEITA=[['Receita de ART','ART'],['Assessoria','Assessoria'],['Receita de Projetos','Projeto'],['Receita de Vistoria','Vistoria'],['Laudo/Parecer','Laudo / Parecer'],['Recebimento PIX','Recebimento PIX (avulso)'],['Outros','Outros']];
-const _CL_CAT_DESPESA=[['Taxa de ART (CREA)','Taxa de ART (CREA)'],['Pagamento PIX','Pagamento PIX'],['Cartão de crédito','Cartão de crédito'],['Cartao/Compras','Cartão / Compras'],['Custo de projeto','Custo de projeto'],['Despesa com refeições','Refeições'],['Tarifas bancárias','Tarifas bancárias'],['Pró-labore','Pró-labore'],['Impostos e Tributos','Impostos e Tributos'],['Software e assinaturas','Software e assinaturas'],['Contabilidade','Contabilidade'],['Reembolsos','Reembolsos'],['Outros','Outros']];
+const _CL_CAT_DESPESA=[['Taxa de ART (CREA)','Taxa de ART (CREA)'],['Pagamento PIX','Pagamento PIX'],['Cartão de crédito','Cartão de crédito'],['Cartao/Compras','Cartão / Compras'],['Custo de projeto','Custo de projeto (plotagem/insumos)'],['Custo de projeto - Cadista','Custo de projeto - Cadista'],['Despesa com agilidade de Projetos - Prefeitura','Taxas/agilidade em prefeitura'],['Imobilizado / Equipamentos','Imobilizado / Equipamentos'],['Despesa com refeições','Refeições'],['Tarifas bancárias','Tarifas bancárias'],['Pró-labore','Pró-labore'],['Impostos e Tributos','Impostos e Tributos'],['Software e assinaturas','Software e assinaturas'],['Contabilidade','Contabilidade'],['Reembolsos','Reembolsos'],['Outros','Outros']];
 // Tipo de serviço (canônico) → valor gravado na Categoria
 const _CL_CANON2VAL={ART:'Receita de ART',Assessoria:'Assessoria',Projeto:'Receita de Projetos',Vistoria:'Receita de Vistoria','Laudo/Parecer':'Laudo/Parecer',Outros:'Outros'};
 function _clPopularCategorias(ehCred,cur){
@@ -6709,92 +6712,122 @@ const _MES_ABR=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov
 function _compLabel(c){ if(!c||c.length<7) return c||'—'; const [y,m]=c.split('-'); return _MES_ABR[(+m||1)-1]+'/'+y.slice(2); }
 const _dreR=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-// monta a DRE no padrão contábil: seções Receita/Despesa, categorias (plano de
-// contas), uma coluna por mês (análise horizontal) + Total, AV% (vertical, % da
-// receita) e AH% (horizontal, último mês vs anterior).
+// ── Plano de contas do DRE (ITG 1000, Anexo 3 — Resolução CFC 1.418/12) ─────────────────
+// A categoria gravada no banco NÃO muda; este mapa diz em que linha oficial da DRE ela cai.
+// Grupos na ordem do Anexo 3. Simples Nacional: DAS na linha de Deduções; IRPJ/CSLL não existem.
+const _DRE_G=[
+  ['REC',  'RECEITA BRUTA DE SERVIÇOS',            +1],
+  ['DED',  '(−) DEDUÇÕES DA RECEITA',              -1],
+  ['RL',   '= RECEITA LÍQUIDA',                    'sub'],
+  ['CUS',  '(−) CUSTO DOS SERVIÇOS PRESTADOS',     -1],
+  ['LB',   '= LUCRO BRUTO',                        'sub'],
+  ['DESP', '(−) DESPESAS OPERACIONAIS',            -1],
+  ['ROP',  '= RESULTADO OPERACIONAL ANTES DO RESULTADO FINANCEIRO','sub'],
+  ['FIN',  '(+/−) RESULTADO FINANCEIRO',           -1],
+  ['OUT',  '(+/−) OUTRAS RECEITAS E DESPESAS',     -1],
+  ['RES',  '= RESULTADO LÍQUIDO DO PERÍODO',       'sub'],
+];
+// categoria do banco → [grupo, conta exibida]
+const _DRE_MAPA={
+  'Receita de ART':['REC','Receita de ART'], 'Assessoria':['REC','Assessoria mensal'], 'Receita de Projetos':['REC','Receita de Projetos'],
+  'Receita de Vistoria':['REC','Receita de Vistoria'], 'Laudo/Parecer':['REC','Laudo / Parecer'], 'Serviços de Engenharia':['REC','Serviços de Engenharia'],
+  'Recebimento PIX':['REC','Recebimentos a identificar'], 'Outras entradas (cofre)':['REC','Outras entradas'],
+  'Taxa de ART (CREA)':['CUS','Taxa de ART (CREA)'], 'Custo de projeto - Cadista':['CUS','Cadista'], 'Custo de projeto':['CUS','Plotagem e insumos de projeto'],
+  'Despesa com agilidade de Projetos - Prefeitura':['CUS','Taxas, cartório e agilidade em prefeitura'], 'Reembolso de taxas':['CUS','Taxas, cartório e agilidade em prefeitura'],
+  'Pró-labore':['DESP','Pró-labore'], 'Pró-labore (financ. veículo)':['DESP','Pró-labore'], 'Cartão de crédito':['DESP','Pró-labore'], 'Pró-labore (cofre)':['DESP','Pró-labore'],
+  'Contabilidade':['DESP','Contabilidade'], 'Software e assinaturas':['DESP','Software e assinaturas'],
+  'Despesa com refeições':['DESP','Refeições e deslocamento'], 'Cartão/Compras':['DESP','Refeições e deslocamento'], 'Cartao/Compras':['DESP','Refeições e deslocamento'],
+  'Reembolsos':['DESP','Reembolsos a sócios'], 'Outros':['DESP','Outras despesas administrativas'], 'Outras saídas (cofre)':['DESP','Outras despesas administrativas'],
+  'Não classificado':['DESP','A classificar'], 'Pagamento PIX':['DESP','A classificar'], 'Título/Boleto pago':['DESP','A classificar'], 'Devolucao PIX':['DESP','A classificar'],
+  'Tarifas bancárias':['FIN','Tarifas bancárias'], 'Tarifas bancarias':['FIN','Tarifas bancárias'], 'Impostos/IOF':['FIN','IOF e juros'],
+  'Imobilizado / Equipamentos':['OUT','Imobilizado (a ativar)'],
+};
+// tributos federais: DCTFWeb (INSS sobre pró-labore) é encargo administrativo; o resto é DAS (dedução)
+function _tribTipo(t){
+  const s=((t.descricao_dre||'')+' '+(t.historico||'')+' '+(t.observacao||'')).toLowerCase();
+  if(/dctf|inss|gps|darf/.test(s)) return 'DCTF';
+  if(/\bdas\b|simples/.test(s)) return 'DAS';
+  return (Math.abs((+t.valor||0)-178.31)<0.01)?'DCTF':'DAS';
+}
+// conta do DRE de um lançamento: {g:grupo, c:conta, s:subconta|null}
+function _dreConta(t){
+  const cat=t.categoria||'Não classificado';
+  if(cat==='Impostos e Tributos'){ return _tribTipo(t)==='DCTF'?{g:'DESP',c:'Encargos sobre pró-labore (INSS/DCTFWeb)',s:null}:{g:'DED',c:'DAS — Simples Nacional',s:null}; }
+  const m=_DRE_MAPA[cat];
+  const txt=((t.contraparte||'')+' '+(t.descricao_dre||'')).toLowerCase();
+  if(m&&m[0]==='REC' && _txNat(t)==='Receita' && _txSig(t)<0) return {g:'DED',c:'Devoluções e abatimentos',s:null};   // débito em conta de receita = devolução
+  if(m&&m[0]==='REC' && _txNat(t)==='Despesa') return {g:'CUS',c:'Terceiros técnicos',s:null};                        // "Assessoria" paga a terceiro
+  if(cat==='Outros' && /projetista|eletricista|t[ée]cnico|cadista|plotag/.test(txt)) return {g:'CUS',c:'Terceiros técnicos',s:null};
+  if(m&&m[1]==='Pró-labore') return {g:'DESP',c:'Pró-labore',s:'Pró-labore '+_proLaboreSocio(t)};
+  if(m) return {g:m[0],c:m[1],s:null};
+  return {g:_txNat(t)==='Receita'?'REC':'DESP',c:cat,s:null};
+}
+// valor da linha no DRE (sempre "positivo na direção do grupo"): receita/dedução/custo/despesa somam +, estorno subtrai
+function _dreVal(t){ const k=_dreConta(t); const s=_txSig(t); return (k.g==='REC')?s:(k.g==='DED'&&_txNat(t)==='Receita')?-s:s; }
+
+// monta a DRE no padrão ITG 1000 (Anexo 3): grupos oficiais com subtotais, contas (plano de contas)
+// e subcontas (ex.: pró-labore por sócio); uma coluna por mês + Total, AV% (% da receita líquida)
+// e AH% (último mês vs anterior). EBITDA = resultado operacional + depreciação, exibido como
+// indicador FORA da tabela (Resolução CVM 156/2022: informação não contábil, divulgada à parte).
 function _dreRender(txns){
   if(!txns.length) return '<p class="empty">Sem dados ainda. Importe um extrato.</p>';
   const meses=[...new Set(txns.map(_txComp).filter(Boolean))].sort();
-  const sec={Receita:{}, Despesa:{}};
-  const catTxns={Receita:{}, Despesa:{}};
-  const subSec={Receita:{}, Despesa:{}}, subTxns={Receita:{}, Despesa:{}};   // subcontas (grupos)
+  const G={};  // G[g][conta] = {mes:{}, txns:[], subs:{sub:{mes:{},txns:[]}}}
   txns.forEach(t=>{
-    const nat=_txNat(t);
-    let cat=t.categoria||'Não classificado', sub=null;
-    const grp=Object.entries(_DRE_GRUPOS).find(([g,d])=>d.cats.includes(cat));
-    if(grp){ sub=grp[1].label(grp[1].sub(t)); cat=grp[0]; }
-    const m=_txComp(t)||'—';
-    (sec[nat][cat]=sec[nat][cat]||{}); sec[nat][cat][m]=(sec[nat][cat][m]||0)+_txSig(t);
-    (catTxns[nat][cat]=catTxns[nat][cat]||[]).push(t);
-    if(sub){ const ss=(subSec[nat][cat]=subSec[nat][cat]||{}); (ss[sub]=ss[sub]||{}); ss[sub][m]=(ss[sub][m]||0)+_txSig(t);
-      const st=(subTxns[nat][cat]=subTxns[nat][cat]||{}); (st[sub]=st[sub]||[]).push(t); }
+    const k=_dreConta(t), m=_txComp(t)||'—', v=_dreVal(t);
+    G[k.g]=G[k.g]||{}; const c=(G[k.g][k.c]=G[k.g][k.c]||{mes:{},txns:[],subs:{}});
+    c.mes[m]=(c.mes[m]||0)+v; c.txns.push(t);
+    if(k.s){ const s=(c.subs[k.s]=c.subs[k.s]||{mes:{},txns:[]}); s.mes[m]=(s.mes[m]||0)+v; s.txns.push(t); }
   });
   const somaMes=obj=>meses.map(m=>obj[m]||0);
-  const totLinha=obj=>meses.reduce((s,m)=>s+(obj[m]||0),0);
-  // base da análise vertical = receita total de cada mês
-  const recPorMes=meses.map(m=>Object.values(sec.Receita).reduce((s,o)=>s+(o[m]||0),0));
-  const recTotal=recPorMes.reduce((a,b)=>a+b,0);
-  // AH% de uma linha = variação do último mês com dado vs o mês anterior com dado
-  const ah=valsArr=>{
-    const idx=valsArr.map((v,i)=>v?i:-1).filter(i=>i>=0);
-    if(idx.length<2) return null;
-    const prev=valsArr[idx[idx.length-2]], last=valsArr[idx[idx.length-1]];
-    if(!prev) return null; return (last-prev)/Math.abs(prev)*100;
-  };
-  const avPct=tot=>recTotal?tot/recTotal*100:0;
-  const fmtAV=p=>`<span class="dre-av">${(p||0).toFixed(1).replace('.',',')}%</span>`;
-  const fmtAH=p=>p===null?'<span class="dre-av">—</span>':`<span class="${p>=0?'dre-pos':'dre-neg'}" style="font-size:11px">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1).replace('.',',')}%</span>`;
-  // cada célula de mês: valor + AV% daquele mês (% da receita do próprio mês)
-  const cellMes=arr=>arr.map((v,i)=>{
-    const base=recPorMes[i];
-    const pct=(v&&base)?`<div class="dre-av">${(v/base*100).toFixed(1).replace('.',',')}%</div>`:'';
-    return `<td>${v?_dreR(v):'<span class="dre-av">—</span>'}${pct}</td>`;
-  }).join('');
-
-  const ncols=meses.length+3;
-  const head=`<thead><tr><th>Conta</th>${meses.map(m=>`<th>${_compLabel(m)}</th>`).join('')}<th>Total</th><th>AV%</th><th>AH%</th></tr></thead>`;
-  let body='<tbody>';
-  let _dreRowIdx=0;
+  const tot=arr=>arr.reduce((a,b)=>a+b,0);
+  const grpMes=g=>meses.map(m=>Object.values(G[g]||{}).reduce((s,c)=>s+(c.mes[m]||0),0));
+  const gm={}; _DRE_G.forEach(([g])=>{ gm[g]=grpMes(g); });
+  const sub=(a,b)=>a.map((v,i)=>v-b[i]);
+  gm.RL=sub(gm.REC,gm.DED); gm.LB=sub(gm.RL,gm.CUS); gm.ROP=sub(gm.LB,gm.DESP); gm.RES=sub(sub(gm.ROP,gm.FIN),gm.OUT);
+  const recL=gm.RL, recLTot=tot(recL);
+  const ah=arr=>{ const idx=arr.map((v,i)=>v?i:-1).filter(i=>i>=0); if(idx.length<2) return null; const p=arr[idx[idx.length-2]], l=arr[idx[idx.length-1]]; return p?(l-p)/Math.abs(p)*100:null; };
+  const pct=(v,b)=>(v&&b)?(v/b*100):0;
+  const fmtP=p=>(p||0).toFixed(1).replace('.',',')+'%';
+  const fmtAV=v=>'<span class="dre-av">'+fmtP(pct(v,recLTot))+'</span>';
+  const fmtAH=p=>p===null?'<span class="dre-av">—</span>':'<span class="'+(p>=0?'dre-pos':'dre-neg')+'" style="font-size:11px">'+(p>=0?'▲':'▼')+' '+fmtP(Math.abs(p))+'</span>';
+  const cellMes=(arr,signed)=>arr.map((v,i)=>{ const av=(v&&recL[i])?'<div class="dre-av">'+fmtP(pct(v,recL[i]))+'</div>':''; const cls=signed?(v>=0?'dre-pos':'dre-neg'):''; return '<td class="'+cls+'">'+(v?_dreR(v):'<span class="dre-av">—</span>')+av+'</td>'; }).join('');
+  const linha=(cls,label,arr,extra,signed)=>'<tr class="'+cls+'"'+(extra||'')+'><td>'+label+'</td>'+cellMes(arr,signed)+'<td class="'+(signed?(tot(arr)>=0?'dre-pos':'dre-neg'):'')+'">'+_dreR(tot(arr))+'</td><td>'+fmtAV(tot(arr))+'</td><td>'+fmtAH(ah(arr))+'</td></tr>';
+  const head='<thead><tr><th>Conta</th>'+meses.map(m=>'<th>'+_compLabel(m)+'</th>').join('')+'<th>Total</th><th>AV%</th><th>AH%</th></tr></thead>';
+  let body='<tbody>', idxN=0;
   window._dreDetailTxns=window._dreDetailTxns||{};
-  // seções
-  [['Receita','RECEITAS'],['Despesa','DESPESAS']].forEach(([nat,titulo])=>{
-    const cats=Object.entries(sec[nat]).sort((a,b)=>totLinha(b[1])-totLinha(a[1]));
-    // total da seção NO TOPO (cabeçalho mostra o total; os lançamentos vêm abaixo)
-    const totMes=meses.map(m=>Object.values(sec[nat]).reduce((s,o)=>s+(o[m]||0),0));
-    const totSec=totMes.reduce((a,b)=>a+b,0);
-    body+=`<tr class="dre-sec"><td>${titulo}</td>${cellMes(totMes)}<td>${_dreR(totSec)}</td><td>${fmtAV(avPct(totSec))}</td><td>${fmtAH(ah(totMes))}</td></tr>`;
-    if(!cats.length){ body+=`<tr class="dre-cat"><td>—</td>${meses.map(()=>'<td><span class="dre-av">—</span></td>').join('')}<td><span class="dre-av">—</span></td><td></td><td></td></tr>`; }
-    cats.forEach(([cat,obj])=>{
-      const arr=somaMes(obj), tot=totLinha(obj);
-      const idx=_dreRowIdx++;
-      const lista=(catTxns[nat][cat]||[]).slice();
-      window._dreDetailTxns[idx]=lista;
-      body+=`<tr class="dre-cat" style="cursor:pointer" onclick="_dreToggleDetail(${idx})"><td>▸ ${esc(cat)}</td>${cellMes(arr)}<td>${_dreR(tot)}</td><td>${fmtAV(avPct(tot))}</td><td>${fmtAH(ah(arr))}</td></tr>`;
-      if(subSec[nat][cat]){
-        // conta com subcontas: 1º nível abre as subcontas; cada subconta abre seus lançamentos
-        Object.keys(subSec[nat][cat]).sort().forEach(sub=>{
-          const sObj=subSec[nat][cat][sub], sArr=somaMes(sObj), sTot=totLinha(sObj);
-          const sIdx=_dreRowIdx++; const sLista=subTxns[nat][cat][sub];
-          window._dreDetailTxns[sIdx]=sLista;
-          // alerta: retirada do sócio acima do pró-labore fixo em algum mês (a provisão só fecha para cima)
-          const acima=(cat==='Pró-labore')?meses.filter((m,i)=>sArr[i]>_PL_ALVO+0.005).map(_compLabel):[];
-          const alerta=acima.length?`<span title="Retirada acima de ${_dreR(_PL_ALVO)} em: ${acima.join(', ')}" style="margin-left:8px;background:#B91C1C;color:#fff;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800">⚠ acima de 7.500: ${acima.join(', ')}</span>`:'';
-          body+=`<tr class="dre-detail dre-det-${idx} dre-sub" style="display:none;cursor:pointer" onclick="_dreToggleDetail(${sIdx})"><td>▸ ${esc(sub)}${alerta}</td>${cellMes(sArr)}<td>${_dreR(sTot)}</td><td>${fmtAV(avPct(sTot))}</td><td>${fmtAH(ah(sArr))}</td></tr>`;
-          body+=_dreDetailRows(sLista, meses, sIdx, 'dre-par-'+idx+' dre-lvl2');
+  _DRE_G.forEach(([g,titulo,sinal])=>{
+    if(sinal==='sub'){ body+=linha(g==='RES'?'dre-res':'dre-tot',titulo,gm[g],'',true); return; }
+    const contas=Object.entries(G[g]||{}).sort((a,b)=>tot(somaMes(b[1].mes))-tot(somaMes(a[1].mes)));
+    if(!contas.length) return;   // grupo sem movimento não aparece (ITG 1000, item 36: só o que é relevante)
+    body+=linha('dre-sec',titulo,gm[g]);
+    contas.forEach(([conta,c])=>{
+      const arr=somaMes(c.mes), idx=idxN++;
+      window._dreDetailTxns[idx]=c.txns.slice();
+      body+=linha('dre-cat','▸ '+esc(conta),arr,' style="cursor:pointer" onclick="_dreToggleDetail('+idx+')"');
+      const subs=Object.keys(c.subs).sort();
+      if(subs.length){
+        subs.forEach(s=>{
+          const sArr=somaMes(c.subs[s].mes), sIdx=idxN++;
+          window._dreDetailTxns[sIdx]=c.subs[s].txns;
+          const acima=(conta==='Pró-labore')?meses.filter((m,i)=>sArr[i]>_PL_ALVO+0.005).map(_compLabel):[];
+          const alerta=acima.length?'<span title="Retirada acima de '+_dreR(_PL_ALVO)+' em: '+acima.join(', ')+'" style="margin-left:8px;background:#B91C1C;color:#fff;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800">⚠ acima de 7.500: '+acima.join(', ')+'</span>':'';
+          body+=linha('dre-detail dre-det-'+idx+' dre-sub','▸ '+esc(s)+alerta,sArr,' style="display:none;cursor:pointer" onclick="_dreToggleDetail('+sIdx+')"');
+          body+=_dreDetailRows(c.subs[s].txns, meses, sIdx, 'dre-par-'+idx+' dre-lvl2');
         });
-      } else body+=_dreDetailRows(lista, meses, idx);
+      } else body+=_dreDetailRows(c.txns, meses, idx);
     });
   });
-  // resultado líquido
-  const despMes=meses.map(m=>Object.values(sec.Despesa).reduce((s,o)=>s+(o[m]||0),0));
-  const resMes=recPorMes.map((r,i)=>r-despMes[i]);
-  const resTot=resMes.reduce((a,b)=>a+b,0);
-  body+=`<tr class="dre-res"><td>RESULTADO LÍQUIDO</td>${resMes.map(v=>`<td class="${v>=0?'dre-pos':'dre-neg'}">${_dreR(v)}</td>`).join('')}<td class="${resTot>=0?'dre-pos':'dre-neg'}">${_dreR(resTot)}</td><td>${fmtAV(avPct(resTot))}</td><td>${fmtAH(ah(resMes))}</td></tr>`;
-  // margem (%) por mês
-  const margMes=resMes.map((r,i)=>recPorMes[i]?r/recPorMes[i]*100:0);
-  body+=`<tr class="dre-mg"><td>Margem líquida</td>${margMes.map((p,i)=>`<td>${recPorMes[i]?(p>=0?'':'−')+Math.abs(p).toFixed(1).replace('.',',')+'%':'<span class="dre-av">—</span>'}</td>`).join('')}<td>${recTotal?(resTot/recTotal*100).toFixed(1).replace('.',',')+'%':'—'}</td><td></td><td></td></tr>`;
+  const margMes=gm.RES.map((r,i)=>recL[i]?r/recL[i]*100:0);
+  body+='<tr class="dre-mg"><td>Margem líquida (% da receita líquida)</td>'+margMes.map((p,i)=>'<td>'+(recL[i]?(p>=0?'':'−')+fmtP(Math.abs(p)):'<span class="dre-av">—</span>')+'</td>').join('')+'<td>'+(recLTot?fmtP(tot(gm.RES)/recLTot*100):'—')+'</td><td></td><td></td></tr>';
   body+='</tbody>';
-  return `<table class="dre-tbl">${head}${body}</table>`;
+  // EBITDA (LAJIDA) = resultado operacional antes do financeiro + depreciação/amortização (hoje 0: nada ativado)
+  const ebitda=tot(gm.ROP);
+  window._dreEbitda={valor:ebitda, margem:recLTot?ebitda/recLTot*100:0, meses:meses.map((m,i)=>[m,gm.ROP[i]])};
+  const el=(typeof document!=='undefined')&&document.getElementById('ex-kpi-ebitda');
+  if(el){ el.textContent=(ebitda<0?'− R$ ':'R$ ')+Math.abs(ebitda).toLocaleString('pt-BR',{minimumFractionDigits:2}); el.style.color=ebitda<0?'var(--red)':'var(--green)';
+    const s=document.getElementById('ex-kpi-ebitda-sub'); if(s) s.textContent='margem '+fmtP(window._dreEbitda.margem)+' · indicador não contábil (CVM 156)'; }
+  return '<table class="dre-tbl">'+head+body+'</table>';
 }
 
 // ── Conciliação bancária ──────────────────────────────────────
@@ -8729,7 +8762,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260917-200356';
+const APP_BUILD='20260922-095916';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
