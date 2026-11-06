@@ -5155,12 +5155,11 @@ async function enviarRascunhoNfse(id){
   const{data:n,error}=await sb.from('fin_nfse_emitidas').select('*').eq('id',id).single();
   if(error||!n){ toast('Não consegui ler a nota',true); return; }
   const e=_nfseEnvioDe(n); if(!e||e.modo!=='rascunho'||!e.draft_id){ toast('Esta nota não tem rascunho pendente',true); verEmailNfse(id); return; }
-  if(!confirm('ENVIAR AGORA o rascunho da NFS-e nº '+n.numero_nfse+'?
+  if(!confirm(`ENVIAR AGORA o rascunho da NFS-e nº ${n.numero_nfse}?
 
-Para: '+(e.para||'')+(e.cc?'
-Cc: '+e.cc:'')+'
+Para: ${e.para||''}${e.cc?'\nCc: '+e.cc:''}
 
-Sai do jeito que está no Gmail (se você editou lá, vai a versão editada).')) return;
+Sai do jeito que está no Gmail (se você editou lá, vai a versão editada).`)) return;
   const be=document.getElementById('nv-enviar'); be.disabled=true; be.textContent='Enviando…';
   try{
     const p={modo:'enviar_rascunho',draft_id:e.draft_id,nota_id:n.id,numero:n.numero_nfse,to:e.para,cc:e.cc,subject:e.assunto,filename:e.arquivo,anexo:e.anexo,anexos:e.anexos,corpo:e.corpo,link:e.link};
@@ -8903,7 +8902,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261106-164755';
+const APP_BUILD='20261106-164930';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
