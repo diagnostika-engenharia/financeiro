@@ -1755,7 +1755,8 @@ body.capturing .rel-acao{display:none!important}
     <div class="modal-bd" id="nv-corpo"></div>
     <div class="modal-ft">
       <button class="btn btn-outline" onclick="closeModal('modal-nfse-ver')">Fechar</button>
-      <a class="btn btn-primary" id="nv-gmail" target="_blank" rel="noopener" hidden>Abrir no Gmail</a>
+      <a class="btn btn-outline" id="nv-gmail" target="_blank" rel="noopener" hidden>Abrir no Gmail</a>
+      <button class="btn btn-primary" id="nv-enviar" hidden>Enviar este rascunho</button>
     </div>
   </div>
 </div>
@@ -5147,6 +5148,29 @@ async function verEmailNfse(id){
              :'<div class="nfse-resultado" style="margin-top:12px">O texto deste e-mail não foi guardado (criado antes desta função). Abra no Gmail para ver.</div>')
     +'<p style="font-size:11.5px;color:var(--text2);margin:10px 0 0">Abrir os anexos por aqui não conta como acesso do cliente.</p>';
   const bg=document.getElementById('nv-gmail'); bg.hidden=!gmail; bg.href=gmail||'#';
+  const be=document.getElementById('nv-enviar'); be.hidden=!(e.modo==='rascunho'&&e.draft_id); be.disabled=false; be.textContent='Enviar este rascunho'; be.onclick=()=>enviarRascunhoNfse(n.id);
+}
+// Envia o rascunho exatamente como está no Gmail (o que foi conferido), sem montar e-mail novo.
+async function enviarRascunhoNfse(id){
+  const{data:n,error}=await sb.from('fin_nfse_emitidas').select('*').eq('id',id).single();
+  if(error||!n){ toast('Não consegui ler a nota',true); return; }
+  const e=_nfseEnvioDe(n); if(!e||e.modo!=='rascunho'||!e.draft_id){ toast('Esta nota não tem rascunho pendente',true); verEmailNfse(id); return; }
+  if(!confirm('ENVIAR AGORA o rascunho da NFS-e nº '+n.numero_nfse+'?
+
+Para: '+(e.para||'')+(e.cc?'
+Cc: '+e.cc:'')+'
+
+Sai do jeito que está no Gmail (se você editou lá, vai a versão editada).')) return;
+  const be=document.getElementById('nv-enviar'); be.disabled=true; be.textContent='Enviando…';
+  try{
+    const p={modo:'enviar_rascunho',draft_id:e.draft_id,nota_id:n.id,numero:n.numero_nfse,to:e.para,cc:e.cc,subject:e.assunto,filename:e.arquivo,anexo:e.anexo,anexos:e.anexos,corpo:e.corpo,link:e.link};
+    const r=await fetch(NFSE_ENVIAR_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(p)});
+    const t=await r.text(); let j={}; try{j=JSON.parse(t);}catch(_){}
+    if(!(r.ok&&j.ok&&j.envio)) throw new Error(j.erro||t.slice(0,200)||('HTTP '+r.status));
+    const g=await _nfseRegistrarEnvio(n,j.envio);
+    toast('E-mail da NFS-e nº '+n.numero_nfse+' enviado'+(g.gravado?'':' (não registrado no histórico)'),!g.gravado);
+    renderNfse(); loadNfseHist(); verEmailNfse(id);
+  }catch(err){ be.disabled=false; be.textContent='Enviar este rascunho'; toast('Falhou: '+err.message,true); }
 }
 function _nfseEnvioPillFull(n){ return _nfseEnvioPill(n)+_nfseAberturaPill(n); }
 // Mês do serviço = mês anterior ao da competência registrada (a nota de "Setembro/2026" cobra o serviço de agosto).
@@ -8879,7 +8903,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261106-163958';
+const APP_BUILD='20261106-164755';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
