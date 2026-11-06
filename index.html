@@ -154,6 +154,58 @@ table.tbl{width:100%;border-collapse:collapse}
 .calc-rz-se{bottom:0;right:0;cursor:nwse-resize} .calc-rz-sw{bottom:0;left:0;cursor:nesw-resize}
 .modal-bg.open{display:flex}
 body.capturing .rel-acao{display:none!important}
+/* ===== Documentos de relatório (layout profissional — paleta da marca, cores fixas p/ sobreviver a dark mode / html2canvas / impressão) ===== */
+.rdoc{background:#fff;color:#1A2E31;font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.rdoc *{box-sizing:border-box}
+.rdoc-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:14px}
+.rdoc-brand{display:flex;flex-direction:column;gap:7px}
+.rdoc-brand img{height:62px;width:auto}
+.rdoc-brand .rdoc-legal{font-size:10px;line-height:1.5;color:#4A6469}
+.rdoc-brand .rdoc-legal b{color:#155B67;font-weight:800;letter-spacing:.3px}
+.rdoc-titlebox{text-align:right}
+.rdoc-titlebox .rdoc-doctype{font-size:20px;font-weight:900;color:#155B67;letter-spacing:.5px;line-height:1.15}
+.rdoc-titlebox .rdoc-sub{font-size:12px;color:#4A6469;margin-top:5px}
+.rdoc-titlebox .rdoc-ctrl{display:inline-block;margin-top:7px;font-size:10px;font-weight:700;color:#155B67;background:#D6EBED;border-radius:20px;padding:3px 11px;letter-spacing:.3px}
+.rdoc-rule{height:4px;border:none;margin:0 0 20px;border-radius:3px;background:linear-gradient(90deg,#155B67 0%,#00B4AC 55%,#8DB72A 100%)}
+.rdoc-meta{display:grid;gap:12px;margin-bottom:22px}
+.rdoc-meta.c2{grid-template-columns:1fr 1fr}
+.rdoc-meta.c3{grid-template-columns:repeat(3,1fr)}
+.rdoc-meta.c4{grid-template-columns:repeat(4,1fr)}
+.rdoc-meta .mi{background:#EFF6F8;border-left:4px solid #155B67;border-radius:5px;padding:10px 15px}
+.rdoc-meta .mi .k{font-size:9.5px;font-weight:700;color:#4A6469;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.rdoc-meta .mi .v{font-size:14px;font-weight:700;color:#0D3C44}
+.rdoc-meta .mi .v.ok{color:#1E8449}
+.rdoc-sectitle{font-size:12px;font-weight:800;color:#155B67;text-transform:uppercase;letter-spacing:.5px;margin:0 0 11px;padding-left:10px;border-left:3px solid #8DB72A}
+.rdoc-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.rdoc-cards .cd{background:#F3FAF4;border:1px solid #CDE6D2;border-radius:9px;padding:12px 22px;text-align:center;min-width:120px}
+.rdoc-cards .cd .nm{font-size:12px;font-weight:600;color:#1A2E31;margin-bottom:5px}
+.rdoc-cards .cd .vl{font-size:17px;font-weight:800;color:#155B67}
+.rdoc-cards .cd .qt{font-size:11px;color:#4A6469;margin-top:3px}
+.rdoc-table{width:100%;border-collapse:collapse;font-size:12px;border:1px solid #D6EBED;margin-bottom:22px}
+.rdoc-table thead th{background:#155B67;color:#fff;padding:10px 12px;text-align:left;font-weight:700;border:1px solid #0D3C44;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.rdoc-table thead th.num{text-align:right}
+.rdoc-table thead th.ctr{text-align:center}
+.rdoc-table tbody td{padding:9px 12px;border:1px solid #E6EEF0;vertical-align:middle}
+.rdoc-table tbody td.num{text-align:right;font-weight:700;white-space:nowrap}
+.rdoc-table tbody td.ctr{text-align:center}
+.rdoc-table tbody td.nowrap{white-space:nowrap}
+.rdoc-table tbody tr:nth-child(even){background:#F2F8F9}
+.rdoc-total{background:linear-gradient(90deg,#0D3C44,#155B67);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-radius:7px;font-size:16px;font-weight:800;letter-spacing:.3px;margin-bottom:18px}
+.rdoc-total .big{font-size:19px}
+.rdoc-note{background:#FFFBEB;border-left:4px solid #F59E0B;padding:11px 15px;border-radius:4px;font-size:11.5px;color:#78350F;margin-bottom:18px}
+.rdoc-footer{text-align:center;font-size:10.5px;color:#4A6469;border-top:1px solid #D6EBED;padding-top:12px;line-height:1.6}
+.rdoc-footer b{color:#155B67}
+.pos{color:#1E8449}.neg{color:#C0392B}
+@media print{
+  @page{size:A4;margin:14mm}
+  body *{visibility:hidden}
+  #rel-capture,#rel-capture *{visibility:visible}
+  #rel-capture{position:absolute;left:0;top:0;width:100%}
+  .rel-acao{display:none!important}
+  .rdoc-table{page-break-inside:auto}
+  .rdoc-table tr{page-break-inside:avoid}
+  .rdoc-total,.rdoc-header{page-break-inside:avoid}
+}
 .modal{background:var(--white);border-radius:14px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.22)}
 .modal-hd{padding:18px 20px 14px;border-bottom:1px solid var(--gray2);display:flex;align-items:center;justify-content:space-between}
 .modal-hd h3{font-size:15px;font-weight:800;color:var(--teal)}
@@ -687,7 +739,7 @@ body.capturing .rel-acao{display:none!important}
       <!-- NOTAS FISCAIS (NFS-e) -->
       <div class="page" id="page-nfse">
         <div class="page-header">
-          <div><h2>Notas Fiscais (NFS-e)</h2><p>Emissão mensal — Prefeitura de Campinas (ABRASF 2.03)</p></div>
+          <div><h2>Notas Fiscais (NFS-e)</h2><p>Emissão mensal — Emissor Nacional da NFS-e (Sefin Nacional)</p></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="abrirEnvioLoteNfse()">✉ Enviar e-mails das notas</button><button class="btn btn-outline btn-sm" onclick="renderNfse()">↺ Recarregar</button></div>
         </div>
 
@@ -1696,6 +1748,17 @@ body.capturing .rel-acao{display:none!important}
 </div>
 
 <!-- Envio em lote: escolher quais clientes recebem a NFS-e por e-mail -->
+<style>.nfse-flag-ver{cursor:pointer}.nfse-flag-ver:hover{filter:brightness(.95);text-decoration:underline}.nfse-flag-ver:focus-visible{outline:2px solid #1565C0;outline-offset:2px}</style>
+<div class="modal-bg" id="modal-nfse-ver">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-hd"><h3 id="nv-titulo">E-mail da nota</h3><button onclick="closeModal('modal-nfse-ver')">×</button></div>
+    <div class="modal-bd" id="nv-corpo"></div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('modal-nfse-ver')">Fechar</button>
+      <a class="btn btn-primary" id="nv-gmail" target="_blank" rel="noopener" hidden>Abrir no Gmail</a>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="modal-nfse-lote">
   <div class="modal" style="max-width:760px">
     <div class="modal-hd"><h3>✉ Enviar e-mails das notas</h3><button onclick="closeModal('modal-nfse-lote')">×</button></div>
@@ -3920,89 +3983,64 @@ try{
   const funcId=funcSel?funcSel.value:user.id;
   const nomeFunc=FUNC_MAP[funcId]||FUNC_MAP[user.id]||user.email;
 
-  // Cards de cidade (estilo Manus: borda verde sutil, compactos)
+  // Cards de cidade
   const cidadeCards=Object.entries(porCidade).map(([c,d])=>`
-    <div style="background:#F3FAF4;border:1px solid #CDE6D2;border-radius:8px;padding:12px 22px;text-align:center;min-width:120px">
-      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px">${c}</div>
-      <div style="font-size:17px;font-weight:800;color:var(--green)">${fmt(d.valor)}</div>
-      <div style="font-size:11px;color:var(--text2);margin-top:3px">${d.qtd} visita${d.qtd!==1?'s':''}</div>
+    <div class="cd">
+      <div class="nm">${esc(c)}</div>
+      <div class="vl">${fmt(d.valor)}</div>
+      <div class="qt">${d.qtd} visita${d.qtd!==1?'s':''}</div>
     </div>`).join('');
 
-  // Linhas de visitas (estilo Manus: bordas, padding, coluna Ações)
-  const linhasVisitas=data.map((r,i)=>`
-    <tr style="background:${i%2?'#F8FAFB':'#fff'}">
-      <td style="white-space:nowrap;padding:9px 12px;border:1px solid var(--gray2)">${formatData(r.data)}</td>
-      <td style="padding:9px 12px;border:1px solid var(--gray2)">${esc(r.descricao||'')}</td>
-      <td style="padding:9px 12px;border:1px solid var(--gray2)">${esc(r.cidade||'')}</td>
-      <td style="padding:9px 12px;border:1px solid var(--gray2);text-align:right;font-weight:700;white-space:nowrap;color:${r.valor>0?'var(--green)':'var(--text2)'}">${fmt(r.valor)}</td>
-      <td class="rel-acao" style="padding:9px 8px;border:1px solid var(--gray2);text-align:center"><button title="Remover visita" onclick="excluirVisitaDoRelatorio('${r.id}','${mes}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:#D14343;padding:2px 4px">🗑</button></td>
+  // Linhas de visitas
+  const linhasVisitas=data.map(r=>`
+    <tr>
+      <td class="nowrap">${formatData(r.data)}</td>
+      <td>${esc(r.descricao||'')}</td>
+      <td>${esc(r.cidade||'')}</td>
+      <td class="num ${r.valor>0?'pos':''}">${fmt(r.valor)}</td>
+      <td class="rel-acao ctr"><button title="Remover visita" onclick="excluirVisitaDoRelatorio('${r.id}','${mes}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:#C0392B;padding:2px 4px">🗑</button></td>
     </tr>`).join('');
 
   const mesLabel=`${partes[0].charAt(0).toUpperCase()+partes[0].slice(1)}/${partes[1]}`;
 
   document.getElementById('preview-rel-body').innerHTML=`
-   <div id="rel-capture" style="background:#fff">
-    <!-- Cabeçalho -->
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;border-bottom:2px solid var(--gray2);padding-bottom:14px">
-      <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" style="height:70px;width:auto" crossorigin="anonymous">
-      <div style="text-align:right">
-        <div style="font-size:19px;font-weight:900;color:var(--teal);letter-spacing:.5px">RELATÓRIO DE REEMBOLSO</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px">Período: ${mesLabel}</div>
+   <div id="rel-capture" class="rdoc">
+    <div class="rdoc-header">
+      <div class="rdoc-brand">
+        <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" crossorigin="anonymous">
+        <div class="rdoc-legal"><b>DIAGNÓSTIKA ENGENHARIA LTDA</b><br>CNPJ 54.027.948/0001-60 · Campinas/SP</div>
+      </div>
+      <div class="rdoc-titlebox">
+        <div class="rdoc-doctype">RELATÓRIO DE REEMBOLSO</div>
+        <div class="rdoc-sub">Visitas técnicas e deslocamentos · Período ${mesLabel}</div>
       </div>
     </div>
+    <hr class="rdoc-rule">
 
-    <!-- Info boxes (estilo Manus: fundo azul-claro + borda lateral) -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
-      <div style="background:#EFF6F8;border-left:4px solid var(--teal);border-radius:5px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Funcionário</div>
-        <div style="font-size:15px;font-weight:700;color:var(--teal)">${nomeFunc}</div>
-      </div>
-      <div style="background:#EFF6F8;border-left:4px solid var(--teal);border-radius:5px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Data Prevista de Pagamento</div>
-        <div style="font-size:15px;font-weight:700;color:var(--green)">${dtPagStr}</div>
-      </div>
+    <div class="rdoc-meta c2">
+      <div class="mi"><div class="k">Funcionário</div><div class="v">${esc(nomeFunc)}</div></div>
+      <div class="mi"><div class="k">Data Prevista de Pagamento</div><div class="v ok">${dtPagStr}</div></div>
     </div>
 
-    <!-- Resumo por Cidade -->
-    <div style="margin-bottom:22px">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:11px">Resumo por Cidade</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">${cidadeCards}</div>
-    </div>
+    <div class="rdoc-sectitle">Resumo por Cidade</div>
+    <div class="rdoc-cards">${cidadeCards}</div>
 
-    <!-- Detalhamento de Visitas -->
-    <div style="margin-bottom:18px">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:11px">Detalhamento de Visitas</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--gray2)">
-        <thead>
-          <tr style="background:var(--teal);color:#fff">
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #2C6E79">Data</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #2C6E79">Descrição</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #2C6E79">Cidade</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:700;border:1px solid #2C6E79">Valor</th>
-            <th class="rel-acao" style="padding:10px 8px;text-align:center;font-weight:700;border:1px solid #2C6E79">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${linhasVisitas}
-        </tbody>
-      </table>
-    </div>
+    <div class="rdoc-sectitle">Detalhamento de Visitas</div>
+    <table class="rdoc-table">
+      <thead>
+        <tr>
+          <th>Data</th><th>Descrição</th><th>Cidade</th><th class="num">Valor</th>
+          <th class="rel-acao ctr">Ações</th>
+        </tr>
+      </thead>
+      <tbody>${linhasVisitas}</tbody>
+    </table>
 
-    <!-- Total -->
-    <div style="background:var(--teal);color:#fff;display:flex;justify-content:space-between;padding:13px 18px;border-radius:6px;font-size:15px;font-weight:800;margin-bottom:16px">
-      <span>TOTAL A REEMBOLSAR</span>
-      <span>${fmt(total)}</span>
-    </div>
+    <div class="rdoc-total"><span>TOTAL A REEMBOLSAR</span><span class="big">${fmt(total)}</span></div>
 
-    <!-- Observações -->
-    <div style="background:#FFFBEB;border-left:4px solid #F59E0B;padding:12px 14px;border-radius:4px;font-size:12px;color:#78350F;margin-bottom:16px">
-      <strong>Observações:</strong> Este relatório contém despesas de visitas técnicas e deslocamentos. Os valores incluem combustível e pedágios quando aplicável.
-    </div>
+    <div class="rdoc-note"><strong>Observações:</strong> Este relatório contém despesas de visitas técnicas e deslocamentos. Os valores incluem combustível e pedágios quando aplicável.</div>
 
-    <!-- Rodapé -->
-    <div style="text-align:center;font-size:11px;color:var(--text2);border-top:1px solid var(--gray2);padding-top:11px">
-      Gerado em ${dtGer} | DIAGNÓSTIKA Engenharia
-    </div>
+    <div class="rdoc-footer">Documento gerado eletronicamente pelo sistema financeiro da <b>DIAGNÓSTIKA Engenharia</b> em ${dtGer}.<br>DIAGNÓSTIKA ENGENHARIA LTDA · CNPJ 54.027.948/0001-60 · Campinas/SP</div>
    </div>
   `;
 
@@ -4016,12 +4054,19 @@ try{
 
 function imprimirPreviewRel(){
   const corpo=document.getElementById('preview-rel-body').innerHTML;
+  // Reaproveita a folha de estilo de documentos (.rdoc*) desta página para a janela de impressão
+  let rdocCss='';
+  for(const ss of document.styleSheets){
+    try{for(const rule of ss.cssRules){if(/\.rdoc|\.rel-acao|@page/.test(rule.cssText))rdocCss+=rule.cssText+'\n';}}catch(e){}
+  }
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><title>Relatório de Reembolso</title>
-    <style>body{font-family:'Segoe UI',sans-serif;padding:24px;color:#1A2E31}table{width:100%;border-collapse:collapse}th{background:#155B67;color:#fff;padding:8px 12px;text-align:left}td{padding:8px 12px;border-bottom:1px solid #eee}</style>
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório — Diagnóstika Engenharia</title>
+    <style>@page{size:A4;margin:14mm}html,body{margin:0}body{font-family:'Segoe UI',system-ui,Arial,sans-serif;padding:0;color:#1A2E31;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rel-acao{display:none!important}
+    ${rdocCss}</style>
     </head><body>${corpo}</body></html>`);
   w.document.close();
-  w.print();
+  w.focus();
+  setTimeout(()=>{w.print();},350);
 }
 function downloadPDFPreview(){
   if(_previewModo==='digital'){if(_relatorioDig)downloadPDFDigitalMes(_relatorioDig.mes);else toast('Nenhum relatório carregado',true);return;}
@@ -4326,71 +4371,56 @@ try{
   const dotCor=s=>DOT[(s||'').toLowerCase()]||'#3B82C4';
 
   const servicoCards=Object.entries(porServico).map(([c,d])=>`
-    <div style="background:#F6FAFC;border:1px solid #DCE7EE;border-radius:8px;padding:12px 22px;text-align:center;min-width:120px">
-      <div style="font-size:12px;font-weight:600;color:#2B3A42;margin-bottom:5px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotCor(c)};margin-right:6px;vertical-align:middle"></span>${esc(c)}</div>
-      <div style="font-size:17px;font-weight:800;color:#16A34A">${fmt(d.valor)}</div>
-      <div style="font-size:11px;color:#6B7B83;margin-top:3px">${d.qtd} lançamento${d.qtd!==1?'s':''}</div>
+    <div class="cd">
+      <div class="nm"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotCor(c)};margin-right:6px;vertical-align:middle"></span>${esc(c)}</div>
+      <div class="vl">${fmt(d.valor)}</div>
+      <div class="qt">${d.qtd} lançamento${d.qtd!==1?'s':''}</div>
     </div>`).join('');
 
-  const linhas=data.map((r,i)=>`
-    <tr style="background:${i%2?'#F4F8FA':'#fff'}">
-      <td style="white-space:nowrap;padding:9px 12px;border:1px solid #E2EAEF">${formatData(r.data)}</td>
-      <td style="padding:9px 12px;border:1px solid #E2EAEF"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotCor(r.servico)};margin-right:7px;vertical-align:middle"></span>${esc(r.servico||'')}</td>
-      <td style="padding:9px 12px;border:1px solid #E2EAEF;color:#4A5A62">${esc(r.descricao||'')}</td>
-      <td style="padding:9px 12px;border:1px solid #E2EAEF;text-align:right;font-weight:700;white-space:nowrap;color:#16A34A">${fmt(r.valor_total)}</td>
+  const linhas=data.map(r=>`
+    <tr>
+      <td class="nowrap">${formatData(r.data)}</td>
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotCor(r.servico)};margin-right:7px;vertical-align:middle"></span>${esc(r.servico||'')}</td>
+      <td style="color:#4A5A62">${esc(r.descricao||'')}</td>
+      <td class="num pos">${fmt(r.valor_total)}</td>
     </tr>`).join('');
 
   document.getElementById('preview-rel-body').innerHTML=`
-   <div id="rel-capture" style="background:#fff">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;border-bottom:2px solid #E2EAEF;padding-bottom:14px">
-      <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" style="height:74px;width:auto" crossorigin="anonymous">
-      <div style="text-align:right">
-        <div style="font-size:21px;font-weight:900;color:#1F4E63;letter-spacing:.5px">RELATÓRIO DE REEMBOLSO</div>
-        <div style="font-size:12px;color:#6B7B83;margin-top:3px">Período: ${mesLabel}</div>
+   <div id="rel-capture" class="rdoc">
+    <div class="rdoc-header">
+      <div class="rdoc-brand">
+        <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" crossorigin="anonymous">
+        <div class="rdoc-legal"><b>DIAGNÓSTIKA ENGENHARIA LTDA</b><br>CNPJ 54.027.948/0001-60 · Campinas/SP</div>
+      </div>
+      <div class="rdoc-titlebox">
+        <div class="rdoc-doctype">RELATÓRIO DE REEMBOLSO</div>
+        <div class="rdoc-sub">Serviços digitais e assinaturas · Período ${mesLabel}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px">
-      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Funcionário</div>
-        <div style="font-size:15px;font-weight:700;color:#1F3A42">${RESP_REEMBOLSO.digital.nome}</div>
-      </div>
-      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Tipo de Reembolso</div>
-        <div style="font-size:15px;font-weight:700;color:#1F3A42">Serviços Digitais</div>
-      </div>
-      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${pagLabel}</div>
-        <div style="font-size:15px;font-weight:700;color:#16A34A">${pagVal}</div>
-      </div>
+    <hr class="rdoc-rule">
+
+    <div class="rdoc-meta c3">
+      <div class="mi"><div class="k">Funcionário</div><div class="v">${esc(RESP_REEMBOLSO.digital.nome)}</div></div>
+      <div class="mi"><div class="k">Tipo de Reembolso</div><div class="v">Serviços Digitais</div></div>
+      <div class="mi"><div class="k">${esc(pagLabel)}</div><div class="v ok">${esc(pagVal)}</div></div>
     </div>
-    <div style="margin-bottom:22px">
-      <div style="font-size:13px;font-weight:700;color:#2B3A42;margin-bottom:11px">📄 Resumo por Serviço</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">${servicoCards}</div>
-    </div>
-    <div style="margin-bottom:18px">
-      <div style="font-size:13px;font-weight:700;color:#2B3A42;margin-bottom:11px">Detalhamento de Reembolsos Digitais</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #E2EAEF">
-        <thead>
-          <tr style="background:#2D5E72;color:#fff">
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Data</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Serviço</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Descrição</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:700;border:1px solid #244B5B">Valor</th>
-          </tr>
-        </thead>
-        <tbody>${linhas}</tbody>
-      </table>
-    </div>
-    <div style="background:#2D5E72;color:#fff;display:flex;justify-content:space-between;padding:13px 18px;border-radius:6px;font-size:15px;font-weight:800;margin-bottom:16px">
-      <span>TOTAL A REEMBOLSAR</span>
-      <span>${fmt(total)}</span>
-    </div>
-    <div style="background:#FFFBEB;border-left:4px solid #F59E0B;padding:12px 14px;border-radius:4px;font-size:12px;color:#78350F;margin-bottom:16px">
-      <strong>Observações:</strong> Este relatório contém despesas de serviços digitais e assinaturas. Os valores incluem IOF quando aplicável.
-    </div>
-    <div style="text-align:center;font-size:11px;color:#6B7B83;border-top:1px solid #E2EAEF;padding-top:11px">
-      Gerado em ${dtGer} | DIAGNÓSTIKA Engenharia
-    </div>
+
+    <div class="rdoc-sectitle">Resumo por Serviço</div>
+    <div class="rdoc-cards">${servicoCards}</div>
+
+    <div class="rdoc-sectitle">Detalhamento de Reembolsos Digitais</div>
+    <table class="rdoc-table">
+      <thead>
+        <tr><th>Data</th><th>Serviço</th><th>Descrição</th><th class="num">Valor</th></tr>
+      </thead>
+      <tbody>${linhas}</tbody>
+    </table>
+
+    <div class="rdoc-total"><span>TOTAL A REEMBOLSAR</span><span class="big">${fmt(total)}</span></div>
+
+    <div class="rdoc-note"><strong>Observações:</strong> Este relatório contém despesas de serviços digitais e assinaturas. Os valores incluem IOF quando aplicável.</div>
+
+    <div class="rdoc-footer">Documento gerado eletronicamente pelo sistema financeiro da <b>DIAGNÓSTIKA Engenharia</b> em ${dtGer}.<br>DIAGNÓSTIKA ENGENHARIA LTDA · CNPJ 54.027.948/0001-60 · Campinas/SP</div>
    </div>
   `;
   _previewModo='digital';
@@ -5047,13 +5077,69 @@ function _nfseUltimaHtml(c){
 const NFSE_ENVIAR_WEBHOOK='https://84.46.248.23.sslip.io/webhook/nfse-enviar';
 const NFSE_EMAIL_CC='diagnostikaengenharia@gmail.com';
 function _nfseEnvioDe(n){ return n&&n.raw&&n.raw.envio&&n.raw.envio.modo?n.raw.envio:null; }
+// Nota do Emissor Nacional: codigo_verificacao = chave de acesso (50 dígitos). A Prefeitura não manda e-mail dessas.
+function _nfseNacional(n){ return !!(n&&/^\d{50}$/.test(String(n.codigo_verificacao||''))); }
+// Acessos ao link registrado (n8n "NFS-e Link registrado"): {chave:[{tipo,em,bot}]}
+const NFSE_ABERTURAS_WEBHOOK='https://84.46.248.23.sslip.io/webhook/nfse-aberturas';
+let _nfseAberturas={};
+async function _nfseCarregarAberturas(notas){
+  const cs=[...new Set((notas||[]).filter(_nfseNacional).map(n=>n.codigo_verificacao))]; if(!cs.length) return;
+  try{ const r=await fetch(NFSE_ABERTURAS_WEBHOOK+'?c='+cs.join(',')); const j=await r.json(); if(j&&j.ok) Object.assign(_nfseAberturas,j.ab||{}); }catch(_){}
+}
+function _nfseAberturaPill(n){
+  const l=(_nfseAberturas[n&&n.codigo_verificacao]||[]).filter(x=>!x.bot); if(!l.length) return '';
+  const dl=l.filter(x=>/^download/.test(x.tipo)), ult=(dl.length?dl:l)[(dl.length?dl:l).length-1];
+  const q=new Date(ult.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  return dl.length?`<br><span class="nfse-flag" style="background:#e8f7ee;color:#1a7f37;margin-left:0" title="${esc(l.length+' acesso(s) ao link')}">📥 baixada pelo cliente ${esc(q)}</span>`
+    :`<br><span class="nfse-flag" style="background:#f3e8ff;color:#6b21a8;margin-left:0" title="${esc(l.length+' acesso(s) ao link')}">👁 link aberto ${esc(q)}</span>`;
+}
+// Grava raw.envio (+ histórico raw.envios) em fin_nfse_emitidas com a sessão logada (o anon não acessa fin_* desde 28/10).
+async function _nfseRegistrarEnvio(n,envio){
+  try{
+    const{data,error}=await sb.from('fin_nfse_emitidas').select('raw').eq('id',n.id).single(); if(error) throw error;
+    const raw=Object.assign({},(data&&data.raw)||{}); const hist=Array.isArray(raw.envios)?raw.envios:[];
+    if(raw.envio) hist.push(raw.envio); raw.envio=envio; raw.envios=hist;
+    const{error:e2}=await sb.from('fin_nfse_emitidas').update({raw}).eq('id',n.id); if(e2) throw e2;
+    n.raw=raw; _nfseNotasById[n.id]=n; return {gravado:true};
+  }catch(err){ return {gravado:false,aviso:err.message||String(err)}; }
+}
 function _nfseEnvioPill(n){
   const e=_nfseEnvioDe(n);
   if(!e) return '<span class="nfse-flag" style="background:#fff4e5;color:#b26a00;margin-left:0">⏳ não enviada</span>';
   const dt=e.em?new Date(e.em):null, q=dt?dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
-  if(e.modo==='enviado') return `<span class="nfse-flag" style="background:#e8f7ee;color:#1a7f37;margin-left:0" title="${esc('Para: '+(e.para||'')+(e.cc?' · Cc: '+e.cc:''))}">✅ enviada em ${esc(q)}</span>`;
-  return `<span class="nfse-flag" style="background:#E3F2FD;color:#1565C0;margin-left:0" title="${esc('Rascunho no Gmail para: '+(e.para||''))}">📝 rascunho criado em ${esc(q)}</span>`;
+  const clk=`role="button" tabindex="0" onclick="event.stopPropagation();verEmailNfse('${n.id}')" onkeydown="if(event.key==='Enter')verEmailNfse('${n.id}')"`;
+  if(e.modo==='enviado') return `<span class="nfse-flag nfse-flag-ver" ${clk} style="background:#e8f7ee;color:#1a7f37;margin-left:0" title="Ver o e-mail enviado">✅ enviada em ${esc(q)} · ver</span>`;
+  return `<span class="nfse-flag nfse-flag-ver" ${clk} style="background:#E3F2FD;color:#1565C0;margin-left:0" title="Ver o rascunho">📝 rascunho criado em ${esc(q)} · ver</span>`;
 }
+// Visualizar o e-mail (rascunho ou enviado) sem sair do painel: lê raw.envio na hora.
+const NFSE_NOTA_WEBHOOK='https://84.46.248.23.sslip.io/webhook/nfse-nota';
+async function verEmailNfse(id){
+  const box=document.getElementById('nv-corpo'); box.innerHTML='<p>Carregando…</p>';
+  document.getElementById('modal-nfse-ver').classList.add('open');
+  const{data:n,error}=await sb.from('fin_nfse_emitidas').select('*').eq('id',id).single();
+  if(error||!n){ box.innerHTML='<div class="nfse-resultado erro">Não consegui ler a nota: '+esc(error?error.message:'não encontrada')+'</div>'; return; }
+  const e=_nfseEnvioDe(n); if(!e){ box.innerHTML='<div class="nfse-resultado">Esta nota ainda não tem e-mail criado.</div>'; return; }
+  _nfseNotasById[n.id]=Object.assign(_nfseNotasById[n.id]||{},n);
+  const dt=new Date(e.em).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const link=e.link||((e.corpo||'').match(/https:\/\/diagnostika-engenharia\.github\.io\/nota\/\?t=[0-9a-f.]+/)||[])[0]||'';
+  const t=link.split('?t=')[1]||'';
+  const anexos=e.anexos||[e.arquivo].filter(Boolean);
+  const urlAnexo=nome=>t?NFSE_NOTA_WEBHOOK+'?t='+encodeURIComponent(t)+'&int=1&d='+(/\.xml$/i.test(nome)?'2':'1'):'';
+  const gmail=e.thread_id&&e.draft_id&&e.modo==='rascunho'
+    ?'https://mail.google.com/mail/?authuser='+encodeURIComponent(NFSE_EMAIL_CC)+'#drafts?compose='+encodeURIComponent('thread-f:'+BigInt('0x'+e.thread_id).toString()+'+msg-a:'+e.draft_id)
+    :(e.message_id?'https://mail.google.com/mail/?authuser='+encodeURIComponent(NFSE_EMAIL_CC)+'#all/'+e.message_id:'');
+  const lin=(r,v)=>'<div style="display:grid;grid-template-columns:72px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,#e5e7eb)"><small style="color:var(--text2)">'+r+'</small><div style="word-break:break-word">'+v+'</div></div>';
+  document.getElementById('nv-titulo').textContent=(e.modo==='enviado'?'E-mail enviado':'Rascunho no Gmail')+' — NFS-e nº '+n.numero_nfse;
+  box.innerHTML=
+    '<div class="nfse-flag" style="margin:0 0 10px;background:'+(e.modo==='enviado'?'#e8f7ee;color:#1a7f37':'#E3F2FD;color:#1565C0')+'">'+(e.modo==='enviado'?'✅ Enviado em ':'📝 Rascunho criado em ')+esc(dt)+(e.modo==='enviado'?'':' — ainda não enviado')+'</div>'
+    +lin('Para',esc(e.para||''))+(e.cc?lin('Cc',esc(e.cc)):'')+lin('Assunto','<b>'+esc(e.assunto||'')+'</b>')
+    +lin('Anexos',anexos.map(a=>{const u=urlAnexo(a);return u?'<a href="'+esc(u)+'" target="_blank" rel="noopener">📎 '+esc(a)+'</a>':'📎 '+esc(a);}).join('<br>')+(e.anexo==='pdf_local'?'<br><small style="color:var(--text2)">PDF gerado pelo sistema a partir do XML oficial (sistema nacional fora do ar na hora)</small>':''))
+    +(e.corpo?'<div style="white-space:pre-wrap;font-size:13.5px;line-height:1.5;background:var(--bg2,#f6f8f8);border-radius:8px;padding:12px 14px;margin-top:12px;max-height:46vh;overflow:auto">'+esc(e.corpo)+'</div>'
+             :'<div class="nfse-resultado" style="margin-top:12px">O texto deste e-mail não foi guardado (criado antes desta função). Abra no Gmail para ver.</div>')
+    +'<p style="font-size:11.5px;color:var(--text2);margin:10px 0 0">Abrir os anexos por aqui não conta como acesso do cliente.</p>';
+  const bg=document.getElementById('nv-gmail'); bg.hidden=!gmail; bg.href=gmail||'#';
+}
+function _nfseEnvioPillFull(n){ return _nfseEnvioPill(n)+_nfseAberturaPill(n); }
 // Mês do serviço = mês anterior ao da competência registrada (a nota de "Setembro/2026" cobra o serviço de agosto).
 function _nfseMesServico(comp){
   const [m,a]=String(comp||'').split('/'); const i=_MESES_NF.findIndex(x=>x.toLowerCase()===(m||'').trim().toLowerCase());
@@ -5075,8 +5161,8 @@ async function setNfseCanal(id,canal){
 function _nfseAguardandoEnvio(){
   const comp=_nfseCompSel(); const out=[];
   NFSE_CONDOS.forEach(c=>{
-    if(!c.entrega_email||c.faturamento_ativo===false) return;
-    const u=_nfseUltimas[c.id];
+    if(c.faturamento_ativo===false) return;
+    const u=_nfseUltimas[c.id]; if(!c.entrega_email&&!_nfseNacional(u)) return;
     if(u&&u.ambiente==='producao'&&u.competencia===comp&&!_nfseEnvioDe(u)) out.push({c,u});
   });
   return out;
@@ -5114,7 +5200,11 @@ Segue anexa a Nota Fiscal de Serviços Eletrônica (NFS-e) emitida pela Diagnós
 Nota Fiscal: nº ${n.numero_nfse}
 Competência: ${mesServ}
 ${blocoValor}${venc?'\nVencimento: '+venc:''}
-Pagamento: PIX — Chave CNPJ 54.027.948/0001-60 (Diagnóstika Engenharia — Banco Sicoob)
+Pagamento: PIX — Chave CNPJ 54.027.948/0001-60 (Diagnóstika Engenharia — Banco Sicoob)${_nfseNacional(n)?`
+
+Nota fiscal (PDF): {{LINK_NOTA}}
+Chave de acesso: ${n.codigo_verificacao}
+Consulta pública: www.nfse.gov.br/consultapublica`:''}
 
 Permanecemos à disposição para qualquer esclarecimento.
 
@@ -5128,7 +5218,7 @@ async function _nfseChamarEnvio(n,modo,m){
   const payload={ nota_id:n.id, numero:n.numero_nfse, codigo:n.codigo_verificacao, modo, to:m.para, cc:m.cc, subject:m.subject, corpo:m.corpo, filename:m.filename, competencia_servico:m.mesServ };
   const r=await fetch(NFSE_ENVIAR_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
   const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(_){}
-  if(r.ok&&j.ok&&j.envio){ n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n; return j; }
+  if(r.ok&&j.ok&&j.envio){ const g=await _nfseRegistrarEnvio(n,j.envio); if(!g.gravado){ n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n; } return Object.assign(j,g); }
   return {ok:false,erro:j.erro||txt||('HTTP '+r.status)};
 }
 // ── Envio em lote: lista de clientes, prioridade para quem não recebe pela prefeitura ──
@@ -5138,7 +5228,7 @@ function _nfseLoteItens(){
     if(c.faturamento_ativo===false) return;
     const u=_nfseUltimas[c.id]; if(!u||u.ambiente!=='producao'||!u.numero_nfse) return;
     const n=_nfseNotasById[u.id]||u; const m=_nfseMontarEmail(n);
-    itens.push({c,n,m,prio:!!c.entrega_email,daComp:n.competencia===comp,enviado:_nfseEnvioDe(n)});
+    itens.push({c,n,m,prio:!!c.entrega_email||_nfseNacional(n),daComp:n.competencia===comp,enviado:_nfseEnvioDe(n)});
   });
   // prioridade primeiro; dentro do grupo, quem ainda não foi enviado antes
   itens.sort((a,b)=>(b.prio-a.prio)||((a.enviado?1:0)-(b.enviado?1:0))||a.c.nome.localeCompare(b.c.nome,'pt-BR'));
@@ -5188,7 +5278,7 @@ async function enviarLoteNfse(modo){
     const st=document.getElementById('nl-st-'+x.i); st.innerHTML='⏳ '+(modo==='enviar'?'enviando…':'criando rascunho…');
     try{
       const j=await _nfseChamarEnvio(x.it.n,modo,x.it.m);
-      if(j.ok){ ok++; x.it.enviado=j.envio; st.innerHTML=_nfseEnvioPill(x.it.n); document.getElementById('nl-chk-'+x.i).checked=false; }
+      if(j.ok){ ok++; x.it.enviado=j.envio; st.innerHTML=_nfseEnvioPill(x.it.n)+(j.anexo==='xml'?'<br><small style="color:#b26a00">XML anexado (PDF indisponível)</small>':'')+(j.gravado?'':'<br><small style="color:#c62828">não registrado no histórico</small>'); if(!j.gravado) falhas.push(x.it.c.nome+': e-mail feito mas NÃO registrado no histórico ('+(j.aviso||'')+')'); document.getElementById('nl-chk-'+x.i).checked=false; }
       else{ falhas.push(x.it.c.nome+': '+j.erro); st.innerHTML='<span style="color:#c62828">✗ '+esc(j.erro)+'</span>'; }
     }catch(err){ falhas.push(x.it.c.nome+': '+err.message); st.innerHTML='<span style="color:#c62828">✗ '+esc(err.message)+'</span>'; }
   }
@@ -5228,7 +5318,7 @@ async function enviarNfseEmail(modo){
   const comp=document.getElementById('ne-comp').value.trim();
   const e=_nfseEnvioDe(n);
   if(modo==='enviar'){
-    if(!confirm(`ENVIAR AGORA a NFS-e nº ${n.numero_nfse} para:\n${para}\n(cc: ${document.getElementById('ne-cc').value.trim()||'—'})\n\nO e-mail sai imediatamente pela conta diagnostikaengenharia@gmail.com, com o PDF anexado.`)) return;
+    if(!confirm(`ENVIAR AGORA a NFS-e nº ${n.numero_nfse} para:\n${para}\n(cc: ${document.getElementById('ne-cc').value.trim()||'—'})\n\nO e-mail sai imediatamente pela conta diagnostikaengenharia@gmail.com, com a nota anexada (PDF; XML oficial se o sistema nacional estiver fora).`)) return;
     if(e&&e.modo==='enviado'&&!confirm(`ATENÇÃO: esta nota JÁ FOI ENVIADA em ${new Date(e.em).toLocaleString('pt-BR')}.\n\nEnviar de novo mesmo assim?`)) return;
   }
   const payload={ nota_id:n.id, numero:n.numero_nfse, codigo:n.codigo_verificacao, modo,
@@ -5237,13 +5327,14 @@ async function enviarNfseEmail(modo){
     filename:document.getElementById('ne-arquivo').value.trim(), competencia_servico:comp };
   const btns=document.querySelectorAll('#modal-nfse-envio .modal-ft button'); btns.forEach(b=>b.disabled=true);
   const res=document.getElementById('ne-result');
-  res.innerHTML=`<div class="nfse-resultado" style="margin-top:8px">⏳ ${modo==='enviar'?'Enviando':'Criando rascunho'}… baixando o PDF na Prefeitura e montando o e-mail.</div>`;
+  res.innerHTML=`<div class="nfse-resultado" style="margin-top:8px">⏳ ${modo==='enviar'?'Enviando':'Criando rascunho'}… baixando a nota e montando o e-mail (pode levar até 1 min).</div>`;
   try{
     const r=await fetch(NFSE_ENVIAR_WEBHOOK,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
     const txt=await r.text(); let j={}; try{j=JSON.parse(txt);}catch(_){}
     if(r.ok&&j.ok&&j.envio){
-      n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n;
-      const msg=j.envio.modo==='enviado'?`✓ E-mail ENVIADO para ${esc(j.envio.para)}`:`✓ Rascunho criado no Gmail (diagnostikaengenharia@gmail.com) para ${esc(j.envio.para)} — abra o Gmail, confira e clique em Enviar.`;
+      Object.assign(j,await _nfseRegistrarEnvio(n,j.envio));
+      if(!j.gravado){ n.raw=Object.assign({},n.raw||{},{envio:j.envio}); _nfseNotasById[n.id]=n; toast('E-mail feito, mas NÃO registrado no histórico: '+(j.aviso||''),true); }
+      const msg=(j.envio.anexo==='xml'?'⚠ Sistema nacional sem PDF agora: foi anexado o XML oficial (o link no e-mail tenta o PDF de novo). ':'')+(j.envio.modo==='enviado'?`✓ E-mail ENVIADO para ${esc(j.envio.para)}`:`✓ Rascunho criado no Gmail (diagnostikaengenharia@gmail.com) para ${esc(j.envio.para)} — abra o Gmail, confira e clique em Enviar.`);
       res.innerHTML=`<div class="nfse-resultado ok" style="margin-top:8px">${msg}${j.gravado?'':' <em>(não consegui registrar no histórico: '+esc(j.aviso||'')+')</em>'}</div>`;
       toast(j.envio.modo==='enviado'?'NFS-e enviada por e-mail':'Rascunho criado no Gmail');
       renderNfse(); loadNfseHist();
@@ -5398,10 +5489,28 @@ async function _nfseCriarContaReceber(nome,valorNum,descricao,vencISO,categoria,
 // Grava o histórico da nota emitida. Falha NÃO pode ser silenciosa:
 // a nota já saiu na Prefeitura; se o registro local falhar, o usuário precisa saber.
 async function _nfseGravarHistorico(row){
-  // O histórico agora é gravado pelo MOTOR n8n (server-side), no momento da emissão,
-  // antes de responder ao painel — 100% confiável, independente do navegador.
-  // Mantido como no-op para NÃO duplicar o registro. A leitura continua via loadNfseHist().
-  return;
+  // 06/11/2026: o motor n8n gravava com a chave anônima, mas desde 28/10 o anon não tem
+  // acesso a fin_* (seguranca_28-10-2026) → falhava em silêncio. Agora o PAINEL (logado) grava.
+  // Deduplica por codigo_verificacao (chave de acesso nacional) e devolve true/false.
+  try{
+    const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const j=row.raw||{};
+    const r={...row,
+      condominio_id:uuidRe.test(String(row.condominio_id||''))?row.condominio_id:null,
+      tomador_doc:String(row.tomador_doc||'').replace(/\D/g,''),
+      conta_receber_id:null, // fin_contas_receber.id é inteiro; vínculo é pelo numero_nfse
+      raw:{ painel:true, emissor:j.emissor||null, chave_acesso:j.chave_acesso||null, danfse_url:j.danfse_url||null,
+            dps_id:j.dps_id||null, dps_serie:j.dps_serie||null, dps_numero:j.dps_numero||null,
+            http_status:j.http_status||null, conta_receber_id:row.conta_receber_id||null }
+    };
+    if(r.codigo_verificacao){
+      const{data:ex,error:e1}=await sb.from('fin_nfse_emitidas').select('id').eq('codigo_verificacao',r.codigo_verificacao).limit(1);
+      if(!e1 && ex && ex.length) return true;
+    }
+    const{error}=await sb.from('fin_nfse_emitidas').insert(r);
+    if(error){ console.warn('fin_nfse_emitidas',error.message); toast('Nota emitida, mas o histórico NÃO gravou: '+error.message,true); return false; }
+    return true;
+  }catch(e){ console.warn(e); toast('Nota emitida, mas o histórico NÃO gravou: '+e.message,true); return false; }
 }
 
 async function emitirNfse(){
@@ -5440,7 +5549,7 @@ async function emitirNfse(){
         let crId=null;
         if(prod){ crId=await _nfseCriarContaReceber(c.nome,st.valor,descFinal,_nfseVencISO(c),null,j.numero_nfse,j.codigo_verificacao); }
         // grava histórico (sempre)
-        await _nfseGravarHistorico({
+        const histOk=await _nfseGravarHistorico({
           condominio_id:c.id, nome:c.nome,
           tomador_doc:c.tomador.cnpj, tomador_tipo:'cnpj', tomador_razao:c.tomador.razao_social,
           competencia:comp, valor:(+st.valor), iss_retido:c.iss_retido, descricao:descFinal,
@@ -5449,7 +5558,7 @@ async function emitirNfse(){
           status:prod?'emitida':'teste', conta_receber_id:crId, avulsa:false,
           servico:'Mensalidade de engenharia', raw:j
         });
-        st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${prod?(crId?' <em>(lançada no Contas a Receber)</em>':' <em>(emitida; falha ao lançar em Contas a Receber — confira)</em>'):' <em>(homologação/teste — sem valor fiscal)</em>'}`};
+        st.resultado={ok:true,msg:`✓ Nota emitida nº <b>${esc(j.numero_nfse)}</b>${j.codigo_verificacao?(' · cód. verificação <b>'+esc(j.codigo_verificacao)+'</b>'):''}${prod?(crId?' <em>(lançada no Contas a Receber)</em>':' <em>(emitida; falha ao lançar em Contas a Receber — confira)</em>'):' <em>(homologação/teste — sem valor fiscal)</em>'}${histOk?'':' <b style="color:#c0392b">⚠ histórico NÃO gravado — NÃO reemita</b>'}`};
         if(c.parcelamento && st.parcela!=null){
           st.parcela=+st.parcela+1;
           if(prod&&c.db_id) sb.from('fin_clientes').update({parcelas_emitidas:+st.parcela}).eq('id',c.db_id).then(()=>{});
@@ -5481,6 +5590,7 @@ async function loadNfseHist(){
   if(!data||!data.length){ box.innerHTML='<div class="nfse-hist-empty">Nenhuma nota registrada ainda.</div>'; return; }
   document.getElementById('nfse-hist-count').textContent=data.length;
   data.forEach(n=>{ _nfseNotasById[n.id]=n; });
+  await _nfseCarregarAberturas(data.filter(n=>n.ambiente==='producao'));
   box.innerHTML=`<table class="nfse-hist-tbl"><thead><tr>
       <th>Nº</th><th>Tomador</th><th>Competência</th><th>Valor</th><th>Serviço</th><th>Ambiente</th><th>Emitida em</th><th>E-mail ao cliente</th></tr></thead><tbody>`+
     data.map(n=>`<tr>
@@ -5491,7 +5601,7 @@ async function loadNfseHist(){
       <td>${esc(n.servico||(n.avulsa?'Avulsa':'Mensalidade'))}${n.avulsa?' <span class="nfse-flag">avulsa</span>':''}</td>
       <td><span class="nfse-amb-pill ${n.ambiente==='producao'?'prod':'teste'}">${n.ambiente==='producao'?'produção':'teste'}</span>${n.conta_receber_id?'<br><small>↳ Contas a Receber</small>':''}</td>
       <td><small>${n.created_at?new Date(n.created_at).toLocaleString('pt-BR'):'—'}</small></td>
-      <td>${n.ambiente==='producao'&&n.numero_nfse?`${_nfseEnvioPill(n)}<br><button class="btn btn-outline btn-sm" style="margin-top:4px" onclick="abrirEnvioNfse('${n.id}')">✉ ${_nfseEnvioDe(n)?'reenviar':'enviar'}</button>`:'<small>—</small>'}</td>
+      <td>${n.ambiente==='producao'&&n.numero_nfse?`${_nfseEnvioPillFull(n)}<br><button class="btn btn-outline btn-sm" style="margin-top:4px" onclick="abrirEnvioNfse('${n.id}')">✉ ${_nfseEnvioDe(n)?'reenviar':'enviar'}</button>`:'<small>—</small>'}</td>
     </tr>`).join('')+`</tbody></table>`;
 }
 function toggleNfseHist(){
@@ -7077,12 +7187,12 @@ try{
   const c=_plCalc(r);
   _relatorioPL={id:r.id,socioNome:r.socio_nome,competencia:r.competencia,nrControle:r.nr_controle,liquido:c.liquido,bruto:c.creditos||r.valor_bruto};
 
-  const linhas=itens.map((it,i)=>`
-    <tr style="background:${i%2?'#F4F8FA':'#fff'}">
-      <td style="white-space:nowrap;padding:9px 12px;border:1px solid #E2EAEF">${it.data?formatData(it.data):'—'}</td>
-      <td style="padding:9px 12px;border:1px solid #E2EAEF">${esc(it.descricao||'')}</td>
-      <td style="padding:9px 12px;border:1px solid #E2EAEF;text-align:center">${it.tipo==='credito'?'<span style="color:#16A34A;font-weight:700">Crédito</span>':'<span style="color:#C62828;font-weight:700">Débito</span>'}</td>
-      <td style="padding:9px 12px;border:1px solid #E2EAEF;text-align:right;font-weight:700;white-space:nowrap;color:${it.tipo==='credito'?'#16A34A':'#C62828'}">${it.tipo==='credito'?'':'-'}${fmt(it.valor)}</td>
+  const linhas=itens.map(it=>`
+    <tr>
+      <td class="nowrap">${it.data?formatData(it.data):'—'}</td>
+      <td>${esc(it.descricao||'')}</td>
+      <td class="ctr">${it.tipo==='credito'?'<span class="pos" style="font-weight:700">Crédito</span>':'<span class="neg" style="font-weight:700">Débito</span>'}</td>
+      <td class="num ${it.tipo==='credito'?'pos':'neg'}">${it.tipo==='credito'?'':'-'}${fmt(it.valor)}</td>
     </tr>`).join('');
 
   const statusLabel=r.status==='Pago'?'Data do Pagamento':'Status';
@@ -7090,53 +7200,38 @@ try{
   const dtGer=new Date().toLocaleString('pt-BR');
 
   document.getElementById('preview-rel-body').innerHTML=`
-   <div id="rel-capture" style="background:#fff">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;border-bottom:2px solid #E2EAEF;padding-bottom:14px">
-      <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" style="height:74px;width:auto" crossorigin="anonymous">
-      <div style="text-align:right">
-        <div style="font-size:21px;font-weight:900;color:#1F4E63;letter-spacing:.5px">RECIBO DE PRÓ-LABORE</div>
-        <div style="font-size:12px;color:#6B7B83;margin-top:3px">Competência: ${fmtComp(r.competencia)}${r.nr_controle?' · Controle '+esc(r.nr_controle):''}</div>
+   <div id="rel-capture" class="rdoc">
+    <div class="rdoc-header">
+      <div class="rdoc-brand">
+        <img src="assets/logo-vertical.png" alt="Diagnóstika Engenharia" crossorigin="anonymous">
+        <div class="rdoc-legal"><b>DIAGNÓSTIKA ENGENHARIA LTDA</b><br>CNPJ 54.027.948/0001-60 · Campinas/SP</div>
+      </div>
+      <div class="rdoc-titlebox">
+        <div class="rdoc-doctype">RECIBO DE PRÓ-LABORE</div>
+        <div class="rdoc-sub">Competência ${fmtComp(r.competencia)}</div>
+        ${r.nr_controle?`<div class="rdoc-ctrl">CONTROLE ${esc(r.nr_controle)}</div>`:''}
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:22px">
-      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Sócio</div>
-        <div style="font-size:15px;font-weight:700;color:#1F3A42">${esc(r.socio_nome)}</div>
-      </div>
-      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Valor Bruto</div>
-        <div style="font-size:15px;font-weight:700;color:#1F3A42">${fmt(r.valor_bruto)}</div>
-      </div>
-      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${statusLabel}</div>
-        <div style="font-size:15px;font-weight:700;color:#16A34A">${esc(statusVal)}</div>
-      </div>
-      <div style="background:#EAF2F6;border-radius:6px;padding:11px 16px">
-        <div style="font-size:10px;font-weight:600;color:#6B7B83;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Conta de Pagamento</div>
-        <div style="font-size:15px;font-weight:700;color:#1F3A42">${esc(r.conta_pagamento||r.forma_pagamento||'—')}</div>
-      </div>
+    <hr class="rdoc-rule">
+
+    <div class="rdoc-meta c4">
+      <div class="mi"><div class="k">Sócio</div><div class="v">${esc(r.socio_nome)}</div></div>
+      <div class="mi"><div class="k">Valor Bruto</div><div class="v">${fmt(r.valor_bruto)}</div></div>
+      <div class="mi"><div class="k">${esc(statusLabel)}</div><div class="v ok">${esc(statusVal)}</div></div>
+      <div class="mi"><div class="k">Conta de Pagamento</div><div class="v">${esc(r.conta_pagamento||r.forma_pagamento||'—')}</div></div>
     </div>
-    <div style="margin-bottom:18px">
-      <div style="font-size:13px;font-weight:700;color:#2B3A42;margin-bottom:11px">Detalhamento</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #E2EAEF">
-        <thead>
-          <tr style="background:#2D5E72;color:#fff">
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Data</th>
-            <th style="padding:10px 12px;text-align:left;font-weight:700;border:1px solid #244B5B">Descrição</th>
-            <th style="padding:10px 12px;text-align:center;font-weight:700;border:1px solid #244B5B">Tipo</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:700;border:1px solid #244B5B">Valor</th>
-          </tr>
-        </thead>
-        <tbody>${linhas}</tbody>
-      </table>
-    </div>
-    <div style="background:#2D5E72;color:#fff;display:flex;justify-content:space-between;padding:13px 18px;border-radius:6px;font-size:15px;font-weight:800;margin-bottom:16px">
-      <span>LÍQUIDO A RECEBER</span>
-      <span>${fmt(c.liquido)}</span>
-    </div>
-    <div style="text-align:center;font-size:11px;color:#6B7B83;border-top:1px solid #E2EAEF;padding-top:11px">
-      Gerado em ${dtGer} | DIAGNÓSTIKA Engenharia
-    </div>
+
+    <div class="rdoc-sectitle">Detalhamento</div>
+    <table class="rdoc-table">
+      <thead>
+        <tr><th>Data</th><th>Descrição</th><th class="ctr">Tipo</th><th class="num">Valor</th></tr>
+      </thead>
+      <tbody>${linhas}</tbody>
+    </table>
+
+    <div class="rdoc-total"><span>LÍQUIDO A RECEBER</span><span class="big">${fmt(c.liquido)}</span></div>
+
+    <div class="rdoc-footer">Documento gerado eletronicamente pelo sistema financeiro da <b>DIAGNÓSTIKA Engenharia</b> em ${dtGer}.<br>DIAGNÓSTIKA ENGENHARIA LTDA · CNPJ 54.027.948/0001-60 · Campinas/SP</div>
    </div>
   `;
   _previewModo='prolabore';
@@ -8775,7 +8870,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20260922-153847';
+const APP_BUILD='20261106-163517';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
