@@ -5137,13 +5137,13 @@ async function verEmailNfse(id){
   const gmail=e.thread_id&&e.draft_id&&e.modo==='rascunho'
     ?'https://mail.google.com/mail/?authuser='+encodeURIComponent(NFSE_EMAIL_CC)+'#drafts?compose='+encodeURIComponent('thread-f:'+BigInt('0x'+e.thread_id).toString()+'+msg-a:'+e.draft_id)
     :(e.message_id?'https://mail.google.com/mail/?authuser='+encodeURIComponent(NFSE_EMAIL_CC)+'#all/'+e.message_id:'');
-  const lin=(r,v)=>'<div style="display:grid;grid-template-columns:72px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,#e5e7eb)"><small style="color:var(--text2)">'+r+'</small><div style="word-break:break-word">'+v+'</div></div>';
+  const lin=(r,v)=>'<div style="display:grid;grid-template-columns:72px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,#e5e7eb)"><small style="color:var(--text2)">'+r+'</small><div style="overflow-wrap:anywhere;min-width:0">'+v+'</div></div>';
   document.getElementById('nv-titulo').textContent=(e.modo==='enviado'?'E-mail enviado':'Rascunho no Gmail')+' — NFS-e nº '+n.numero_nfse;
   box.innerHTML=
     '<div class="nfse-flag" style="margin:0 0 10px;background:'+(e.modo==='enviado'?'#e8f7ee;color:#1a7f37':'#E3F2FD;color:#1565C0')+'">'+(e.modo==='enviado'?'✅ Enviado em ':'📝 Rascunho criado em ')+esc(dt)+(e.modo==='enviado'?'':' — ainda não enviado')+'</div>'
     +lin('Para',esc(e.para||''))+(e.cc?lin('Cc',esc(e.cc)):'')+lin('Assunto','<b>'+esc(e.assunto||'')+'</b>')
     +lin('Anexos',anexos.map(a=>{const u=urlAnexo(a);return u?'<a href="'+esc(u)+'" target="_blank" rel="noopener">📎 '+esc(a)+'</a>':'📎 '+esc(a);}).join('<br>')+(e.anexo==='pdf_local'?'<br><small style="color:var(--text2)">PDF gerado pelo sistema a partir do XML oficial (sistema nacional fora do ar na hora)</small>':''))
-    +(e.corpo?'<div style="white-space:pre-wrap;font-size:13.5px;line-height:1.5;background:var(--bg2,#f6f8f8);border-radius:8px;padding:12px 14px;margin-top:12px;max-height:46vh;overflow:auto">'+esc(e.corpo)+'</div>'
+    +(e.corpo?'<div style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;line-height:1.5;background:var(--bg2,#f6f8f8);border-radius:8px;padding:12px 14px;margin-top:12px;max-height:46vh;overflow:auto">'+esc(e.corpo)+'</div>'
              :'<div class="nfse-resultado" style="margin-top:12px">O texto deste e-mail não foi guardado (criado antes desta função). Abra no Gmail para ver.</div>')
     +'<p style="font-size:11.5px;color:var(--text2);margin:10px 0 0">Abrir os anexos por aqui não conta como acesso do cliente.</p>';
   const bg=document.getElementById('nv-gmail'); bg.hidden=!gmail; bg.href=gmail||'#';
@@ -8879,7 +8879,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261106-163643';
+const APP_BUILD='20261106-163958';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
