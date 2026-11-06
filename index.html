@@ -758,7 +758,7 @@ body.capturing .rel-acao{display:none!important}
         <!-- Seletor de competência -->
         <div class="nfse-comp">
           <div class="func-col">
-            <label>Competência (mês de referência)</label>
+            <label title="A nota sai com a competência do mês anterior (mês do serviço)">Mês de faturamento (vencimento) · nota sai com o mês anterior</label>
             <div style="display:flex;gap:8px">
               <select id="nfse-mes" class="ano-select" style="width:120px"></select>
               <select id="nfse-ano" class="ano-select"></select>
@@ -5054,7 +5054,16 @@ function _nfseDescFinal(c){
     .replace(/\{\{valor\}\}/g, (+st.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}))
     .replace(/\{\{vencimento\}\}/g, _nfseVencimento(c))
     .replace(/\{\{parcela\}\}/g, st.parcela!=null?st.parcela:'');
-  return d;
+  return _nfseComLinhaCompet(d);
+}
+// Linha "Competência: <mês do serviço>" na descrição da nota (o campo Competência do DANFSe só aceita data).
+// Entra antes da linha de Vencimento; não duplica se a descrição já falar em competência.
+function _nfseComLinhaCompet(d){
+  d=String(d||''); if(/compet[êe]ncia/i.test(d)) return d;
+  const linha='Competência: '+_nfseMesServico(_nfseCompSel());
+  const ls=d.split('\n'); const i=ls.findIndex(l=>/^\s*vencimento/i.test(l));
+  if(i>=0) ls.splice(i,0,linha); else ls.push(linha);
+  return ls.join('\n');
 }
 
 // Bloco "Última nota emitida" exibido no card expandido de cada condomínio.
@@ -5655,7 +5664,7 @@ async function emitirAvulsa(){
   const prestador={...NFSE_PRESTADOR, item_lista:item||NFSE_PRESTADOR.item_lista};
   const payload={ ambiente:_nfseAmbiente, competencia:comp, prestador, condominio_id:'avulsa', nome:razao,
     tomador, valor:valor.toFixed(2), iss_retido:iss,
-    descricao:desc.replace(/\{\{vencimento\}\}/g,_nfseVencimento()).replace(/\{\{valor\}\}/g,valor.toLocaleString('pt-BR',{minimumFractionDigits:2})),
+    descricao:_nfseComLinhaCompet(desc.replace(/\{\{vencimento\}\}/g,_nfseVencimento()).replace(/\{\{valor\}\}/g,valor.toLocaleString('pt-BR',{minimumFractionDigits:2}))),
     vencimento:_nfseVencimento(), parcela:null, megazap:false, avulsa:true, servico };
   res.innerHTML='<div class="nfse-resultado">Emitindo…</div>';
   document.getElementById('av-emitir-btn').disabled=true;
@@ -8870,7 +8879,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261106-163517';
+const APP_BUILD='20261106-163643';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
