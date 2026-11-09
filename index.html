@@ -1431,8 +1431,8 @@ body.capturing .rel-acao{display:none!important}
     <div class="modal-bd" style="overflow-y:auto;flex:1">
       <input type="hidden" id="mpj-id">
       <div id="mpj-auto-banner" style="display:none;background:#EDE7F6;border:1px solid #D1C4E9;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px">
-        <b style="color:#5E35B1">🤖 Atualizado automaticamente pelo grupo</b>
-        <div style="color:var(--text2);margin:4px 0 8px">O robô leu o grupo Projetos e aplicou estas mudanças. Confira: se estiver certo, aceite; se não, corrija os campos e salve.</div>
+        <b style="color:#5E35B1">🤖🧠 Atualizado automaticamente</b>
+        <div style="color:var(--text2);margin:4px 0 8px">Um robô (grupo Projetos, imagem ou extrato) ou uma sessão do Claude/Codex aplicou estas mudanças. Veja na linha do tempo os itens "⚠️ a confirmar". Se estiver certo, aceite; se não, corrija os campos e salve.</div>
         <button class="btn btn-primary btn-sm" type="button" onclick="pjAceitarAuto()">✓ Aceitar as atualizações</button>
       </div>
       <div class="form-2col">
@@ -8010,7 +8010,7 @@ const PJ_TIPOS={averbacao:'Averbação',regularizacao:'Regularização',anexacao
   aprovacao_condominio:'Aprovação em condomínio',outro:'Outro'};
 const _pjStatusInfo=k=>PJ_STATUS.find(s=>s.k===k)||{k,l:k,c:'#607D8B'};
 const _pjNorm=s=>String(s||'').trim().toLowerCase();
-const PJ_ORIGEM={manual:'✍️ manual',extrato:'🏦 extrato',gmail:'✉️ e-mail',whatsapp:'💬 WhatsApp',grupo:'👥 grupo'};
+const PJ_ORIGEM={manual:'✍️ manual',extrato:'🏦 extrato',gmail:'✉️ e-mail',whatsapp:'💬 WhatsApp',grupo:'👥 grupo',sessao:'🧠 sessão'};
 const PJ_EV_TIPO={status_change:'🔄 status',doc_recebido:'📄 doc',pagamento:'💰 pagamento',custo:'🔻 custo',nota:'📝 nota',prazo:'⏰ prazo'};
 let _pjClientes=[], _pjProjetos=[], _pjArquivados=[], _pjDocs=[], _pjEventos=[], _pjTxns=[], _pjView='kanban', _pjCarregado=false, _pjDocsDraft=[], _pjMostrarArq=false;
 // parcelas do projeto que viraram contas a receber (fonte do fluxo de caixa)
@@ -8105,6 +8105,12 @@ const _pjAguardaEntrada=p=>!_pjSemValor(p)&&!_pjEntradaOk(p)&&!PJ_ST_INICIADO.in
 const _pjEventosDe=pid=>_pjEventos.filter(e=>e.projeto_id===pid);
 // projeto com update automático do grupo ainda não confirmado pela equipe
 const _pjAutoPend=p=>_pjEventos.some(e=>e.projeto_id===p.id&&e.confirmado===false);
+// origem dos pendentes: sessão (Claude/Codex via projeto-sync.mjs) e/ou robôs (grupo/extrato/imagem)
+const _pjAutoSelo=p=>{
+  const pend=_pjEventos.filter(e=>e.projeto_id===p.id&&e.confirmado===false);
+  const ses=pend.some(e=>e.origem==='sessao'), rob=pend.some(e=>e.origem!=='sessao');
+  return ses&&rob?'🧠🤖 sessão e grupo · confira':ses?'🧠 da sessão · confira':'🤖 auto do grupo · confira';
+};
 // dias parado desde o último movimento (só conta p/ projetos ativos)
 function _pjParadoDias(p){
   const base=p.last_movement_at||p.atualizado_em||p.criado_em; if(!base)return 0;
@@ -8283,7 +8289,7 @@ function _pjCardHtml(p){
     </div>
     <div class="cli">${esc(c.nome)}</div>
     <div class="tip">${esc(PJ_TIPOS[p.tipo]||p.tipo)}${p.bairro||p.cidade?' · '+esc([p.bairro,p.cidade].filter(Boolean).join(', ')):''}</div>
-    ${_pjAutoPend(p)?`<div style="margin-top:6px;font-size:11px;font-weight:700;color:#5E35B1;background:#EDE7F6;border-radius:6px;padding:3px 7px;display:inline-block">🤖 auto do grupo · confira</div>`:''}
+    ${_pjAutoPend(p)?`<div style="margin-top:6px;font-size:11px;font-weight:700;color:#5E35B1;background:#EDE7F6;border-radius:6px;padding:3px 7px;display:inline-block">${_pjAutoSelo(p)}</div>`:''}
     ${nx}
     <div class="ft">
       ${_pjSemValor(p)?`<span style="background:#FFF8E1;border-color:#FFE082;color:#8D6E00" title="sem valor de contrato — não dá para cobrar a entrada">💰 valor a definir</span>`
@@ -8902,7 +8908,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261106-164930';
+const APP_BUILD='20261109-120345';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
