@@ -1397,6 +1397,7 @@ body.capturing .rel-acao{display:none!important}
               <option value="__violaentrada">🚫 Iniciado sem entrada</option>
               <option value="__semvalor">💰 Sem valor de contrato</option>
             </select>
+            <a href="/sessoes/" target="_blank" rel="noopener" class="btn btn-outline" style="padding:6px 11px;font-size:12.5px;text-decoration:none" title="Conversas das sessões de projeto, ao vivo">💬 Conversas</a>
             <input id="pj-f-busca" oninput="pjRender()" placeholder="🔎 cliente, código, bairro…" style="padding:6px 9px;border:1px solid var(--gray3);border-radius:8px;font-size:13px;flex:1;min-width:140px;max-width:260px">
           </div>
           <div class="pj-kanban" id="pj-kanban"></div>
@@ -1520,6 +1521,7 @@ body.capturing .rel-acao{display:none!important}
     <div class="modal-ft" style="display:flex;gap:8px;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--gray3)">
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline" id="mpj-excluir" onclick="pjExcluir()" style="color:var(--red)">🗑 Excluir</button>
+        <a class="btn btn-outline" id="mpj-conversa" target="_blank" rel="noopener" style="text-decoration:none;display:none">💬 Conversa</a>
         <button class="btn btn-outline" id="mpj-arquivar" onclick="pjArquivar()" style="color:var(--text2)" title="Some das cobranças, do digest e do kanban ativo — sem apagar. Reversível.">📥 Arquivar</button>
       </div>
       <div style="display:flex;gap:8px">
@@ -8445,6 +8447,7 @@ function pjNovo(){
   document.getElementById('mpj-auto-banner').style.display='none';
   document.getElementById('mpj-excluir').style.display='none';
   document.getElementById('mpj-arquivar').style.display='none';
+  {const bc=document.getElementById('mpj-conversa');if(bc)bc.style.display='none';}
   document.getElementById('modal-projeto').classList.add('open');
 }
 
@@ -8485,6 +8488,8 @@ function pjAbrir(id){
   document.getElementById('mpj-excluir').style.display='';
   const bArq=document.getElementById('mpj-arquivar');
   bArq.style.display=''; bArq.textContent=p.arquivado?'📤 Desarquivar':'📥 Arquivar';
+  const bConv=document.getElementById('mpj-conversa');
+  if(bConv){bConv.style.display=p.codigo?'':'none';bConv.href='/sessoes/?s='+encodeURIComponent(p.codigo||'');}
   document.getElementById('modal-projeto').classList.add('open');
 }
 
@@ -8908,7 +8913,7 @@ async function pjSalvarCliente(){
    Teto de propagação: o CDN do GitHub Pages ignora query string e segura
    max-age=600, então um deploy pode levar até ~10 min pra chegar em todos.
    APP_BUILD e version.json são carimbados pelo _deploy.sh (deploy SEMPRE por ele). */
-const APP_BUILD='20261109-120345';
+const APP_BUILD='20261119-114808';
 (function(){
   const CHECK_MS=4*60*1000;
   const T0=performance.now();
